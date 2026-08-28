@@ -1,0 +1,2407 @@
+// src/pages/ThanhHinh/MayThanhHinhDashboard.jsx
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  getDashboardMay,
+  getDashboardStats,
+  getDailyPlanRatio,
+  getChartRealTime,
+  getChartSetting,
+  getChartRealTimeTH09,
+  getChartSettingTH09,
+  getChartRealTimeTH05,
+  getChartSettingTH05,
+  getShiftStats,
+  getMachineStatusTimes,
+  getMachineStatusTimesByMonth,
+  getViewOrcThMachineImageApi
+} from '../../api/thanhhinhApi';
+import { toast } from 'react-toastify';
+import {
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  AreaChart, Area, LabelList,
+} from 'recharts';
+
+import RealTimeTH02History from './RealTimeTH02History';
+import RealTimeTH09History from './RealTimeTH09History';
+import RealTimeTH05History from './RealTimeTH05History';
+import SettingTH02History from './SettingTH02History';
+import SettingTH09History from './SettingTH09History';
+import SettingTH05History from './SettingTH05History';
+import ThanhHinhChangeHistory from '../../components/change/ThanhHinhChangeHistory';
+
+/* ─── MES Desktop Style ──────────────────────────────────────────────────── */
+const css = `
+  * { box-sizing: border-box; }
+  @keyframes spin   { to { transform: rotate(360deg); } }
+  @keyframes fadein { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  .mes-fade { animation: fadein 0.25s ease both; }
+
+  .mes-dash {
+    min-height: 100vh;
+    padding: 10px;
+    background: linear-gradient(180deg, #f0f4f8 0%, #d8e4f0 100%);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+
+  /* ── Title bar ── */
+  .mes-title-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 8px;
+    margin-bottom: 8px; padding-bottom: 6px;
+    border-bottom: 2px solid #96afc8;
+  }
+  .mes-title-left  { display: flex; align-items: center; gap: 10px; }
+  .mes-back-btn {
+    width: 28px; height: 28px; border-radius: 2px;
+    background: linear-gradient(180deg, #f0f8ff 0%, #d0e8fc 100%);
+    border: 1px solid #6890b0;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0; transition: background 0.1s;
+  }
+  .mes-back-btn:hover { background: linear-gradient(180deg, #d8f0ff 0%, #b8d8f8 100%); }
+  .mes-page-eyebrow {
+    font-size: 10px; font-weight: 700; color: #96afc8;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  .mes-page-title {
+    font-size: 15px; font-weight: 900; color: #1a3a5c;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+
+  /* ── Filter bar ── */
+  .mes-filterbar {
+    background: #d4e4f4; border: 1px solid #96afc8; border-radius: 3px;
+    padding: 5px 10px;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .mes-fb-label { font-size: 12px; font-weight: 700; color: #1a3a5c; white-space: nowrap; }
+  .mes-fb-group { display: flex; align-items: center; gap: 5px; }
+  .mes-select {
+    border: 1px solid #6890b0; background: #fff;
+    padding: 2px 6px; font-size: 12px; font-weight: 600; color: #1a3a5c;
+    border-radius: 2px; outline: none; height: 24px;
+    font-family: 'Segoe UI', sans-serif;
+  }
+  .mes-select:focus { border-color: #1565C0; box-shadow: 0 0 0 2px rgba(21,101,192,0.15); }
+  .mes-filter-btn {
+    display: flex; align-items: center; gap: 5px;
+    background: linear-gradient(180deg, #f0f8ff 0%, #d0e8fc 100%);
+    border: 1px solid #6890b0; border-radius: 2px;
+    padding: 0 14px; height: 24px;
+    font-size: 12px; font-weight: 700; color: #1a3a5c;
+    cursor: pointer; white-space: nowrap; transition: background 0.1s;
+  }
+  .mes-filter-btn:hover { background: linear-gradient(180deg, #d8f0ff 0%, #b8d8f8 100%); }
+
+  /* ── KPI row ── */
+  .mes-kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 8px; margin-bottom: 10px;
+  }
+  .mes-kpi-card {
+    background: #fff; border: 1px solid #b8cce0;
+    border-left: 3px solid #1565C0; border-radius: 3px;
+    padding: 8px 12px;
+  }
+  .mes-kpi-lbl {
+    font-size: 10px; font-weight: 700; color: #6890b0;
+    text-transform: uppercase; letter-spacing: 0.8px;
+    display: block; margin-bottom: 4px;
+  }
+  .mes-kpi-val {
+    font-size: 19px; font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    display: block; line-height: 1.1;
+  }
+  .mes-kpi-unit { font-size: 10px; font-weight: 600; color: #96afc8; margin-top: 2px; display: block; }
+
+  /* ── Content panels ── */
+  .mes-panel {
+    background: #fff; border: 1px solid #b8cce0;
+    border-radius: 3px; overflow: hidden; margin-bottom: 10px;
+  }
+  .mes-panel-header {
+    background: linear-gradient(180deg, #d8e8f4 0%, #c8ddf0 100%);
+    border-bottom: 1px solid #96afc8;
+    padding: 5px 10px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; font-weight: 800; color: #1a3a5c;
+    text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  .mes-panel-accent { width: 3px; height: 16px; border-radius: 1px; flex-shrink: 0; }
+  .mes-panel-body { padding: 10px; }
+
+  /* ── 2-col grid ── */
+  .mes-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  @media (max-width: 800px) { .mes-grid-2 { grid-template-columns: 1fr; } }
+
+  /* ── Stats list inside panel ── */
+  .mes-stat-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 10px; background: #eef5fc;
+    border: 1px solid #d0dff0; border-radius: 2px; margin-bottom: 5px;
+  }
+  .mes-stat-row-label { font-size: 12px; font-weight: 600; color: #4a6a8a; }
+  .mes-stat-row-value { font-size: 13px; font-weight: 900; font-variant-numeric: tabular-nums; }
+
+  /* ── Progress bars in donut panel ── */
+  .mes-prog-wrap { height: 7px; background: #d8e8f4; border-radius: 1px; overflow: hidden; margin-top: 4px; }
+  .mes-prog-fill { height: 100%; border-radius: 1px; transition: width 1s ease; }
+
+  /* ── Info box (kế hoạch / thực tế) ── */
+  .mes-info-box {
+    padding: 8px 12px; border-radius: 2px;
+    border: 1px solid #d0dff0; margin-bottom: 6px;
+  }
+  .mes-info-lbl { font-size: 11px; color: #96afc8; font-weight: 600; margin-bottom: 2px; display: block; }
+  .mes-info-val { font-size: 14px; font-weight: 900; font-variant-numeric: tabular-nums; }
+
+  /* ── Legend pills ── */
+  .mes-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; }
+  .mes-legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: #4a6a8a; }
+  .mes-legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  .mes-legend-line { width: 20px; height: 3px; border-radius: 1px; flex-shrink: 0; }
+
+  /* ── Uptime pills ── */
+  .mes-uptime-pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .mes-uptime-pill {
+    padding: 5px 12px; border-radius: 2px;
+    border: 1px solid; display: flex; align-items: center; gap: 6px;
+  }
+  .mes-uptime-pill-lbl { font-size: 11px; font-weight: 700; color: #4a6a8a; }
+  .mes-uptime-pill-val { font-size: 13px; font-weight: 900; font-variant-numeric: tabular-nums; }
+
+  /* ── Empty state ── */
+  .mes-empty {
+    text-align: center; padding: 50px 20px;
+    color: #96afc8; font-size: 13px; font-weight: 600;
+  }
+
+  /* ── Quality rows ── */
+  .mes-quality-row {
+    display: flex; justify-content: space-between;
+    padding: 6px 10px; background: #eef5fc;
+    border: 1px solid #d0dff0; border-radius: 2px; margin-bottom: 4px;
+  }
+
+  /* ── Spinner ── */
+  .mes-spinner-wrap {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(180deg, #f0f4f8 0%, #d8e4f0 100%);
+    font-family: 'Segoe UI', sans-serif;
+  }
+  .mes-spinner {
+    width: 40px; height: 40px; border-radius: 50%;
+    border: 3px solid #b8cce0; border-top-color: #1565C0;
+    animation: spin 0.7s linear infinite; margin: 0 auto 12px;
+  }
+  .mes-spinner-lbl { font-size: 13px; font-weight: 600; color: #5a7a9a; text-align: center; }
+
+  /* ── Tooltip recharts ── */
+  .recharts-default-tooltip {
+    font-family: 'Segoe UI', sans-serif !important;
+    font-size: 11px !important;
+    border: 1px solid #96afc8 !important;
+    border-radius: 2px !important;
+  }
+
+  /* ── Tabs ── */
+  .mes-tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 2px solid #96afc8;
+    margin-bottom: 12px;
+    padding-top: 5px;
+  }
+  .mes-tab-btn {
+    padding: 6px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #4a6a8a;
+    background: #d4e4f4;
+    border: 1px solid #96afc8;
+    border-bottom: none;
+    border-radius: 3px 3px 0 0;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .mes-tab-btn:hover {
+    background: #c8ddf0;
+    color: #1a3a5c;
+  }
+  .mes-tab-btn.active {
+    background: #fff;
+    color: #1565C0;
+    border-color: #96afc8;
+    border-bottom: 2px solid #fff;
+    margin-bottom: -2px;
+    position: relative;
+    z-index: 2;
+  }
+
+  /* ── Modal popup ── */
+  .mes-modal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5); z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    animation: fadein 0.2s ease both;
+  }
+  .mes-modal-content {
+    background: #fff; border-radius: 4px; width: 100%; max-width: 900px;
+    max-height: 90vh; overflow-y: auto; border: 1px solid #96afc8;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    display: flex; flex-direction: column;
+  }
+  .mes-modal-header {
+    background: linear-gradient(180deg, #d8e8f4 0%, #c8ddf0 100%);
+    border-bottom: 1px solid #96afc8; padding: 10px 15px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .mes-modal-title { font-size: 13px; font-weight: 900; color: #1a3a5c; text-transform: uppercase; }
+  .mes-modal-close {
+    background: transparent; border: none; font-size: 20px; font-weight: 700;
+    color: #4a6a8a; cursor: pointer; line-height: 1;
+  }
+  .mes-modal-close:hover { color: #b91c1c; }
+  .mes-modal-body { padding: 15px; }
+
+  /* ── Details Grid ── */
+  .mes-details-section { margin-bottom: 15px; }
+  .mes-details-section-title {
+    font-size: 11px; font-weight: 800; color: #c2410c;
+    text-transform: uppercase; border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 4px; margin-bottom: 8px;
+  }
+  .mes-details-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 8px;
+  }
+  .mes-detail-item {
+    display: flex; justify-content: space-between; background: #f8fafc;
+    border: 1px solid #e2e8f0; padding: 5px 8px; border-radius: 2px;
+    font-size: 11px; gap: 10px;
+  }
+  .mes-detail-name { color: #5a7a9a; font-weight: 600; text-align: left; }
+  .mes-detail-value { color: #1a3a5c; font-weight: 700; font-variant-numeric: tabular-nums; word-break: break-all; text-align: right; }
+
+  /* ── Table Styles ── */
+  .mes-table-container {
+    width: 100%; max-height: 480px; overflow-y: auto; overflow-x: auto;
+    border: 1px solid #b8cce0; border-radius: 3px; background: #fff;
+    margin-bottom: 10px; position: relative;
+  }
+  .mes-table {
+    width: max-content; min-width: 100%; border-collapse: collapse; text-align: left;
+    font-size: 11px; font-family: 'Segoe UI', sans-serif;
+  }
+  .mes-table th {
+    position: sticky; top: 0; z-index: 10;
+    background: linear-gradient(180deg, #eef5fc 0%, #d8e8f4 100%);
+    color: #1a3a5c; font-weight: 700; padding: 6px 10px;
+    border-bottom: 2px solid #96afc8; border-right: 1px solid #d0dff0;
+    white-space: nowrap; box-shadow: inset 0 -1px 0 #96afc8;
+  }
+  .mes-table td {
+    padding: 6px 10px; border-bottom: 1px solid #e2e8f0;
+    border-right: 1px solid #e2e8f0; color: #334155;
+    white-space: nowrap;
+  }
+  .mes-table tr:nth-child(even) { background: #f8fafc; }
+  .mes-table tr:hover { background: #f1f5f9; }
+  
+  /* ── Action buttons in table ── */
+  .mes-btn-sm {
+    padding: 2px 8px; font-size: 10px; font-weight: 700;
+    border-radius: 2px; cursor: pointer; border: 1px solid #6890b0;
+    background: linear-gradient(180deg, #f0f8ff 0%, #d0e8fc 100%);
+    color: #1a3a5c; transition: all 0.1s;
+  }
+  .mes-btn-sm:hover {
+    background: linear-gradient(180deg, #d8f0ff 0%, #b8d8f8 100%);
+  }
+
+  /* ── Pagination ── */
+  .mes-pagination {
+    display: flex; align-items: center; justify-content: flex-end;
+    gap: 8px; margin-top: 5px; flex-wrap: wrap; margin-bottom: 5px;
+  }
+  .mes-pag-info { font-size: 11px; color: #5a7a9a; font-weight: 600; margin-right: 10px; }
+  .mes-pag-btn {
+    padding: 2px 8px; font-size: 11px; font-weight: 700;
+    background: #fff; border: 1px solid #cbd5e1; border-radius: 2px;
+    color: #475569; cursor: pointer; transition: all 0.1s;
+  }
+  .mes-pag-btn:hover:not(:disabled) {
+    background: #f1f5f9; border-color: #94a3b8; color: #0f172a;
+  }
+  .mes-pag-btn:disabled {
+    opacity: 0.5; cursor: not-allowed;
+  }
+
+  /* ── Input Filters ── */
+  .mes-fb-input {
+    border: 1px solid #6890b0; background: #fff;
+    padding: 2px 8px; font-size: 12px; font-weight: 600; color: #1a3a5c;
+    border-radius: 2px; outline: none; height: 24px;
+    width: 140px;
+  }
+  .mes-fb-input:focus {
+    border-color: #1565C0; box-shadow: 0 0 0 2px rgba(21,101,192,0.15);
+  }
+  .mes-btn-primary {
+    background: linear-gradient(180deg, #1e88e5 0%, #1565c0 100%);
+    border: 1px solid #1565c0; color: #fff;
+  }
+  .mes-btn-primary:hover {
+    background: linear-gradient(180deg, #2196f3 0%, #1e88e5 100%);
+  }
+`;
+
+/* ─── Shared chart styles ────────────────────────────────────────────────── */
+const axisStyle = { fontSize: 10, fontFamily: "'Segoe UI', sans-serif", fill: '#5a7a9a' };
+const tooltipStyle = { fontFamily: "'Segoe UI'", fontSize: 11, border: '1px solid #96afc8', borderRadius: 2 };
+
+/* ─── Hằng số thuộc tính TH09+ ────────────────────────────────────────────── */
+const realTimeTH09Fields = [
+  { key: 'viTriCaSauHuongTam', label: 'Vị trí cà sau hướng tâm' },
+  { key: 'viTriCaSauHuongTruc', label: 'Vị trí cà sau hướng trục' },
+  { key: 'rongVaiLop', label: 'Rộng vai lốp(mm)' },
+  { key: 'noiAp', label: 'Nội áp(bar)' },
+  { key: 'apLucCaSau', label: 'Áp lực cà sau(bar)' },
+  { key: 'apLucCaTanh', label: 'Áp lực cà tanh(bar)' },
+  { key: 'apLucCaVai', label: 'Áp lực cà vai(bar)' },
+  { key: 'globalDisableBarcode', label: 'Yêu cầu tích mã vạch' },
+  { key: 'globalEnableBarcode', label: 'Trạng thái tích mã vạch' }
+];
+
+const settingTH09Fields = [
+  { key: 'duongKinhBungTrongThan', label: 'ĐK bụng trống thân' },
+  { key: 'duongKinhDanHopTrongThan', label: 'ĐK dán hợp trống thân' },
+  { key: 'duongKinhTrongThanThuLai', label: 'ĐK trống thân thu lại' },
+  { key: 'duongKinhTrongBungKhiCaVaiThan', label: 'ĐK trống bung khi cà vai thân' },
+  { key: 'duongKinhBungTrongThanLonNhat', label: 'ĐK bung trống thân lớn nhất' },
+  { key: 'duongKinhBungTrongThanNhoNhat', label: 'ĐK bung trống thân nhỏ nhất' },
+  { key: 'trongSHGiaTriThamChieu', label: 'Trống SH giá trị tham chiếu' },
+  { key: 'trongSHGioiHanMoLonNhat', label: 'Trống SH giới hạn mở lớn nhất' },
+  { key: 'gioiHanDongNhoNhat', label: 'Giới hạn đóng nhỏ nhất' },
+  { key: 'rongCongNghe', label: 'Rộng công nghệ' },
+  { key: 'viTriDuDinhHinh', label: 'Vị trí dư định hình' },
+  { key: 'viTriDinhHinh', label: 'Vị trí định hình' },
+  { key: 'viTriSieuDinhHinh', label: 'Vị trí siêu định hình' },
+  { key: 'dieuChinhViTriVen', label: 'Điều chỉnh vị trí vén' },
+  { key: 'chieuDaiVaiThan', label: 'Chiều dài vai thân' },
+  { key: 'chieuDaiHieuChuanVaiThan', label: 'CD hiệu chuẩn vai thân' },
+  { key: 'chieuDaiToHopTangLotTrongPA', label: 'CD tổ hợp tầng lót trong PA' },
+  { key: 'chieuDaiHieuChuanToHopTangLotTrongPA', label: 'CD hiệu chuẩn TH tầng lót trong PA' },
+  { key: 'viTriChoCaToHopTangLotTrongPA', label: 'Vị trí chờ cà TH tầng lót trong PA' },
+  { key: 'viTriCuoiCaToHopTangLotTrongPA', label: 'Vị trí cuối cà TH tầng lót trong PA' },
+  { key: 'tocDoCaVaiThanGiaiDoan1', label: 'Tốc độ cà vải thân GĐ1' },
+  { key: 'viTriCuoiCaVaiThanGiaiDoan1', label: 'Vị trí cuối cà vải thân GĐ1' },
+  { key: 'apLucConCaTraiVaiThanGiaiDoan1', label: 'Áp lực con cà trái vải thân GĐ1' },
+  { key: 'apLucConCaPhaiVaiThanGiaiDoan1', label: 'Áp lực con cà phải vải thân GĐ1' },
+  { key: 'tocDoCaVaiThanGiaiDoan2', label: 'Tốc độ cà vải thân GĐ2' },
+  { key: 'viTriCuoiCaVaiThanGiaiDoan2', label: 'Vị trí cuối cà vải thân GĐ2' },
+  { key: 'apLucConCaTraiVaiThanGiaiDoan2', label: 'Áp lực con cà trái vải thân GĐ2' },
+  { key: 'apLucConCaPhaiVaiThanGiaiDoan2', label: 'Áp lực con cà phải vải thân GĐ2' },
+  { key: 'tocDoCaVaiThanGiaiDoan3', label: 'Tốc độ cà vải thân GĐ3' },
+  { key: 'viTriCuoiCaVaiThanGiaiDoan3', label: 'Vị trí cuối cà vải thân GĐ3' },
+  { key: 'apLucConCaTraiVaiThanGiaiDoan3', label: 'Áp lực con cà trái vải thân GĐ3' },
+  { key: 'apLucConCaPhaiVaiThanGiaiDoan3', label: 'Áp lực con cà phải vải thân GĐ3' },
+  { key: 'tocDoHuongTamCaMatChayGiaiDoan1', label: 'Tốc độ H.Tâm cà mặt chạy GĐ1' },
+  { key: 'viTriHuongTamCaMatChayGiaiDoan1', label: 'Vị trí H.Tâm cà mặt chạy GĐ1' },
+  { key: 'tocDoHuongTrucCaMatChayGiaiDoan1', label: 'Tốc độ H.Trục cà mặt chạy GĐ1' },
+  { key: 'viTriHuongTrucCaMatChayGiaiDoan1', label: 'Vị trí H.Trục cà mặt chạy GĐ1' },
+  { key: 'apLucCaMatChayGiaiDoan1', label: 'Áp lực cà mặt chạy GĐ1' },
+  { key: 'gocXoayCaMatChayGiaiDoan1', label: 'Góc xoay cà mặt chạy GĐ1' },
+  { key: 'tocDoXoayCaMatChayGiaiDoan1', label: 'Tốc độ xoay cà mặt chạy GĐ1' },
+  { key: 'thoiGianCaMatChayGiaiDoan1', label: 'Thời gian cà mặt chạy GĐ1' },
+  { key: 'tocDoHuongTamCaMatChayGiaiDoan2', label: 'Tốc độ H.Tâm cà mặt chạy GĐ2' },
+  { key: 'viTriHuongTamCaMatChayGiaiDoan2', label: 'Vị trí H.Tâm cà mặt chạy GĐ2' },
+  { key: 'tocDoHuongTrucCaMatChayGiaiDoan2', label: 'Tốc độ H.Trục cà mặt chạy GĐ2' },
+  { key: 'viTriHuongTrucCaMatChayGiaiDoan2', label: 'Vị trí H.Trục cà mặt chạy GĐ2' },
+  { key: 'apLucCaMatChayGiaiDoan2', label: 'Áp lực cà mặt chạy GĐ2' },
+  { key: 'gocXoayCaMatChayGiaiDoan2', label: 'Góc xoay cà mặt chạy GĐ2' },
+  { key: 'tocDoXoayCaMatChayGiaiDoan2', label: 'Tốc độ xoay cà mặt chạy GĐ2' },
+  { key: 'thoiGianCaMatChayGiaiDoan2', label: 'Thời gian cà mặt chạy GĐ2' },
+  { key: 'tocDoHuongTamCaMatChayGiaiDoan3', label: 'Tốc độ H.Tâm cà mặt chạy GĐ3' },
+  { key: 'viTriHuongTamCaMatChayGiaiDoan3', label: 'Vị trí H.Tâm cà mặt chạy GĐ3' },
+  { key: 'tocDoHuongTrucCaMatChayGiaiDoan3', label: 'Tốc độ H.Trục cà mặt chạy GĐ3' },
+  { key: 'viTriHuongTrucCaMatChayGiaiDoan3', label: 'Vị trí H.Trục cà mặt chạy GĐ3' },
+  { key: 'apLucCaMatChayGiaiDoan3', label: 'Áp lực cà mặt chạy GĐ3' },
+  { key: 'gocXoayCaMatChayGiaiDoan3', label: 'Góc xoay cà mặt chạy GĐ3' },
+  { key: 'tocDoXoayCaMatChayGiaiDoan3', label: 'Tốc độ xoay cà mặt chạy GĐ3' },
+  { key: 'thoiGianCaMatChayGiaiDoan3', label: 'Thời gian cà mặt chạy GĐ3' },
+  { key: 'tocDoHuongTamCaMatChayGiaiDoan4', label: 'Tốc độ H.Tâm cà mặt chạy GĐ4' },
+  { key: 'viTriHuongTamCaMatChayGiaiDoan4', label: 'Vị trí H.Tâm cà mặt chạy GĐ4' },
+  { key: 'tocDoHuongTrucCaMatChayGiaiDoan4', label: 'Tốc độ H.Trục cà mặt chạy GĐ4' },
+  { key: 'viTriHuongTrucCaMatChayGiaiDoan4', label: 'Vị trí H.Trục cà mặt chạy GĐ4' },
+  { key: 'apLucCaMatChayGiaiDoan4', label: 'Áp lực cà mặt chạy GĐ4' },
+  { key: 'gocXoayCaMatChayGiaiDoan4', label: 'Góc xoay cà mặt chạy GĐ4' },
+  { key: 'tocDoXoayCaMatChayGiaiDoan4', label: 'Tốc độ xoay cà mặt chạy GĐ4' },
+  { key: 'thoiGianCaMatChayGiaiDoan4', label: 'Thời gian cà mặt chạy GĐ4' },
+  { key: 'caVongTanhViTriCho', label: 'Cà vòng tanh vị trí chờ' },
+  { key: 'apLucCaVongTanh', label: 'Áp lực cà vòng tanh' },
+  { key: 'caVongTanhViTriCuoi', label: 'Cà vòng tanh vị trí cuối' },
+  { key: 'tocDoCaVongTanh', label: 'Tốc độ cà vòng tanh' },
+  { key: 'viTriCuoiCaBocGot', label: 'Vị trí cuối cà bóc gót' },
+  { key: 'apLucCaBocGotTrai', label: 'Áp lực cà bóc gót trái' },
+  { key: 'apLucCaBocGotPhai', label: 'Áp lực cà bóc gót phải' },
+  { key: 'viTriChoCaBocGot', label: 'Vị trí chờ cà bóc gót' },
+  { key: 'caHongViTriGiaiDoan1', label: 'Cà hông vị trí GĐ1' },
+  { key: 'caHongTocDoGiaiDoan1', label: 'Cà hông tốc độ GĐ1' },
+  { key: 'thoiGianCaHongGiaiDoan1', label: 'Thời gian cà hông GĐ1' },
+  { key: 'apLucCaHongGiaiDoan1', label: 'Áp lực cà hông GĐ1' },
+  { key: 'caHongViTriGiaiDoan2', label: 'Cà hông vị trí GĐ2' },
+  { key: 'caHongTocDoGiaiDoan2', label: 'Cà hông tốc độ GĐ2' },
+  { key: 'thoiGianCaHongGiaiDoan2', label: 'Thời gian cà hông GĐ2' },
+  { key: 'apLucCaHongGiaiDoan2', label: 'Áp lực cà hông GĐ2' },
+  { key: 'caHongViTriGiaiDoan3', label: 'Cà hông vị trí GĐ3' },
+  { key: 'caHongTocDoGiaiDoan3', label: 'Cà hông tốc độ GĐ3' },
+  { key: 'thoiGianCaHongGiaiDoan3', label: 'Thời gian cà hông GĐ3' },
+  { key: 'apLucCaHongGiaiDoan3', label: 'Áp lực cà hông GĐ3' },
+  { key: 'caTamGiac2GiaiDoanViTriCuoi', label: 'Cà tam giác 2 GĐ VT cuối' },
+  { key: 'caTamGiac2GiaiDoanTocDoConLan', label: 'Cà tam giác 2 GĐ tốc độ con lăn' },
+  { key: 'caTamGiac2GiaiDoanApLuc', label: 'Cà tam giác 2 GĐ áp lực' }
+];
+
+const realTimeTH02Fields = [
+  { key: 'prgmServoBDSVActualVelocity', label: 'Tốc độ trống hoán xung' },
+  { key: 'prgmServoBDSVCActPos', label: 'Góc định vị BD' },
+  { key: 'prgmServoCDSVActualVelocity', label: 'Tốc độ trống thân' },
+  { key: 'prgmServoSDSVActualVelocity', label: 'Tốc độ trống chính' },
+  { key: 'prgmServoSDSVCActPos', label: 'Góc định vị SD' },
+  { key: 'prgmServoSDSDWid', label: 'Khoảng cách đặt tanh' },
+  { key: 'prgmServoStRdSVCActPos', label: 'Vị trí cà hướng tâm mm' },
+  { key: 'prgmServoStRtSVCActPos', label: 'Vị trí cà xoay' },
+  { key: 'globalAISDLkPres', label: 'Áp lực nan quạt' },
+  { key: 'globalAISDPres', label: 'Nội áp' },
+  { key: 'globalDisableBarcode', label: 'Yêu cầu tích mã vạch' },
+  { key: 'globalEnableBarcode', label: 'Trạng thái tích mã vạch' }
+];
+
+const settingTH02Fields = [
+  { key: 'apLucCaBocGot', label: 'AL cà bóc gót' },
+  { key: 'tocDoCaBocGot', label: 'Tốc độ cà bóc gót' },
+  { key: 'thoiGianCaBocGot', label: 'Thời gian cà bóc gót' },
+  { key: 'apLucCaoCaVaiThan', label: 'AL cao cà vải thân' },
+  { key: 'apLucThapCaVaiThan', label: 'AL thấp cà vải thân' },
+  { key: 'doRongSieuDinhHinhTrongChinh', label: 'Độ rộng siêu định hình trống chính' },
+  { key: 'khoangCachDatTanhTrongChinh', label: 'KC đặt tanh trống chính' },
+  { key: 'doRongDuDinhHinh', label: 'Độ rộng dư định hình' },
+  { key: 'doRongDinhHinhTrongChinh', label: 'Độ rộng định hình trống chính' },
+  { key: 'chieuDaiCatVaiThan', label: 'CD cắt vải thân' },
+  { key: 'chieuDaiHieuChuanVaiThan', label: 'CD hiệu chuẩn vải thân' },
+  { key: 'duongKinhDanHopTrongThan', label: 'ĐK dán hợp trống thân' },
+  { key: 'duongKinhTrongThanLonNhat', label: 'ĐK trống thân lớn nhất' },
+  { key: 'duongKinhTrongThanNhoNhat', label: 'ĐK trống thân nhỏ nhất' },
+  { key: 'chieuDaiCatToHopTLTPA', label: 'CD cắt tổ hợp TLT(PA)' },
+  { key: 'chieuDaiCatToHopHieuChuanTLTPA', label: 'CD cắt tổ hợp hiệu chuẩn TLT(PA)' },
+  { key: 'caHongCaoAp', label: 'Cà hông cao áp' },
+  { key: 'caHongThapAp', label: 'Cà hông thấp áp' },
+  { key: 'apLucCaHongDuoi', label: 'AL cà hông dưới' },
+  { key: 'apLucCaHongSuTamGiac', label: 'AL cà hông su tam giác' },
+  { key: 'apLucCaHongTren', label: 'AL cà hông trên' },
+  { key: 'apLucCaKhuVucGiua', label: 'AL cà khu vực giữa' },
+  { key: 'apLucCaPhanVai', label: 'AL cà phân vai' },
+  { key: 'apLucCaMepBien', label: 'AL cà mép biên' },
+  { key: 'viTriDauCaMatChayViTriHuongTam', label: 'VT đầu cà mặt chạy VT H.Tâm' },
+  { key: 'viTriDauCaMatChayViTriHuongTruc', label: 'VT đầu cà mặt chạy VT H.Trục' },
+  { key: 'viTriDauCaMatChayViTriHuongXoay', label: 'VT đầu cà mặt chạy VT H.Xoay' },
+  { key: 'viTriCuoiVungCaThapApViTriTam', label: 'VT cuối vùng cà thấp áp VT H.Tâm' },
+  { key: 'viTriCuoiVungCaThapApViTriHuongTruc', label: 'VT cuối vùng cà thấp áp VT H.Trục' },
+  { key: 'viTriCuoiVungCaThapApViTriHuongXoay', label: 'VT cuối vùng cà thấp áp VT H.Xoay' },
+  { key: 'viTriDauCaCaoApViTriXoay', label: 'VT đầu cà cao áp VT H.Xoay' },
+  { key: 'viTriDauCaCaoApViTriHuongTam', label: 'VT đầu cà cao áp VT H.Tâm' },
+  { key: 'viTriDauCaCaoApViTriHuongTruc', label: 'VT đầu cà cao áp VT H.Trục' },
+  { key: 'viTriMepBienMatLopViTriXoay', label: 'VT mép biên mặt lốp VT H.Xoay' },
+  { key: 'viTriMepBienMatLopViTriHuongTruc', label: 'VT mép biên mặt lốp VT H.Trục' },
+  { key: 'viTriMepBienMatLopViTriXoay1', label: 'VT mép biên mặt lốp VT H.Xoay_1' },
+  { key: 'gocCa1HoanThanhViTriHuongTam', label: 'Góc cà 1 HT vị trí  H.Tâm' },
+  { key: 'gocCa1HoanThanhViTriHuongTruc', label: 'Góc cà 1 HT vị trí H.Trục' },
+  { key: 'gocCa1HoanThanhViTriXoay', label: 'Góc cà 1 HT vị trí H.Xoay' },
+  { key: 'gocCa2HoanThanhViTriHuongTam', label: 'Góc cà 2 HT vị trí H.Tâm' },
+  { key: 'gocCa2HoanThanhViTriHuongTruc', label: 'Góc cà 2 HT vị trí H.Trục' },
+  { key: 'gocCa2HoanThanhViTriXoay', label: 'Góc cà 2 HT vị trí H.Xoay' },
+  { key: 'viTriChoCaHuongTamViTriHuongTam', label: 'VT Chờ cà H.Tâm VT H.Tâm' },
+  { key: 'viTriChoCaHuongTamViTriHuongTruc', label: 'VT Chờ cà H.Tâm VT H.Trục' },
+  { key: 'viTriChoCaHuongTamViTriXoay', label: 'VT Chờ cà H.Tâm VT H.Xoay' },
+  { key: 'viTriDauCaHongViTriHuongTam', label: 'VT Đầu cà hông VT H.Tâm' },
+  { key: 'viTriDauCaHongViTriHuongTruc', label: 'VT Đầu cà hông VT H.Trục' },
+  { key: 'viTriDauCaHongViTriXoay', label: 'VT Đầu cà hông VT H.Xoay' },
+  { key: 'viTriDauCaThapApVungGiuaHoanThanhViTriHuongTam', label: 'VT Đầu cà thấp áp vùng giữa HT VT H.Tâm' },
+  { key: 'viTriDauCaThapApVungGiuaViTriHuongTruc', label: 'VT Đầu cà thấp áp vùng giữa VT H.Trục' },
+  { key: 'viTriDauCaThapApVungGiuaViTriXoay', label: 'VT Đầu cà thấp áp vùng giữa VT Xoay' },
+  { key: 'viTriDauCaThapApVungTrenHoanThanhViTriHuongTam', label: 'VT Đầu cà thấp áp vùng trên HT VT H.Tâm' },
+  { key: 'viTriDauCaThapApVungTrenViTriHuongTruc', label: 'VT Đầu cà thấp áp vùng trên VT H.Trục' },
+  { key: 'viTriDauCaThapApVungTrenViTriXoay', label: 'VT Đầu cà thấp áp vùng trên VT Xoay' },
+  { key: 'viTriCuoiCaHongHoanThanhViTriHuongTam', label: 'VT Cuối cà hông VT H.Tâm' },
+  { key: 'viTriCuoiCaHongHoanThanhViTriHuongTruc', label: 'VT Cuối cà hông VT H.Trục' },
+  { key: 'viTriCuoiCaHongHoanThanhViTriXoay', label: 'VT Cuối cà hông VT H.Xoay' },
+  { key: 'viTriDauCaSuTamGiacViTriHuongTam', label: 'VT Đầu cà su tam giác VT H.Tâm' },
+  { key: 'viTriDauCaSuTamGiacViTriHuongTruc', label: 'VT Đầu cà su tam giác VT H.Trục' },
+  { key: 'viTriDauCaSuTamGiacViTriXoay', label: 'VT Đầu cà su tam giác VT H.Xoay' },
+  { key: 'viTriDauCaSuTamGiacViTriHuongTam1', label: 'VT Đầu cà su tam giác 1 VT H.Tâm' },
+  { key: 'viTriDauCaSuTamGiacViTriHuongTruc1', label: 'VT Đầu cà su tam giác 1 VT H.Trục' },
+  { key: 'viTriDauCaSuTamGiacViTriXoay1', label: 'VT Đầu cà su tam giác 1 VT H.Xoay' },
+  { key: 'viTriCuoiHoanThanhViTriHuongTam', label: 'VT Cuối HT VT H.Tâm' },
+  { key: 'viTriCuoiHoanThanhViTriHuongTruc', label: 'VT Cuối HT VT H.Trục' },
+  { key: 'viTriCuoiHoanThanhViTriXoay', label: 'VT Cuối HT VT H.Xoay' },
+  { key: 'viTriChuyenThapApViTriHuongTam', label: 'VT Chuyển thấp áp VT H.Tâm' },
+  { key: 'viTriChuyenThapApViTriHuongTruc', label: 'VT Chuyển thấp áp VT H.Trục' },
+  { key: 'viTriChuyenThapApViTriXoay', label: 'VT Chuyển thấp áp VT H.Xoay' },
+  { key: 'duongKinhBungTrongThan', label: 'ĐK bung trống thân' },
+  { key: 'duongKinhTrongThanDuBi', label: 'ĐK trống thân dự bị' }
+];
+
+const realTimeTH05Fields = [
+  { key: 'prgmServoBDSVActualVelocity', label: 'Tốc độ trống hoãn xung (°/s)' },
+  { key: 'prgmServoBDSVCActPos', label: 'Góc Servo trống hoãn xung (°)' },
+  { key: 'prgmServoBtrSVActualVelocity', label: 'Tốc độ vòng BTR (mm/s)' },
+  { key: 'prgmServoBtrSVCActPos', label: 'Vị trí servo vòng BTR (mm)' },
+  { key: 'prgmServoSDSVActualVelocity', label: 'Tốc độ trống chính' },
+  { key: 'prgmServoSDSDEncodWid', label: 'Vị trí hiện tại trống thành hình (°)' },
+  { key: 'prgmServoSDSVCActPos', label: 'Góc Servo trống thành hình' },
+  { key: 'prgmServoSt3SVCActPos', label: 'Vị trí trục 3 cà sau (mm)' },
+  { key: 'prgmServoSt4SVCActPos', label: 'Vị trí trục 4 cà sau (mm)' },
+  { key: 'globalAISDLkPres', label: 'Áp lực nan quạt' },
+  { key: 'globalAISDPres', label: 'Nội áp' }
+];
+
+const settingTH05Fields = [
+  { key: 'apLucCaBocGot', label: 'Áp lực cà bóc gót' },
+  { key: 'apLucCaThanLopGiaiDoan1', label: 'Áp lực cà thân lốp giai đoạn 1' },
+  { key: 'apLucCaThanLopGiaiDoan2', label: 'Áp lực cà thân lốp giai đoạn 2' },
+  { key: 'sieuDinhHinh', label: 'Siêu định hình' },
+  { key: 'thoiGianBomCaoAp', label: 'Thời gian bơm cao áp' },
+  { key: 'dinhHinhCaoAp', label: 'Định hình cao áp' },
+  { key: 'dinhHinhThapAp', label: 'Định hình thấp áp' },
+  { key: 'rongCongNghe', label: 'Rộng công nghệ' },
+  { key: 'doRongDuDinhHinh', label: 'Độ rộng dư định hình' },
+  { key: 'doRongDinhHinhTrongChinh', label: 'Độ rộng định hình trống chính' },
+
+  { key: 'chieuDaiCatVaiThan', label: 'Chiều dài cắt vải thân' },
+  { key: 'chieuDaiHieuChuanCatVaiThan', label: 'Chiều dài hiệu chuẩn cắt vải thân' },
+  { key: 'duongKinhDanHopTrongThan', label: 'Đường kính dán hợp trống thân' },
+  { key: 'tocDoTrongThan', label: 'Tốc độ trống thân' },
+  { key: 'duongKinhLonNhatTrongThan', label: 'Đường kính lớn nhất trống thân' },
+  { key: 'duongKinhNhoNhatTrongThan', label: 'Đường kính nhỏ nhất trống thân' },
+  { key: 'tocDoQuayTrongThanKhiCaThanLop', label: 'Tốc độ quay trống thân khi cà thân lốp' },
+  { key: 'chieuDaiCatToHopTLTPA', label: 'Chiều dài cắt tổ hợp TLT PA' },
+  { key: 'chieuDaiHieuChuanCatToHopTLTPA', label: 'Chiều dài hiệu chuẩn cắt tổ hợp TLT PA' },
+
+  { key: 'gocTrongQuayCaBocGot', label: 'Góc trống quay cà bóc gót' },
+  { key: 'duongKinhCaVaiThan', label: 'Đường kính cà vải thân' },
+  { key: 'viTriCuoiCaTamGiac', label: 'Vị trí cuối cà tam giác' },
+  { key: 'tocDoCaTamGiacOViTriCuoi', label: 'Tốc độ cà tam giác ở vị trí cuối' },
+  { key: 'apLucCaTamGiacViTriCuoi', label: 'Áp lực cà tam giác vị trí cuối' },
+  { key: 'viTriBatDauCaTamGiac', label: 'Vị trí bắt đầu cà tam giác' },
+  { key: 'tocDoCaTamGiacOViTriBatDau', label: 'Tốc độ cà tam giác ở vị trí bắt đầu' },
+  { key: 'apLucCaTamGiacOViTriDau', label: 'Áp lực cà tam giác ở vị trí đầu' },
+  { key: 'viTriChoCaTamGiac', label: 'Vị trí chờ cà tam giác' },
+  { key: 'tocDoCaTamGiacOViTriCho', label: 'Tốc độ cà tam giác ở vị trí chờ' },
+  { key: 'tocDoCaHongLopOViTriTamGiac', label: 'Tốc độ cà hông lốp ở vị trí tam giác' },
+  { key: 'apLucCaTamGiacOViTriVaiThan', label: 'Áp lực cà tam giác ở vị trí vải thân' },
+  { key: 'viTriBatDauCaHongLop', label: 'Vị trí bắt đầu cà hông lốp' },
+  { key: 'tocDoCaHongLopOViTriBatDau', label: 'Tốc độ cà hông lốp ở vị trí bắt đầu' },
+  { key: 'apLucCaHongLopViTriBatDau', label: 'Áp lực cà hông lốp ở vị trí bắt đầu' },
+  { key: 'viTriCuoiVaiThanCaHongLop', label: 'Vị trí cuối vải thân cà hông lốp' },
+  { key: 'tocDoCaHongLopOViTriVaiThan', label: 'Tốc độ cà hông lốp ở vị trí vải thân' },
+  { key: 'apLucCaHongLopOViTriVaiThan', label: 'Áp lực cà hông lốp ở vị trí vải thân' },
+  { key: 'viTriCuoiBocGotCaHongLop', label: 'Vị trí cuối bóc gót cà hông lốp' },
+  { key: 'tocDoCaHongLopOViTriBocGot', label: 'Tốc độ cà hông lốp ở vị trí bóc gót' },
+  { key: 'apLucCaHongLopViTriBocGot', label: 'Áp lực cà hông lốp vị trí bóc gót' },
+  { key: 'viTriCuoiMatLopCaHongLop', label: 'Vị trí cuối mặt lốp cà hông lốp' },
+  { key: 'tocDoCaHongLopOViTriMatChay', label: 'Tốc độ cà hông lốp ở vị trí mặt chạy' },
+  { key: 'apLucCaHongLopOViTriMatLop', label: 'Áp lực cà hông lốp ở vị trí mặt lốp' },
+  { key: 'tocDoCaHongLopOViTriCho', label: 'Tốc độ cà hông lốp ở vị trí chờ' },
+
+  { key: 'gocQuayTrongChinhTrucCa1', label: 'Góc quay trống chính trục cà 1' },
+  { key: 'tocDoTrucCa2', label: 'Tốc độ trục cà 2' },
+  { key: 'apLucKetThucCa2Quay', label: 'Áp lực kết thúc cà 2 quay' },
+  { key: 'apLucCa2OViTriChuyenGoc', label: 'Áp lực cà 2 ở vị trí chuyển góc' },
+  { key: 'apLucCa2OViTriDungQuayGoc1', label: 'Áp lực cà 2 ở vị trí dừng quay góc 1' },
+  { key: 'apLucCa2OViTriDungQuayGoc2', label: 'Áp lực cà 2 ở vị trí dừng quay góc 2' },
+  { key: 'viTriBatDauCaTruc4', label: 'Vị trí bắt đầu cà trục 4' },
+  { key: 'tocDoTaiViTriBatDauCaTruc4', label: 'Tốc độ tại vị trí bắt đầu cà trục 4' },
+  { key: 'apLucTaiViTriBatDauCaTruc4', label: 'Áp lực tại vị trí bắt đầu cà trục 4' },
+  { key: 'tocDoCaTruc4TaiViTriBatDauCaoAp', label: 'Tốc độ cà trục 4 tại vị trí bắt đầu cao áp' },
+  { key: 'viTriBatDauCaoApCaTruc4', label: 'Vị trí bắt đầu cao áp cà trục 4' },
+  { key: 'apLucTaiViTriBatDauCaoApCaTruc4', label: 'Áp lực tại vị trí bắt đầu cao áp cà trục 4' },
+  { key: 'viTriKetThucThapApCaTruc4', label: 'Vị trí kết thúc thấp áp cà trục 4' },
+  { key: 'tocDoCaTruc4TaiViTriKetThucThapAp', label: 'Tốc độ cà trục 4 tại vị trí kết thúc thấp áp' },
+  { key: 'apLucTaiViTriKetThucThapApCaTruc4', label: 'Áp lực tại vị trí kết thúc thấp áp cà trục 4' },
+  { key: 'viTriDungQuayGoc1CaTruc4', label: 'Vị trí dừng quay góc 1 cà trục 4' },
+  { key: 'tocDoTaiViTriDungQuayGoc1CaTruc4', label: 'Tốc độ tại vị trí dừng quay góc 1 cà trục 4' },
+  { key: 'viTriDungQuayGoc2CaTruc4', label: 'Vị trí dừng quay góc 2 cà trục 4' },
+  { key: 'tocDoTaiViTriDungQuayGoc2CaTruc4', label: 'Tốc độ tại vị trí dừng quay góc 2 cà trục 4' },
+  { key: 'viTriChuyenGocQuayCaTruc4', label: 'Vị trí chuyển góc quay cà trục 4' },
+  { key: 'tocDoChuyenGocQuayCaTruc4', label: 'Tốc độ chuyển góc quay cà trục 4' },
+  { key: 'viTriKetThucQuayCaTruc4', label: 'Vị trí kết thúc quay cà trục 4' },
+  { key: 'tocDoTaiViTriKetThucQuayCaTruc4', label: 'Tốc độ tại vị trí kết thúc quay cà trục 4' },
+  { key: 'apLucTaiViTriKetThucQuayCaTruc4', label: 'Áp lực tại vị trí kết thúc quay cà trục 4' },
+  { key: 'apLucCaTruc4OViTriDungQuayGoc1', label: 'Áp lực cà trục 4 ở vị trí dừng quay góc 1' },
+  { key: 'apLucCaTruc4OViTriDungQuayGoc2', label: 'Áp lực cà trục 4 ở vị trí dừng quay góc 2' },
+  { key: 'apLucCaTruc4OViTriChuyenGocQuay', label: 'Áp lực cà trục 4 ở vị trí chuyển góc quay' },
+  { key: 'viTriKetThucMatChayCaTruc4', label: 'Vị trí kết thúc mặt chạy cà trục 4' },
+  { key: 'tocDoTaiViTriKetThucMatChayCaTruc4', label: 'Tốc độ tại vị trí kết thúc mặt chạy cà trục 4' },
+  { key: 'apLucTaiViTriKetThucMatChayCaTruc4', label: 'Áp lực tại vị trí kết thúc mặt chạy cà trục 4' },
+
+  { key: 'apLucCaVaiThanGiaiDoan3', label: 'Áp lực cà vải thân giai đoạn 3' },
+  { key: 'apLucCaVaiThanGiaiDoan4', label: 'Áp lực cà vải thân giai đoạn 4' },
+  { key: 'viTriCaVaiThanGiaiDoan1', label: 'Vị trí cà vải thân giai đoạn 1' },
+  { key: 'viTriCaVaiThanGiaiDoan2', label: 'Vị trí cà vải thân giai đoạn 2' },
+  { key: 'viTriCaVaiThanGiaiDoan3', label: 'Vị trí cà vải thân giai đoạn 3' },
+  { key: 'viTriCaVaiThanGiaiDoan4', label: 'Vị trí cà vải thân giai đoạn 4' },
+  { key: 'viTriBatDauCaBocGot', label: 'Vị trí bắt đầu cà bóc gót' },
+  { key: 'viTriKetThucCaBocGot', label: 'Vị trí kết thúc cà bóc gót' }
+];
+
+/* ─── Panel wrapper ──────────────────────────────────────────────────────── */
+const Panel = ({ title, accentColor = '#1565C0', children }) => (
+  <div className="mes-panel">
+    <div className="mes-panel-header">
+      <div className="mes-panel-accent" style={{ background: accentColor }} />
+      {title}
+    </div>
+    <div className="mes-panel-body">{children}</div>
+  </div>
+);
+
+/* ─── Dải màu dành riêng cho Cột % Hoàn thành trong Bảng SẢN XUẤT TRONG THEO CA ─── */
+const getTablePercentColor = (percent) => {
+  const p = Number(percent) || 0;
+  if (p < 20) return '#ef4444';   // Đỏ (<20%)
+  if (p < 40) return '#f97316';   // Cam (<40%)
+  if (p < 60) return '#fb923c';   // Cam nhạt (<60%)
+  if (p < 80) return '#60a5fa';   // Xanh nhạt (<80%)
+  if (p < 95) return '#2563eb';   // 80-95%: Màu đậm hơn chút (xanh dương trung bình)
+  if (p <= 100) return '#1565C0'; // 95-100%: = màu kế hoạch (#1565C0)
+  return '#1e3a8a';               // >100%: Xanh đậm hơn màu KH (#1e3a8a)
+};
+
+/* ─── Dải màu dành riêng cho Biểu đồ KH Sản xuất Tháng Theo Ngày (Tông màu xanh lá) ─── */
+const getDailyPlanChartColor = (percent) => {
+  const p = Number(percent) || 0;
+  if (p < 20) return '#ef4444';   // Đỏ (<20%)
+  if (p < 40) return '#f97316';   // Cam (<40%)
+  if (p < 60) return '#fb923c';   // Cam nhạt (<60%)
+  if (p < 80) return '#4ade80';   // Xanh lá nhạt (<80%)
+  if (p < 95) return '#22c55e';   // 80-95%: Màu xanh lá đậm hơn chút
+  if (p <= 100) return '#16a34a'; // 95-100%: = màu kế hoạch xanh lá chuẩn (#16a34a)
+  return '#15803d';               // >100%: Xanh lá đậm hơn màu KH (#15803d)
+};
+
+/* ─── Màu cho Cột Thực Tế ở các Biểu Đồ (Vẫn là màu Xanh Lá Cây như cũ) ─── */
+const getProgressColor = (percent) => {
+  const p = Number(percent) || 0;
+  if (p > 100) return '#15803d'; // Vượt 100%: Xanh lá cây đậm
+  return '#22c55e';              // Màu Xanh lá cây tươi chuẩn như cũ
+};
+
+const MayThanhHinhDashboard = () => {
+  const { equipmentId } = useParams();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const th05Machines = ['05', '14', '15', '16', '17', '5', 'TH05', 'TH14', 'TH15', 'TH16', 'TH17'];
+  const getMachineNumberStr = (id) => {
+    if (!id) return '';
+    const match = id.match(/\d+/);
+    return match ? match[0] : '';
+  };
+  const isTH05Group = th05Machines.includes(equipmentId) || th05Machines.includes(getMachineNumberStr(equipmentId));
+
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
+
+  const [pieData, setPieData] = useState(null);
+  const [statsData, setStatsData] = useState(null);
+  const [dailyPlanData, setDailyPlanData] = useState([]);
+  const [machineStatusTimes, setMachineStatusTimes] = useState([]);
+  const [machineStatusMonth, setMachineStatusMonth] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const [selectedYear, setSelectedYear] = useState(Number(searchParams.get('nam_sx')) || currentYear);
+  const [selectedMonth, setSelectedMonth] = useState(Number(searchParams.get('thang_sx')) || currentMonth);
+
+  const years = Array.from({ length: currentYear - 2019 + 2 }, (_, i) => 2019 + i);
+  const months = Array.from({ length: 12 }, (_, i) => i + 1);
+
+  // ── Tab state: Mặc định tab 'dashboard' (Dashboard hiệu suất) hiển thị đầu tiên ──
+  const [activeTab, setActiveTab] = useState('dashboard');
+
+  // ── State bộ lọc chung cho Tab Chart Data ──
+  const [barcodeFilter, setBarcodeFilter] = useState('');
+  const [maMayFilter, setMaMayFilter] = useState(equipmentId || '');
+
+  // ── State Parameter RealTime ──
+  const [realTimeData, setRealTimeData] = useState([]);
+  const [realTimePage, setRealTimePage] = useState(0);
+  const [realTimeSize, setRealTimeSize] = useState(10);
+  const [realTimeTotalPages, setRealTimeTotalPages] = useState(0);
+  const [realTimeTotalElements, setRealTimeTotalElements] = useState(0);
+  const [realTimeLoading, setRealTimeLoading] = useState(false);
+  const [selectedRealTimeId, setSelectedRealTimeId] = useState(null);
+  const [realTimeRefreshInterval, setRealTimeRefreshInterval] = useState(1500);
+
+  // ── State Parameter Setting ──
+  const [settingData, setSettingData] = useState([]);
+  const [settingPage, setSettingPage] = useState(0);
+  const [settingSize, setSettingSize] = useState(10);
+  const [settingTotalPages, setSettingTotalPages] = useState(0);
+  const [settingTotalElements, setSettingTotalElements] = useState(0);
+  const [settingLoading, setSettingLoading] = useState(false);
+  const [selectedSettingId, setSelectedSettingId] = useState(null);
+
+  const [showRealTimeHistory, setShowRealTimeHistory] = useState(false);
+  const [showSettingHistory, setShowSettingHistory] = useState(false);
+  const [showChangeHistory, setShowChangeHistory] = useState(false);
+  const [showAbbreviations, setShowAbbreviations] = useState(false);
+
+  const [initialShift] = useState(() => {
+    const now = new Date();
+    const hour = now.getHours();
+    let ca = '0';
+    let targetDate = new Date(now);
+
+    if (hour >= 6 && hour < 14) {
+      ca = '1';
+    } else if (hour >= 14 && hour < 22) {
+      ca = '2';
+    } else {
+      ca = '0';
+      if (hour < 6) {
+        targetDate.setDate(targetDate.getDate() - 1);
+      }
+    }
+
+    const yyyy = targetDate.getFullYear();
+    const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(targetDate.getDate()).padStart(2, '0');
+    return { dateStr: `${yyyy}-${mm}-${dd}`, ca };
+  });
+
+  // ── States & Effects cho Biểu đồ Sản lượng & Kế hoạch theo ca ──
+  const [shiftStatsData, setShiftStatsData] = useState([]);
+  const [shiftLoading, setShiftLoading] = useState(false);
+
+  // States chọn ngày, chọn ca và ID Kế hoạch
+  const [selectedDate, setSelectedDate] = useState(initialShift.dateStr);
+  const [selectedCa, setSelectedCa] = useState(initialShift.ca);
+  const [idKehoach, setIdKehoach] = useState(`RA10.${initialShift.dateStr.replace(/-/g, '')}${initialShift.ca}`);
+  const [machineImage, setMachineImage] = useState(null);
+
+  useEffect(() => {
+    const fetchImage = async () => {
+      try {
+        const images = await getViewOrcThMachineImageApi();
+        const currentMachineImage = images.find(img => img.maMay === equipmentId);
+        if (currentMachineImage && currentMachineImage.image) {
+          setMachineImage(`data:image/jpeg;base64,${currentMachineImage.image}`);
+        }
+      } catch (err) {
+        console.error("Lỗi lấy ảnh máy:", err);
+      }
+    };
+    fetchImage();
+  }, [equipmentId]);
+
+  // Tự động cập nhật idKehoach khi selectedDate hoặc selectedCa thay đổi
+  useEffect(() => {
+    if (selectedDate && selectedCa !== '') {
+      const yyyymmdd = selectedDate.replace(/-/g, '');
+      const newId = `RA10.${yyyymmdd}${selectedCa}`;
+      console.log("[TEST LỖI] Cập nhật idKehoach:", newId);
+      setIdKehoach(newId);
+
+      const [y, m] = selectedDate.split('-');
+      if (y && m) {
+        setSelectedYear(Number(y));
+        setSelectedMonth(Number(m));
+      }
+    } else {
+      setIdKehoach('');
+    }
+  }, [selectedDate, selectedCa]);
+
+  // Hàm gọi API /shift-stats lấy sản lượng và kế hoạch theo ca ngày
+  const fetchShiftStats = async () => {
+    if (!equipmentId) return;
+    setShiftLoading(true);
+    try {
+      // Log console tham số đầu vào phục vụ test lỗi (Quy tắc 3)
+      console.log(`[MayThanhHinhDashboard] fetchShiftStats -> Gửi request: maMay=${equipmentId}, id_kehoach=${idKehoach}`);
+
+      const res = await getShiftStats({
+        maMay: equipmentId,
+        id_kehoach: idKehoach
+      });
+
+      // Log console kết quả trả về để test lỗi (Quy tắc 3)
+      console.log("[MayThanhHinhDashboard] fetchShiftStats -> Dữ liệu nhận từ API:", res);
+
+      if (res && res.success) {
+        setShiftStatsData(res.data || []);
+      } else {
+        setShiftStatsData([]);
+        toast.error(res?.message || 'Lỗi tải dữ liệu thống kê ca');
+      }
+    } catch (error) {
+      console.error("[MayThanhHinhDashboard] fetchShiftStats -> Lỗi:", error);
+      toast.error(error.message || 'Lỗi tải dữ liệu thống kê ca');
+      setShiftStatsData([]);
+    } finally {
+      setShiftLoading(false);
+    }
+  };
+
+  const fetchMachineStatusTimes = async () => {
+    if (!equipmentId || !selectedDate || selectedCa === '') return;
+    try {
+      const yearMonthDayShift = selectedDate.replace(/-/g, '') + selectedCa;
+      const res = await getMachineStatusTimes({
+        maMay: equipmentId,
+        yearMonthDayShift: yearMonthDayShift
+      });
+      setMachineStatusTimes(prev => {
+        const newData = res || [];
+        if (JSON.stringify(prev) === JSON.stringify(newData)) {
+          return prev;
+        }
+        return newData;
+      });
+    } catch (error) {
+      console.error("[MayThanhHinhDashboard] fetchMachineStatusTimes -> Lỗi:", error);
+    }
+  };
+
+  // ── Tính toán các mốc giờ (8 vạch 9 mốc) trên trục thời gian ca ──
+  const shiftTimeTicks = React.useMemo(() => {
+    let startHour = 6;
+    if (selectedCa === '1') startHour = 6;
+    else if (selectedCa === '2') startHour = 14;
+    else if (selectedCa === '0') startHour = 22;
+
+    const ticks = [];
+    for (let i = 0; i <= 8; i++) {
+      const hour = (startHour + i) % 24;
+      ticks.push(`${String(hour).padStart(2, '0')}:00`);
+    }
+    // Console log test lỗi theo quy tắc 3
+    console.log(`[ShiftTimeAxis] Ca ${selectedCa}: Mốc giờ =`, ticks);
+    return ticks;
+  }, [selectedCa]);
+
+  // ── Tính toán dữ liệu Biểu đồ tròn Phân bổ thời gian ca (Tổng 8h) ──
+  const shift8hPieData = React.useMemo(() => {
+    if (!selectedDate || selectedCa === '') return [];
+    const [y, m, d] = selectedDate.split('-');
+    let shiftStart = new Date(y, m - 1, d);
+    if (selectedCa === '0') shiftStart.setHours(22, 0, 0, 0);
+    else if (selectedCa === '1') shiftStart.setHours(6, 0, 0, 0);
+    else if (selectedCa === '2') shiftStart.setHours(14, 0, 0, 0);
+    const shiftEnd = new Date(shiftStart.getTime() + 8 * 3600 * 1000);
+    const totalShiftMs = 8 * 3600 * 1000;
+
+    const statusMap = {};
+    let totalLoggedMs = 0;
+
+    (machineStatusTimes || []).forEach(item => {
+      if (!item.StartTime) return;
+      const itemStart = new Date(item.StartTime.replace(' ', 'T'));
+      const itemEnd = item.EndTime ? new Date(item.EndTime.replace(' ', 'T')) : new Date();
+      if (isNaN(itemStart.getTime()) || isNaN(itemEnd.getTime())) return;
+
+      const clampedStart = new Date(Math.max(itemStart.getTime(), shiftStart.getTime()));
+      const clampedEnd = new Date(Math.min(itemEnd.getTime(), shiftEnd.getTime()));
+      const durationMs = clampedEnd.getTime() - clampedStart.getTime();
+      if (durationMs <= 0) return;
+
+      const statusNum = Number(item.MachineStatus);
+      let label = item.StatusName || 'Khác';
+      let fill = '#94a3b8';
+
+      switch (statusNum) {
+        case 0: fill = '#fff2cc'; label = 'Không xác định'; break;
+        case 1: fill = '#00b050'; label = 'Máy chạy'; break;
+        case 2: fill = '#ffff00'; label = 'Máy dừng'; break;
+        case 3: fill = '#ff0000'; label = 'Máy lỗi'; break;
+        case 4: fill = '#ffc000'; label = 'Mất kết nối'; break;
+        case 5: fill = '#f8cbad'; label = 'PLC Khởi động'; break;
+        case 6: fill = '#b4c6e7'; label = 'Không có KH'; break;
+        case 7: fill = '#c55a11'; label = 'App Server tắt'; break;
+        case 8: fill = '#833c0c'; label = 'Máy chủ tắt'; break;
+        default:
+          const statusLower = String(item.StatusName || '').toLowerCase();
+          if (statusLower === 'chạy' || statusLower === 'run') { fill = '#00b050'; label = 'Máy chạy'; }
+          else if (statusLower === 'dừng' || statusLower === 'stop') { fill = '#ffff00'; label = 'Máy dừng'; }
+          else if (statusLower === 'mất kết nối') { fill = '#ffc000'; label = 'Mất kết nối'; }
+          break;
+      }
+
+      if (!statusMap[label]) {
+        statusMap[label] = { name: label, valueMs: 0, fill: fill };
+      }
+      statusMap[label].valueMs += durationMs;
+      totalLoggedMs += durationMs;
+    });
+
+    const result = Object.values(statusMap).map(item => ({
+      name: item.name,
+      value: Number((item.valueMs / (3600 * 1000)).toFixed(2)),
+      fill: item.fill
+    }));
+
+    const emptyMs = Math.max(0, totalShiftMs - totalLoggedMs);
+    if (emptyMs > 0) {
+      result.push({
+        name: 'Thời gian trống',
+        value: Number((emptyMs / (3600 * 1000)).toFixed(2)),
+        fill: '#cbd5e1'
+      });
+    }
+
+    // Console log test lỗi theo quy tắc 3
+    console.log("[Shift8hPieChart] Dữ liệu biểu đồ phân bổ thời gian ca (8h):", result);
+    return result;
+  }, [machineStatusTimes, selectedDate, selectedCa]);
+
+  // useEffect tự động fetch dữ liệu ca và thời gian trạng thái máy khi tab dashboard active
+  useEffect(() => {
+    console.log("[MayThanhHinhDashboard] useEffect fetchShiftStats & fetchMachineStatusTimes triggered:", { equipmentId, activeTab, idKehoach, selectedDate, selectedCa });
+    if (activeTab === 'dashboard') {
+      fetchShiftStats();
+      fetchMachineStatusTimes();
+
+      const intervalId = setInterval(() => {
+        fetchMachineStatusTimes();
+      }, 10000);
+
+      return () => clearInterval(intervalId);
+    }
+  }, [equipmentId, activeTab, idKehoach, selectedDate, selectedCa]);
+
+  // Helper render giá trị boolean
+  const renderBool = (val) => {
+    if (val === true || val === 1 || val === '1') return <span style={{ fontWeight: 'bold', color: '#1e293b' }}>1</span>;
+    if (val === false || val === 0 || val === '0') return <span style={{ fontWeight: 'bold', color: '#1e293b' }}>0</span>;
+    return '-';
+  };
+
+  // Đồng bộ maMayFilter khi equipmentId từ URL thay đổi
+  useEffect(() => {
+    setMaMayFilter(equipmentId || '');
+  }, [equipmentId]);
+
+  // Format ngày giờ
+  const formatDateTime = (dateTimeStr) => {
+    if (!dateTimeStr) return '-';
+    try {
+      const date = new Date(dateTimeStr);
+      return date.toLocaleString('vi-VN');
+    } catch (e) {
+      return dateTimeStr;
+    }
+  };
+
+  // Fetch dữ liệu RealTime
+  const fetchRealTime = async (page = 0, size = 10) => {
+    setRealTimeLoading(true);
+    try {
+      const params = {
+        barcode: barcodeFilter.trim() || undefined,
+        maMay: equipmentId || undefined, // Luôn lấy cố định theo equipmentId từ trang trước
+        page,
+        size
+      };
+      const getMachineNumber = (id) => {
+        if (!id) return 0;
+        const match = id.match(/\d+/);
+        return match ? parseInt(match[0], 10) : 0;
+      };
+      const isTH09Plus = getMachineNumber(equipmentId) >= 9;
+
+      console.log(">>> [FETCH REALTIME] Gọi API. isTH05Group:", isTH05Group, "isTH09Plus:", isTH09Plus, "params:", params);
+      const res = isTH05Group
+        ? await getChartRealTimeTH05(params)
+        : (isTH09Plus ? await getChartRealTimeTH09(params) : await getChartRealTime(params));
+      console.log(">>> [FETCH REALTIME RESPONSE] Trả về:", res);
+
+      if (res) {
+        const content = isTH05Group
+          ? (res.content || [])
+          : (isTH09Plus ? (Array.isArray(res) ? res : []) : (res.content || []));
+        setRealTimeData(content);
+        setRealTimeTotalPages(isTH05Group ? (res.totalPages || 0) : (isTH09Plus ? 1 : (res.totalPages || 0)));
+        setRealTimeTotalElements(isTH05Group ? (res.totalElements || 0) : (isTH09Plus ? content.length : (res.totalElements || 0)));
+        setRealTimePage(isTH05Group ? (res.number || 0) : (isTH09Plus ? 0 : (res.number || 0)));
+        if (content.length > 0) {
+          setSelectedRealTimeId(content[0].id);
+        } else {
+          setSelectedRealTimeId(null);
+        }
+      }
+    } catch (error) {
+      console.error(">>> [FETCH REALTIME ERROR] Chi tiết lỗi:", error);
+      toast.error(error.message || 'Lỗi tải dữ liệu RealTime');
+    } finally {
+      setRealTimeLoading(false);
+    }
+  };
+
+  // Fetch dữ liệu RealTime ngầm không làm chớp nháy giao diện
+  const fetchRealTimeSilence = async (page = 0, size = 10) => {
+    try {
+      const params = {
+        barcode: barcodeFilter.trim() || undefined,
+        maMay: equipmentId || undefined,
+        page,
+        size
+      };
+      const getMachineNumber = (id) => {
+        if (!id) return 0;
+        const match = id.match(/\d+/);
+        return match ? parseInt(match[0], 10) : 0;
+      };
+      const isTH09Plus = getMachineNumber(equipmentId) >= 9;
+
+      const res = isTH05Group
+        ? await getChartRealTimeTH05(params)
+        : (isTH09Plus ? await getChartRealTimeTH09(params) : await getChartRealTime(params));
+      if (res) {
+        const content = isTH05Group
+          ? (res.content || [])
+          : (isTH09Plus ? (Array.isArray(res) ? res : []) : (res.content || []));
+        setRealTimeData(content);
+        setRealTimeTotalPages(isTH05Group ? (res.totalPages || 0) : (isTH09Plus ? 1 : (res.totalPages || 0)));
+        setRealTimeTotalElements(isTH05Group ? (res.totalElements || 0) : (isTH09Plus ? content.length : (res.totalElements || 0)));
+        setRealTimePage(isTH05Group ? (res.number || 0) : (isTH09Plus ? 0 : (res.number || 0)));
+        if (content.length > 0) {
+          if (!content.some(item => item.id === selectedRealTimeId)) {
+            setSelectedRealTimeId(content[0].id);
+          }
+        } else {
+          setSelectedRealTimeId(null);
+        }
+      }
+    } catch (error) {
+      console.error(">>> [FETCH REALTIME SILENCE ERROR] Chi tiết:", error);
+    }
+  };
+
+  // Fetch dữ liệu Setting
+  const fetchSetting = async (page = 0, size = 10) => {
+    setSettingLoading(true);
+    try {
+      const params = {
+        barcode: barcodeFilter.trim() || undefined,
+        maMay: equipmentId || undefined, // Luôn lấy cố định theo equipmentId từ trang trước
+        page,
+        size
+      };
+      const getMachineNumber = (id) => {
+        if (!id) return 0;
+        const match = id.match(/\d+/);
+        return match ? parseInt(match[0], 10) : 0;
+      };
+      const isTH09Plus = getMachineNumber(equipmentId) >= 9;
+
+      console.log(">>> [FETCH SETTING] Gọi API. isTH05Group:", isTH05Group, "isTH09Plus:", isTH09Plus, "params:", params);
+      const res = isTH05Group
+        ? await getChartSettingTH05(params)
+        : (isTH09Plus ? await getChartSettingTH09(params) : await getChartSetting(params));
+      console.log(">>> [FETCH SETTING RESPONSE] Trả về:", res);
+
+      if (res) {
+        const content = isTH05Group
+          ? (res.content || [])
+          : (isTH09Plus ? (Array.isArray(res) ? res : []) : (res.content || []));
+        setSettingData(content);
+        setSettingTotalPages(isTH05Group ? (res.totalPages || 0) : (isTH09Plus ? 1 : (res.totalPages || 0)));
+        setSettingTotalElements(isTH05Group ? (res.totalElements || 0) : (isTH09Plus ? content.length : (res.totalElements || 0)));
+        setSettingPage(isTH05Group ? (res.number || 0) : (isTH09Plus ? 0 : (res.number || 0)));
+        if (content.length > 0) {
+          setSelectedSettingId(content[0].id);
+        } else {
+          setSelectedSettingId(null);
+        }
+      }
+    } catch (error) {
+      console.error(">>> [FETCH SETTING ERROR] Chi tiết lỗi:", error);
+      toast.error(error.message || 'Lỗi tải dữ liệu Setting');
+    } finally {
+      setSettingLoading(false);
+    }
+  };
+
+  // Nút tìm kiếm
+  const handleSearch = () => {
+    console.log(">>> [FILTER SEARCH CLICK] barcode:", barcodeFilter, "maMay (cố định):", equipmentId);
+    fetchRealTime(0, realTimeSize);
+    fetchSetting(0, settingSize);
+  };
+
+  // Nút đặt lại bộ lọc
+  const handleReset = () => {
+    console.log(">>> [FILTER RESET CLICK] Reset bộ lọc về mặc định của máy:", equipmentId);
+    setBarcodeFilter('');
+    setMaMayFilter(equipmentId || '');
+
+    const getMachineNumber = (id) => {
+      if (!id) return 0;
+      const match = id.match(/\d+/);
+      return match ? parseInt(match[0], 10) : 0;
+    };
+    const isTH09Plus = getMachineNumber(equipmentId) >= 9;
+
+    // Gọi fetch ngay lập tức với params mặc định để tránh độ trễ state
+    const paramsDefault = {
+      barcode: undefined,
+      maMay: equipmentId || undefined,
+      page: 0,
+      size: 10
+    };
+
+    const resetRealTime = async () => {
+      setRealTimeLoading(true);
+      try {
+        const res = isTH05Group
+          ? await getChartRealTimeTH05(paramsDefault)
+          : (isTH09Plus ? await getChartRealTimeTH09(paramsDefault) : await getChartRealTime(paramsDefault));
+        if (res) {
+          const content = isTH05Group
+            ? (res.content || [])
+            : (isTH09Plus ? (Array.isArray(res) ? res : []) : (res.content || []));
+          setRealTimeData(content);
+          setRealTimeTotalPages(isTH05Group ? (res.totalPages || 0) : (isTH09Plus ? 1 : (res.totalPages || 0)));
+          setRealTimeTotalElements(isTH05Group ? (res.totalElements || 0) : (isTH09Plus ? content.length : (res.totalElements || 0)));
+          setRealTimePage(isTH05Group ? (res.number || 0) : (isTH09Plus ? 0 : (res.number || 0)));
+          if (content.length > 0) {
+            setSelectedRealTimeId(content[0].id);
+          } else {
+            setSelectedRealTimeId(null);
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setRealTimeLoading(false);
+      }
+    };
+
+    const resetSetting = async () => {
+      setSettingLoading(true);
+      try {
+        const res = isTH05Group
+          ? await getChartSettingTH05(paramsDefault)
+          : (isTH09Plus ? await getChartSettingTH09(paramsDefault) : await getChartSetting(paramsDefault));
+        if (res) {
+          const content = isTH05Group
+            ? (res.content || [])
+            : (isTH09Plus ? (Array.isArray(res) ? res : []) : (res.content || []));
+          setSettingData(content);
+          setSettingTotalPages(isTH05Group ? (res.totalPages || 0) : (isTH09Plus ? 1 : (res.totalPages || 0)));
+          setSettingTotalElements(isTH05Group ? (res.totalElements || 0) : (isTH09Plus ? content.length : (res.totalElements || 0)));
+          setSettingPage(isTH05Group ? (res.number || 0) : (isTH09Plus ? 0 : (res.number || 0)));
+          if (content.length > 0) {
+            setSelectedSettingId(content[0].id);
+          } else {
+            setSelectedSettingId(null);
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setSettingLoading(false);
+      }
+    };
+
+    resetRealTime();
+    resetSetting();
+  };
+
+  // Gọi API lần đầu hoặc khi đổi tab / đổi máy
+  useEffect(() => {
+    console.log(`>>> [MayThanhHinhDashboard] Đang mở Tab: ${activeTab}, Máy: ${equipmentId}`);
+    if (activeTab === 'chartData') {
+      fetchRealTime(0, realTimeSize);
+      fetchSetting(0, settingSize);
+    }
+  }, [activeTab, equipmentId]);
+
+  // Thiết lập tự động làm mới ngầm (silence refresh) cho RealTime theo chu kỳ đã chọn
+  useEffect(() => {
+    if (activeTab === 'chartData') {
+      const interval = setInterval(() => {
+        fetchRealTimeSilence(realTimePage, realTimeSize);
+      }, realTimeRefreshInterval);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab, equipmentId, realTimePage, realTimeSize, realTimeRefreshInterval, barcodeFilter, selectedRealTimeId]);
+
+  const renderChartDataTab = () => {
+    return (
+      <div className="mes-fade" style={{ display: 'flex', flexDirection: 'column', gap: '8px', height: showAbbreviations ? 'auto' : 'calc(100vh - 120px)', overflowY: showAbbreviations ? 'auto' : 'hidden' }}>
+        {/* Bộ lọc chung */}
+
+
+        {/* Phân vùng RealTime */}
+        <div style={{ background: '#ffffff', borderRadius: '4px', border: '1px solid #cbd5e1', padding: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontWeight: 'bold', color: '#1565C0', borderBottom: '1px solid #e2e8f0', paddingBottom: '3px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span>THÔNG SỐ HOẠT ĐỘNG</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '3px', color: '#64748b', fontWeight: 'normal' }}>
+                <span style={{ fontSize: '10px' }}>Làm mới:</span>
+                <select
+                  value={realTimeRefreshInterval}
+                  onChange={(e) => setRealTimeRefreshInterval(Number(e.target.value))}
+                  style={{ fontSize: '10px', padding: '1px 3px', height: '18px', border: '1px solid #cbd5e1', borderRadius: '3px', fontWeight: 'bold', cursor: 'pointer' }}
+                >
+                  <option value={1000}>1s</option>
+                  <option value={1500}>1.5s</option>
+                  <option value={2000}>2s</option>
+                </select>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowRealTimeHistory(true)}
+              style={{
+                background: '#1565C0',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '3px',
+                padding: '2px 8px',
+                fontSize: '10px',
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+            >
+              XEM LỊCH SỬ THAY ĐỔI
+            </button>
+          </div>
+
+          {showRealTimeHistory && (
+            (() => {
+              if (isTH05Group) {
+                return <RealTimeTH05History equipmentId={equipmentId} onClose={() => setShowRealTimeHistory(false)} />;
+              }
+              const getMachineNumber = (id) => {
+                if (!id) return 0;
+                const match = id.match(/\d+/);
+                return match ? parseInt(match[0], 10) : 0;
+              };
+              const isTH09Plus = getMachineNumber(equipmentId) >= 9;
+              return isTH09Plus ? (
+                <RealTimeTH09History equipmentId={equipmentId} onClose={() => setShowRealTimeHistory(false)} />
+              ) : (
+                <RealTimeTH02History equipmentId={equipmentId} onClose={() => setShowRealTimeHistory(false)} />
+              );
+            })()
+          )}
+
+          {realTimeLoading ? (
+            <div style={{ textAlign: 'center', padding: '10px', fontSize: '11px' }}>Đang tải dữ liệu RealTime...</div>
+          ) : realTimeData.length === 0 ? (
+            <div style={{ padding: '10px', fontSize: '11px', color: '#94a3b8' }}>Không tìm thấy dữ liệu Parameter RealTime nào.</div>
+          ) : (
+            <>
+              {(() => {
+                const selectedRecord = realTimeData[0]; // Luôn lấy bản ghi RealTime mới nhất
+                if (!selectedRecord) return null;
+                console.log(">>> [DEBUG REALTIME RECORD SELECTED]:", selectedRecord);
+
+                let fields;
+                if (isTH05Group) {
+                  fields = realTimeTH05Fields;
+                } else {
+                  const getMachineNumber = (id) => {
+                    if (!id) return 0;
+                    const match = id.match(/\d+/);
+                    return match ? parseInt(match[0], 10) : 0;
+                  };
+                  const isTH09Plus = getMachineNumber(equipmentId) >= 9;
+                  fields = isTH09Plus ? realTimeTH09Fields : realTimeTH02Fields;
+                }
+
+                // Thực hiện lọc động chỉ render các trường thực tế có trong dữ liệu cho nhóm TH05
+                const fieldsToRender = isTH05Group
+                  ? fields.filter(field => field.key in selectedRecord)
+                  : fields;
+
+                return (
+                  <div style={{
+                    width: '100%',
+                    background: '#f8fafc',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '4px',
+                    padding: '6px'
+                  }}>
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(7, 1fr)',
+                      gap: '4px'
+                    }}>
+                      {fieldsToRender.map(field => {
+                        const val = selectedRecord[field.key];
+                        let renderedVal = val ?? '-';
+                        if (field.key === 'globalDisableBarcode') {
+                          renderedVal = (val === 1 || val === true || val === '1') ? 'yêu cầu tích mã vạch' : 'bỏ qua tích mã vạch';
+                        } else if (field.key === 'globalEnableBarcode') {
+                          renderedVal = (val === 1 || val === true || val === '1') ? 'Mã vạch OK' : 'mã vạch không đúng';
+                        } else if (field.isBool) {
+                          renderedVal = renderBool(val);
+                        }
+
+                        return (
+                          <div
+                            key={field.key}
+                            style={{
+                              background: '#ffffff',
+                              border: '1px solid #cbd5e1',
+                              borderRadius: '3px',
+                              padding: '5px 8px',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              fontSize: '10px',
+                              gridColumn: (field.key === 'globalDisableBarcode' || field.key === 'globalEnableBarcode') ? 'span 2' : 'span 1',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            <span style={{ color: '#475569', fontWeight: '500' }}>{field.label}</span>
+                            <span style={{ fontWeight: 'bold', color: '#1e293b', marginLeft: '12px' }}>{renderedVal}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+            </>
+          )}
+        </div>
+
+        {/* PHÂN VÙNG 2: SETTING (Chiếm toàn bộ không gian còn lại ở dưới) */}
+        <div style={{ background: '#ffffff', borderRadius: '4px', border: '1px solid #cbd5e1', padding: '8px', display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minHeight: '0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontWeight: 'bold', color: '#c2410c', borderBottom: '1px solid #e2e8f0', paddingBottom: '3px' }}>
+            <span>THÔNG SỐ CÀI ĐẶT</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                onClick={() => {
+                  console.log(`>>> [MayThanhHinhDashboard] Bấm nút xem LỊCH THÔNG SỐ CÀI ĐẶT, máy: ${equipmentId}`);
+                  setShowSettingHistory(true);
+                }}
+                style={{
+                  background: '#c2410c',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '3px',
+                  padding: '2px 8px',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                LỊCH THÔNG SỐ CÀI ĐẶT
+              </button>
+              <button
+                onClick={() => {
+                  console.log(`>>> [MayThanhHinhDashboard] Bấm nút xem LỊCH THÔNG SỐ THAY ĐỔI (Change), máy: ${equipmentId}`);
+                  setShowChangeHistory(true);
+                }}
+                style={{
+                  background: '#ea580c',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '3px',
+                  padding: '2px 8px',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                LỊCH THÔNG SỐ THAY ĐỔI
+              </button>
+            </div>
+          </div>
+
+          {showSettingHistory && (
+            (() => {
+              if (isTH05Group) {
+                return <SettingTH05History equipmentId={equipmentId} onClose={() => setShowSettingHistory(false)} />;
+              }
+              const getMachineNumber = (id) => {
+                if (!id) return 0;
+                const match = id.match(/\d+/);
+                return match ? parseInt(match[0], 10) : 0;
+              };
+              const isTH09Plus = getMachineNumber(equipmentId) >= 9;
+              return isTH09Plus ? (
+                <SettingTH09History equipmentId={equipmentId} onClose={() => setShowSettingHistory(false)} />
+              ) : (
+                <SettingTH02History equipmentId={equipmentId} onClose={() => setShowSettingHistory(false)} />
+              );
+            })()
+          )}
+
+          {settingLoading ? (
+            <div style={{ textAlign: 'center', padding: '20px', fontSize: '11px' }}>
+              <div className="mes-spinner" style={{ width: '20px', height: '20px', margin: '0 auto' }} />
+              <div style={{ marginTop: '5px' }}>Đang tải dữ liệu Setting...</div>
+            </div>
+          ) : settingData.length === 0 ? (
+            <div style={{ padding: '20px', fontSize: '11px', color: '#94a3b8' }}>Không tìm thấy dữ liệu Parameter Setting nào.</div>
+          ) : (
+            <>
+              {(() => {
+                const selectedRecord = settingData[0]; // Luôn lấy bản ghi Setting mới nhất
+                if (!selectedRecord) return null;
+
+                let fields;
+                if (isTH05Group) {
+                  fields = settingTH05Fields;
+                } else {
+                  const getMachineNumber = (id) => {
+                    if (!id) return 0;
+                    const match = id.match(/\d+/);
+                    return match ? parseInt(match[0], 10) : 0;
+                  };
+                  const isTH09Plus = getMachineNumber(equipmentId) >= 9;
+                  fields = isTH09Plus ? settingTH09Fields : settingTH02Fields;
+                }
+
+                // Thực hiện lọc động chỉ render các trường thực tế có trong dữ liệu cho nhóm TH05
+                const fieldsToRender = isTH05Group
+                  ? fields.filter(field => field.key in selectedRecord)
+                  : fields;
+
+                return (
+                  <div style={{
+                    width: '100%',
+                    overflowY: 'auto',
+                    maxHeight: '100%',
+                    background: '#f8fafc',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '4px',
+                    padding: '6px'
+                  }}>
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(7, 1fr)',
+                      gap: '4px'
+                    }}>
+                      {fieldsToRender.map(field => (
+                        <div key={field.key} style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '3px', padding: '5px 6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px' }}>
+                          <span style={{ color: '#475569', fontWeight: '500' }}>{field.label}</span>
+                          <span style={{ fontWeight: 'bold', color: '#1e293b' }}>{selectedRecord[field.key] ?? '-'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+            </>
+          )}
+        </div>
+
+        {/* THANH TOGGLE BẢNG CHÚ THÍCH */}
+        <div style={{ display: 'flex', justifyContent: 'center', margin: '2px 0', flexShrink: 0 }}>
+          <button
+            onClick={() => setShowAbbreviations(!showAbbreviations)}
+            style={{
+              background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '3px',
+              padding: '2px 10px', fontSize: '10px', fontWeight: 'bold', color: '#475569',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'
+            }}
+          >
+            <span>{showAbbreviations ? 'ẨN BẢNG CHÚ THÍCH TỪ VIẾT TẮT' : 'HIỂN THỊ BẢNG CHÚ THÍCH TỪ VIẾT TẮT'}</span>
+            <svg
+              width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"
+              style={{ transform: showAbbreviations ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
+
+        {/* ── BẢNG CHÚ THÍCH CÁC TỪ VIẾT TẮT ────────────────────────────────── */}
+        {showAbbreviations && (
+          <div style={{ background: '#ffffff', borderRadius: '4px', border: '1px solid #cbd5e1', padding: '8px', flexShrink: 0, marginTop: '2px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#475569', borderBottom: '1px solid #e2e8f0', paddingBottom: '3px', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Bảng Chú Thích Các Từ Viết Tắt Hệ Thống Thành Hình
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '4px', fontSize: '9.5px' }}>
+              <div style={{ background: '#f8fafc', padding: '4px 6px', borderRadius: '3px', border: '1px solid #cbd5e1', color: '#7e22ce' }}><strong>ĐK:</strong> Đường kính</div>
+              <div style={{ background: '#f8fafc', padding: '4px 6px', borderRadius: '3px', border: '1px solid #cbd5e1', color: '#7e22ce' }}><strong>CD:</strong> Chiều dài</div>
+              <div style={{ background: '#f8fafc', padding: '4px 6px', borderRadius: '3px', border: '1px solid #cbd5e1', color: '#7e22ce' }}><strong>KC:</strong> Khoảng cách</div>
+              <div style={{ background: '#f8fafc', padding: '4px 6px', borderRadius: '3px', border: '1px solid #cbd5e1', color: '#7e22ce' }}><strong>AL / Pres:</strong> Áp lực (Pressure)</div>
+              <div style={{ background: '#f8fafc', padding: '4px 6px', borderRadius: '3px', border: '1px solid #cbd5e1', color: '#7e22ce' }}><strong>VT:</strong> Vị trí</div>
+              <div style={{ background: '#f8fafc', padding: '4px 6px', borderRadius: '3px', border: '1px solid #cbd5e1', color: '#7e22ce' }}><strong>GĐ:</strong> Giai đoạn</div>
+              <div style={{ background: '#f8fafc', padding: '4px 6px', borderRadius: '3px', border: '1px solid #cbd5e1', color: '#7e22ce' }}><strong>HT:</strong> Hoàn thành</div>
+              <div style={{ background: '#f8fafc', padding: '4px 6px', borderRadius: '3px', border: '1px solid #cbd5e1', color: '#7e22ce' }}><strong>H.Tâm / Rd:</strong> Hướng tâm (Radial)</div>
+              <div style={{ background: '#f8fafc', padding: '4px 6px', borderRadius: '3px', border: '1px solid #cbd5e1', color: '#7e22ce' }}><strong>H.Trục:</strong> Hướng trục</div>
+              <div style={{ background: '#f8fafc', padding: '4px 6px', borderRadius: '3px', border: '1px solid #cbd5e1', color: '#7e22ce' }}><strong>H.Xoay / Rt:</strong> Hướng xoay (Rotation)</div>
+              <div style={{ background: '#f8fafc', padding: '4px 6px', borderRadius: '3px', border: '1px solid #cbd5e1', color: '#7e22ce' }}><strong>TH:</strong> Tổ hợp</div>
+
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const params = { nam_sx: selectedYear, thang_sx: selectedMonth };
+        const yearMonth = `${selectedYear}${String(selectedMonth).padStart(2, '0')}`;
+        const [pieRes, statsRes, dailyRes, monthStatusRes] = await Promise.all([
+          getDashboardMay(equipmentId, params),
+          getDashboardStats({ equipmentId, ...params }),
+          getDailyPlanRatio({ nam_sx: selectedYear, thang_sx: selectedMonth, equipmentId }),
+          getMachineStatusTimesByMonth({ maMay: equipmentId, yearMonth })
+        ]);
+
+        if (Array.isArray(monthStatusRes)) {
+          setMachineStatusMonth(monthStatusRes);
+        } else {
+          setMachineStatusMonth([]);
+        }
+
+        if (pieRes.success) setPieData(pieRes.data);
+        else toast.error(pieRes.message || 'Lỗi tải biểu đồ tròn');
+
+        if (statsRes.success) setStatsData(statsRes.data);
+        else toast.error(statsRes.message || 'Lỗi tải thống kê');
+
+        if (dailyRes.success && Array.isArray(dailyRes.data) && dailyRes.data.length > 0) {
+          console.log(">>> [MayThanhHinhDashboard] Dữ liệu tỷ lệ hoàn thành theo ngày nhận được:", dailyRes.data);
+          setDailyPlanData(dailyRes.data.map(item => ({
+            day: `${item.day}/${selectedMonth}`,
+            tyLe: Number(item.tyLe) || 0,
+            sanLuong: Number(item.sanLuong) || 0,
+            keHoach: Number(item.keHoach) || 0,
+          })));
+        } else {
+          setDailyPlanData([]);
+          toast.info('Chưa có dữ liệu tỷ lệ hoàn thành theo ngày cho tháng này');
+        }
+
+      } catch (err) {
+        toast.error(err.message || 'Lỗi kết nối hệ thống');
+        setDailyPlanData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [equipmentId, selectedYear, selectedMonth]);
+
+  const tyLeDat = pieData?.tyLeDat ?? 0;
+  const tyLeThieu = pieData?.tyLeThieu ?? 0;
+  const donutData = [
+    { name: 'Đạt kế hoạch', value: tyLeDat },
+    { name: 'Thiếu kế hoạch', value: tyLeThieu },
+  ];
+
+  const scadaChartData = React.useMemo(() => {
+    if (!machineStatusMonth || machineStatusMonth.length === 0) {
+      return [{ name: 'Không có dữ liệu', value: 1, fill: '#e2e8f0' }];
+    }
+    return machineStatusMonth.map(item => {
+      let fill = '#94a3b8'; // fallback màu xám nếu mã không xác định
+      let standardName = item.StatusName || `Trạng thái ${item.MachineStatus}`;
+
+      if (item.MachineStatus === 0) { fill = '#fff2cc'; standardName = 'Không xác định'; }
+      else if (item.MachineStatus === 1) { fill = '#00b050'; standardName = 'Máy chạy'; }
+      else if (item.MachineStatus === 2) { fill = '#ffff00'; standardName = 'Máy dừng'; }
+      else if (item.MachineStatus           {/* ── KHỐI TRÊN: HÌNH ẢNH MÁY (GÓC TRÁI, CHIỀU CAO ĐẾN LỐP ĐANG SẢN XUẤT) & THÔNG TIN CA ── */}
+          <div style={{ display: 'flex', gap: '20px', marginBottom: '15px', alignItems: 'flex-start' }}>
+            {/* ── HÌNH ẢNH MÁY ── */}
+            {machineImage && (
+              <div style={{ width: '380px', flexShrink: 0, borderRadius: '4px', overflow: 'hidden', border: '1px solid #cbd5e1', alignSelf: 'flex-start' }}>
+                <img src={machineImage} alt={`Máy ${equipmentId}`} style={{ width: '100%', maxHeight: '200px', objectFit: 'contain', display: 'block', backgroundColor: '#f8fafc' }} />
+              </div>
+            )}
+
+            {/* ── THÔNG TIN CA & LỐP ĐANG SẢN XUẤT ── */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              {/* HEADER ROW: Ca & Ngày */}
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px', flexWrap: 'nowrap', gap: '20px', background: '#fff', padding: '0' }}>
+                {/* Cột 1: Ca */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#000' }}>Ca</span>
+                  <select
+                    value={selectedCa}
+                    onChange={(e) => {
+                      const caVal = e.target.value;
+                      console.log("[TEST LỖI] Ca được chọn:", caVal);
+                      setSelectedCa(caVal);
+                    }}
+                    style={{ fontSize: '16px', border: '1px solid #e2e8f0', outline: 'none', padding: '3px 25px', cursor: 'pointer', background: '#fef08a', fontWeight: 'bold' }}
+                  >
+                    <option value="0"></option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                  </select>
+                </div>
+
+                {/* Cột 2: Ngày */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#000' }}>Ngày</span>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => {
+                      const dateVal = e.target.value;
+                      console.log("[TEST LỖI] Ngày được chọn từ DatePicker:", dateVal);
+                      setSelectedDate(dateVal);
+                    }}
+                    style={{ fontSize: '16px', border: '1px solid #e2e8f0', outline: 'none', padding: '3px 10px', cursor: 'pointer', background: '#fef08a', fontWeight: 'bold' }}
+                  />
+                </div>
+
+                <div style={{ flex: 1 }}></div>
+              </div>
+
+              {/* THỜI GIAN MÁY CHẠY */}
+              {(() => {
+                let currentStatusLabel = 'KHÔNG DỮ LIỆU';
+                let currentStatusBg = '#94a3b8';
+                let textColor = '#fff';
+
+                if (machineStatusTimes && machineStatusTimes.length > 0) {
+                  const lastStatus = machineStatusTimes[machineStatusTimes.length - 1];
+                  const statusNum = Number(lastStatus.MachineStatus);
+
+                  switch (statusNum) {
+                    case 0: currentStatusBg = '#fff2cc'; currentStatusLabel = 'Không xác định'; textColor = '#1e293b'; break;
+                    case 1: currentStatusBg = '#00b050'; currentStatusLabel = 'Máy chạy'; break;
+                    case 2: currentStatusBg = '#ffff00'; currentStatusLabel = 'Máy dừng'; textColor = '#1e293b'; break;
+                    case 3: currentStatusBg = '#ff0000'; currentStatusLabel = 'Máy lỗi'; break;
+                    case 4: currentStatusBg = '#ffc000'; currentStatusLabel = 'Mất kết nối PLC'; textColor = '#1e293b'; break;
+                    case 5: currentStatusBg = '#f8cbad'; currentStatusLabel = 'PLC Khởi động'; textColor = '#1e293b'; break;
+                    case 6: currentStatusBg = '#b4c6e7'; currentStatusLabel = 'Không có kế hoạch'; textColor = '#1e293b'; break;
+                    case 7: currentStatusBg = '#c55a11'; currentStatusLabel = 'App Server tắt'; break;
+                    case 8: currentStatusBg = '#833c0c'; currentStatusLabel = 'Máy chủ tắt'; break;
+                    default:
+                      const statusLower = String(lastStatus.StatusName || '').toLowerCase();
+                      if (statusLower === 'chạy' || statusLower === 'run') { currentStatusBg = '#00b050'; currentStatusLabel = 'Máy chạy'; }
+                      else if (statusLower === 'dừng' || statusLower === 'stop') { currentStatusBg = '#ffff00'; currentStatusLabel = 'Máy dừng'; textColor = '#1e293b'; }
+                      else if (statusLower === 'mất kết nối') { currentStatusBg = '#ffc000'; currentStatusLabel = 'Mất kết nối PLC'; textColor = '#1e293b'; }
+                      else { currentStatusBg = '#94a3b8'; currentStatusLabel = lastStatus.StatusName || 'KHÔNG XÁC ĐỊNH'; }
+                      break;
+                  }
+                }
+
+                return (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px', borderTop: '1px solid #cbd5e1', borderBottom: '1px solid #cbd5e1', marginBottom: '10px', background: '#f8fafc' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                      <span style={{ fontSize: '15px', fontWeight: 'bold', color: '#1e3a8a', textTransform: 'uppercase' }}>Thời gian máy chạy:</span>
+                      <span style={{ fontSize: '17px', fontWeight: 'bold', color: '#1e3a8a' }}>{avgChay} (h)</span>
+                      <span style={{ fontSize: '17px', fontWeight: 'bold', color: '#1e3a8a' }}>{uptimePctAPI}%</span>
+                    </div>
+                    <div style={{
+                      background: currentStatusBg, color: textColor, fontSize: '15px',
+                      fontWeight: 'bold', padding: '5px 30px', minWidth: '180px', textAlign: 'center',
+                      textTransform: 'uppercase', borderRadius: '3px',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                    }}>
+                      {currentStatusLabel}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* LỐP ĐANG SẢN XUẤT */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '2px 0' }}>
+                <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#1565C0' }}>LỐP ĐANG SẢN XUẤT</div>
+                <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#1e293b' }}>{shiftStatsData && shiftStatsData.length > 0 ? (shiftStatsData[0].TenQuycachLop || 'Không có tên quy cách') : 'Không có dữ liệu'}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── KHỐI DƯỚI: BIỂU ĐỒ TRẠNG THÁI THIẾT BỊ (BÊN TRÁI) & BIỂU ĐỒ TRÒN PHÂN BỔ (BÊN PHẢI) ── */}
+          <div style={{ display: 'flex', gap: '25px', alignItems: 'flex-start', marginBottom: '20px', paddingTop: '15px', borderTop: '1px solid #e2e8f0' }}>
+            
+            {/* BÊN TRÁI: BIỂU ĐỒ TRẠNG THÁI THIẾT BỊ */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <div style={{ textAlign: 'center', fontSize: '15px', fontWeight: 'bold', marginBottom: '10px', color: '#1a3a5c', textTransform: 'uppercase' }}>
+                Biểu đồ trạng thái thiết bị (Ca {selectedCa === '0' ? '3' : selectedCa})
+              </div>
+
+              {/* Thanh Timeline Bar Chart */}
+              <div style={{ position: 'relative', height: '38px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                {/* 8 vạch chia mỗi tiếng */}
+                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 10 }}>
+                  {[1, 2, 3, 4, 5, 6, 7].map(h => (
+                    <div key={h} style={{
+                      position: 'absolute',
+                      left: `${(h / 8) * 100}%`,
+                      top: 0,
+                      bottom: 0,
+                      borderLeft: '1px dashed rgba(0, 0, 0, 0.25)'
+                    }} />
+                  ))}
+                </div>
+                {machineStatusTimes.length === 0 ? (
+                  <div style={{ position: 'relative', zIndex: 1, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: '13px', fontWeight: 'bold' }}>
+                    Không có dữ liệu trạng thái cho ca này
+                  </div>
+                ) : (
+                  (() => {
+                    const [y, m, d] = selectedDate.split('-');
+                    let shiftStart = new Date(y, m - 1, d);
+                    if (selectedCa === '0') {
+                      shiftStart.setHours(22, 0, 0, 0);
+                    } else if (selectedCa === '1') {
+                      shiftStart.setHours(6, 0, 0, 0);
+                    } else if (selectedCa === '2') {
+                      shiftStart.setHours(14, 0, 0, 0);
+                    }
+                    const shiftEnd = new Date(shiftStart.getTime() + 8 * 3600 * 1000);
+                    const shiftDurationMs = 8 * 3600 * 1000;
+
+                    return machineStatusTimes.map((item, idx) => {
+                      const statusNum = Number(item.MachineStatus);
+                      let bgColor = '#94a3b8';
+                      let label = item.StatusName || 'Unknown';
+                      let isRunning = false;
+                      let isDisconnect = false;
+
+                      switch (statusNum) {
+                        case 0: bgColor = '#fff2cc'; label = 'N/A'; break;
+                        case 1: bgColor = '#22c55e'; label = 'Run'; isRunning = true; break;
+                        case 2: bgColor = '#facc15'; label = 'Stop'; break;
+                        case 3: bgColor = '#ef4444'; label = 'Error'; break;
+                        case 4: bgColor = '#f97316'; label = 'Disconn'; isDisconnect = true; break;
+                        case 5: bgColor = '#f8cbad'; label = 'PLC Init'; break;
+                        case 6: bgColor = '#b4c6e7'; label = 'No Plan'; break;
+                        case 7: bgColor = '#c55a11'; label = 'App Off'; break;
+                        case 8: bgColor = '#833c0c'; label = 'Máy chủ tắt'; break;
+                        default:
+                          const statusLower = String(item.StatusName || '').toLowerCase();
+                          if (statusLower === 'chạy' || statusLower === 'run') { bgColor = '#22c55e'; label = 'Run'; isRunning = true; }
+                          else if (statusLower === 'dừng' || statusLower === 'stop') { bgColor = '#facc15'; label = 'Stop'; }
+                          else if (statusLower === 'mất kết nối') { bgColor = '#ef4444'; label = 'Disconnect'; isDisconnect = true; }
+                          break;
+                      }
+
+                      if (!item.StartTime) return null;
+                      const itemStart = new Date(item.StartTime.replace(' ', 'T'));
+                      const itemEnd = item.EndTime ? new Date(item.EndTime.replace(' ', 'T')) : new Date();
+
+                      if (isNaN(itemStart.getTime()) || isNaN(itemEnd.getTime())) return null;
+
+                      const clampedStart = new Date(Math.max(itemStart.getTime(), shiftStart.getTime()));
+                      const clampedEnd = new Date(Math.min(itemEnd.getTime(), shiftEnd.getTime()));
+
+                      const durationMs = clampedEnd.getTime() - clampedStart.getTime();
+                      if (durationMs <= 0) return null;
+
+                      const leftPct = ((clampedStart.getTime() - shiftStart.getTime()) / shiftDurationMs) * 100;
+                      const widthPct = (durationMs / shiftDurationMs) * 100;
+
+                      return (
+                        <div key={idx} style={{
+                          position: 'absolute',
+                          left: `${leftPct}%`,
+                          width: `${widthPct}%`,
+                          height: '100%',
+                          background: bgColor,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 'bold',
+                          color: isRunning || isDisconnect ? '#fff' : '#000',
+                          fontSize: '10px',
+                          overflow: 'hidden',
+                          whiteSpace: 'nowrap',
+                          zIndex: 2
+                        }} title={`${item.StatusName}: ${Math.round(durationMs / 1000)}s (${item.StartTime} - ${item.EndTime || 'Hiện tại'})`}>
+                          {widthPct > 5 ? label : ''}
+                        </div>
+                      );
+                    });
+                  })()
+                )}
+              </div>
+
+              {/* Trục thời gian hiển thị từng tiếng (8 vạch 9 mốc giờ) */}
+              <div style={{ position: 'relative', height: '24px', width: '100%', marginTop: '4px' }}>
+                {shiftTimeTicks.map((tickLabel, i) => {
+                  const leftPct = (i / 8) * 100;
+                  const isFirst = i === 0;
+                  const isLast = i === 8;
+                  return (
+                    <div key={i} style={{
+                      position: 'absolute',
+                      left: `${leftPct}%`,
+                      top: 0,
+                      transform: isFirst ? 'translateX(0%)' : isLast ? 'translateX(-100%)' : 'translateX(-50%)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: isFirst ? 'flex-start' : isLast ? 'flex-end' : 'center'
+                    }}>
+                      <div style={{ width: '1px', height: '6px', background: '#64748b' }} />
+                      <span style={{ fontSize: '10px', fontWeight: 'bold', color: '#475569', whiteSpace: 'nowrap' }}>{tickLabel}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* BÊN PHẢI: BIỂU ĐỒ TRÒN PHÂN BỔ THỜI GIAN CA (TỔNG 8H) - KHÔNG ĐÓNG KHUNG */}
+            <div style={{ width: '420px', flexShrink: 0, display: 'flex', flexDirection: 'column', borderLeft: '1px dashed #cbd5e1', paddingLeft: '20px' }}>
+              <div style={{ textAlign: 'center', fontSize: '14px', fontWeight: 'bold', color: '#1565C0', marginBottom: '10px', textTransform: 'uppercase' }}>
+                PHÂN BỔ THỜI GIAN CA (TỔNG 8H)
+              </div>
+
+              {(() => {
+                // Console log test lỗi quy tắc 3: kiểm tra dữ liệu phân bổ phần trăm
+                console.log("[Shift8hPieChart BottomRight] Render dữ liệu biểu đồ tròn kèm phần trăm:", shift8hPieData.map(i => ({
+                  name: i.name,
+                  hours: i.value,
+                  percent: `${(i.value / 8 * 100).toFixed(1)}%`
+                })));
+
+                return (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '15px' }}>
+                    {/* Legend Bảng Chú Thích (có thêm cột Tỷ lệ %) */}
+                    <div style={{ flex: 1 }}>
+                      <table style={{ width: '100%', fontSize: '12px', fontWeight: 'bold', color: '#475569', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '2px solid #cbd5e1', fontSize: '10px', color: '#64748b', textTransform: 'uppercase' }}>
+                            <th style={{ padding: '4px 0', width: '20px' }}></th>
+                            <th style={{ padding: '4px 4px', textAlign: 'left' }}>TRẠNG THÁI</th>
+                            <th style={{ padding: '4px 6px', textAlign: 'right' }}>THỜI GIAN</th>
+                            <th style={{ padding: '4px 6px', textAlign: 'right' }}>TỶ LỆ (%)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {shift8hPieData.map((item, idx) => {
+                            const pct = ((item.value / 8) * 100).toFixed(1);
+                            return (
+                              <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                <td style={{ padding: '4px 0', width: '20px' }}>
+                                  <div style={{ width: 10, height: 10, background: item.fill, border: item.fill === '#fff2cc' ? '1px solid #cbd5e1' : 'none', borderRadius: '2px' }}></div>
+                                </td>
+                                <td style={{ padding: '4px 4px', textAlign: 'left', color: '#1e293b', fontSize: '11px' }} title={item.name}>
+                                  {item.name}
+                                </td>
+                                <td style={{ padding: '4px 6px', textAlign: 'right', color: '#1565C0', whiteSpace: 'nowrap', fontSize: '11px' }}>
+                                  {item.value}h
+                                </td>
+                                <td style={{ padding: '4px 6px', textAlign: 'right', color: '#047857', whiteSpace: 'nowrap', fontSize: '11px' }}>
+                                  {pct}%
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* PieChart Biểu đồ tròn */}
+                    <div style={{ width: '150px', height: '150px', position: 'relative', flexShrink: 0 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={shift8hPieData}
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={60}
+                            dataKey="value"
+                            stroke="#fff"
+                            strokeWidth={1}
+                            isAnimationActive={false}
+                          >
+                            {shift8hPieData.map((entry, index) => (
+                              <Cell key={`shift8h-cell-${index}`} fill={entry.fill} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(val, name) => [`${val}h (${((val / 8) * 100).toFixed(1)}%)`, name]} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+          </div>� tròn Phân bổ thời gian ca (Nằm dưới biểu đồ trạng thái thiết bị & KHÔNG đóng khung) */}
+                <div style={{ marginTop: '15px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1' }}>
+                  <div style={{ textAlign: 'center', fontSize: '14px', fontWeight: 'bold', color: '#1565C0', marginBottom: '12px', textTransform: 'uppercase' }}>
+                    PHÂN BỔ THỜI GIAN CA (TỔNG 8H)
+                  </div>
+
+                  {(() => {
+                    // Console log test lỗi quy tắc 3: kiểm tra dữ liệu phân bổ phần trăm
+                    console.log("[Shift8hPieChart Legend] Render dữ liệu biểu đồ tròn kèm phần trăm:", shift8hPieData.map(i => ({
+                      name: i.name,
+                      hours: i.value,
+                      percent: `${(i.value / 8 * 100).toFixed(1)}%`
+                    })));
+
+                    return (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '40px', flexWrap: 'wrap' }}>
+                        {/* Legend Bảng Chú Thích (có thêm cột Tỷ lệ %) */}
+                        <div style={{ minWidth: '320px' }}>
+                          <table style={{ width: '100%', fontSize: '13px', fontWeight: 'bold', color: '#475569', borderCollapse: 'collapse' }}>
+                            <thead>
+                              <tr style={{ borderBottom: '2px solid #cbd5e1', fontSize: '11px', color: '#64748b', textTransform: 'uppercase' }}>
+                                <th style={{ padding: '6px 0', width: '24px' }}></th>
+                                <th style={{ padding: '6px 8px', textAlign: 'left' }}>TRẠNG THÁI</th>
+                                <th style={{ padding: '6px 12px', textAlign: 'right' }}>THỜI GIAN</th>
+                                <th style={{ padding: '6px 12px', textAlign: 'right' }}>TỶ LỆ (%)</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {shift8hPieData.map((item, idx) => {
+                                const pct = ((item.value / 8) * 100).toFixed(1);
+                                return (
+                                  <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                    <td style={{ padding: '6px 0', width: '24px' }}>
+                                      <div style={{ width: 12, height: 12, background: item.fill, border: item.fill === '#fff2cc' ? '1px solid #cbd5e1' : 'none', borderRadius: '2px' }}></div>
+                                    </td>
+                                    <td style={{ padding: '6px 8px', textAlign: 'left', color: '#1e293b' }} title={item.name}>
+                                      {item.name}
+                                    </td>
+                                    <td style={{ padding: '6px 12px', textAlign: 'right', color: '#1565C0', whiteSpace: 'nowrap' }}>
+                                      {item.value}h
+                                    </td>
+                                    <td style={{ padding: '6px 12px', textAlign: 'right', color: '#047857', whiteSpace: 'nowrap' }}>
+                                      {pct}%
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* PieChart Biểu đồ tròn */}
+                        <div style={{ width: '180px', height: '180px', position: 'relative' }}>
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={shift8hPieData}
+                                cx="50%"
+                                cy="50%"
+                                outerRadius={70}
+                                dataKey="value"
+                                stroke="#fff"
+                                strokeWidth={1}
+                                isAnimationActive={false}
+                              >
+                                {shift8hPieData.map((entry, index) => (
+                                  <Cell key={`shift8h-cell-${index}`} fill={entry.fill} />
+                                ))}
+                              </Pie>
+                              <Tooltip formatter={(val, name) => [`${val}h (${((val / 8) * 100).toFixed(1)}%)`, name]} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+          {/* ── SẢN XUẤT TRONG THEO CA ── */}
+          <div style={{ border: '2px solid red', background: '#fff', padding: '15px', marginBottom: '20px', borderRadius: '4px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+            <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#1e293b', marginBottom: '15px', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '4px', height: '16px', background: '#1565C0', borderRadius: '2px' }}></div>
+              THEO DÕI KÊ HOẠCH SẢN XUẤT TRONG CA
+            </div>
+            <div style={{ display: 'flex', gap: '20px' }}>
+              <div style={{ flex: 1 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ background: '#f8fafc', color: '#475569', fontSize: '12px' }}>
+                      <th style={{ textAlign: 'left', borderBottom: '2px solid #cbd5e1', padding: '10px 12px', width: '15%' }}>MÃ QUY CÁCH</th>
+                      <th style={{ textAlign: 'left', borderBottom: '2px solid #cbd5e1', padding: '10px 12px' }}>QUY CÁCH LỐP</th>
+                      <th style={{ borderBottom: '2px solid #cbd5e1', padding: '10px 12px' }}>THỰC TẾ SX</th>
+                      <th style={{ borderBottom: '2px solid #cbd5e1', padding: '10px 12px' }}>KẾ HOẠCH</th>
+                      <th style={{ borderBottom: '2px solid #cbd5e1', padding: '10px 12px', width: '35%' }}>% HOÀN THÀNH</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shiftStatsData.map((row, idx) => {
+                      const percent = row.SoLuong_KH_HieuLuc > 0 ? (row.SanluongLopSX / row.SoLuong_KH_HieuLuc * 100).toFixed(1) : 0;
+                      const numPercent = Number(percent);
+                      const isVuotKH = numPercent > 100;
+                      const rowColor = getTablePercentColor(numPercent);
+
+                      // Console log hỗ trợ kiểm tra dữ liệu sản xuất theo ca khi test lỗi (Quy tắc 3)
+                      console.log(`[ShiftStats] Dòng ${idx}: Quy cách = ${row.MaquycachLop || row.maQuyCachLop || 'N/A'}, Thực tế = ${row.SanluongLopSX || 0}, Kế hoạch = ${row.SoLuong_KH_HieuLuc || 0}, % = ${percent}%, Màu = ${rowColor}`);
+
+                      return (
+                        <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0', background: isVuotKH ? '#f0f9ff' : 'transparent' }}>
+                          <td style={{ textAlign: 'left', padding: '12px', color: '#1565C0', fontWeight: 'bold', fontSize: '13px' }}>
+                            {row.MaquycachLop || row.maQuyCachLop || row.MaQuyCach || row.maQuyCach || '—'}
+                          </td>
+                          <td style={{ textAlign: 'left', padding: '12px' }}>
+                            <div style={{ color: '#1565C0', fontWeight: 'bold', fontSize: '14px' }}>{row.TenQuycachLop || 'Không có tên quy cách'}</div>
+                          </td>
+                          <td style={{ color: '#1565C0', fontWeight: 'bold', fontSize: '15px', padding: '12px' }}>{row.SanluongLopSX || 0}</td>
+                          <td style={{ color: '#1565C0', fontWeight: 'bold', fontSize: '15px', padding: '12px' }}>{row.SoLuong_KH_HieuLuc || 0}</td>
+                          <td style={{ padding: '12px' }}>
+                            {/* Container tổng chứa thanh tiến độ và phần trăm */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              {/* Thanh tiến độ nền */}
+                              <div style={{ flex: 1, height: '16px', background: '#e2e8f0', borderRadius: '0px', overflow: 'hidden', position: 'relative' }} title={`Tiến độ: ${percent}% (Thang đo 0-120%)`}>
+                                {/* Vạch mốc 100% Kế hoạch */}
+                                <div style={{ position: 'absolute', top: 0, bottom: 0, left: '83.33%', width: '2px', background: '#64748b', zIndex: 2, opacity: 0.6 }} title="Mốc 100% Kế hoạch"></div>
+                                {/* Thanh phần trăm tiến độ đã hoàn thành (sử dụng dải màu getTablePercentColor) */}
+                                <div style={{ height: '100%', width: `${Math.min((numPercent / 120) * 100, 100)}%`, background: rowColor, transition: 'width 0.5s', borderRadius: '0px' }}></div>
+                              </div>
+                              {/* Khối hiển thị số % và nhãn Vượt KH */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', minWidth: '95px', justifyContent: 'flex-end' }}>
+                                <span style={{ fontSize: '13px', fontWeight: 'bold', color: rowColor }}>{percent}%</span>
+                                {isVuotKH && (
+                                  <span style={{ background: '#dbeafe', color: '#1e3a8a', border: '1px solid #93c5fd', fontSize: '9px', fontWeight: 'bold', padding: '1px 4px', borderRadius: '0px', whiteSpace: 'nowrap' }}>
+                                    Vượt KH
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                    {(() => {
+                      const tongTT = shiftStatsData.reduce((sum, r) => sum + (r.SanluongLopSX || 0), 0);
+                      const tongKH = shiftStatsData.reduce((sum, r) => sum + (r.SoLuong_KH_HieuLuc || 0), 0);
+                      const percentTong = tongKH > 0 ? (tongTT / tongKH * 100).toFixed(1) : 0;
+                      const numPercentTong = Number(percentTong);
+                      const isVuotKH = numPercentTong > 100;
+                      const tongColor = getTablePercentColor(numPercentTong);
+                      return (
+                        <tr style={{ background: isVuotKH ? '#e0f2fe' : '#f1f5f9' }}>
+                          <td colSpan={2} style={{ color: '#1e3a8a', fontWeight: 'bold', fontSize: '14px', padding: '12px', textAlign: 'left' }}>TỔNG CỘNG</td>
+                          <td style={{ color: '#1e3a8a', fontWeight: 'bold', fontSize: '16px', padding: '12px' }}>{tongTT}</td>
+                          <td style={{ color: '#1e3a8a', fontWeight: 'bold', fontSize: '16px', padding: '12px' }}>{tongKH}</td>
+                          <td style={{ padding: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div style={{ flex: 1, height: '16px', background: '#cbd5e1', borderRadius: '0px', overflow: 'hidden', position: 'relative' }} title={`Tổng cộng tiến độ: ${percentTong}% (Thang đo 0-120%)`}>
+                                <div style={{ position: 'absolute', top: 0, bottom: 0, left: '83.33%', width: '2px', background: '#475569', zIndex: 2, opacity: 0.8 }} title="Mốc 100% Kế hoạch"></div>
+                                <div style={{ height: '100%', width: `${Math.min((numPercentTong / 120) * 100, 100)}%`, background: tongColor, transition: 'width 0.5s', borderRadius: '0px' }}></div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', minWidth: '95px', justifyContent: 'flex-end' }}>
+                                <span style={{ color: tongColor, fontWeight: 'bold', fontSize: '15px' }}>{percentTong}%</span>
+                                {isVuotKH && (
+                                  <span style={{ background: '#dbeafe', color: '#1e3a8a', border: '1px solid #93c5fd', fontSize: '9px', fontWeight: 'bold', padding: '1px 4px', borderRadius: '0px', whiteSpace: 'nowrap' }}>
+                                    Vượt KH
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* ── BIỂU ĐỒ CỘT CA (Scale 0 -> 120, Vuông vắn, KH màu #1565C0) ── */}
+              <div style={{ width: '190px', borderLeft: '1px solid #e2e8f0', paddingLeft: '15px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end' }}>
+                {(() => {
+                  const tongTT = shiftStatsData.reduce((sum, r) => sum + (r.SanluongLopSX || 0), 0);
+                  const tongKH = shiftStatsData.reduce((sum, r) => sum + (r.SoLuong_KH_HieuLuc || 0), 0);
+                  const percentTong = tongKH > 0 ? (tongTT / tongKH * 100).toFixed(1) : 0;
+                  const numPercentTong = Number(percentTong);
+
+                  let barColor = getProgressColor(numPercentTong);
+
+                  return (
+                    <div style={{ display: 'flex', height: '100%', minHeight: '130px', alignItems: 'flex-end', paddingBottom: '25px', paddingTop: '15px' }}>
+                      {/* Y-Axis (Trục mốc 0 - 120) */}
+                      <div style={{ position: 'relative', height: '100%', width: '28px', borderRight: '1px solid #cbd5e1' }}>
+                        <span style={{ position: 'absolute', top: '0%', right: '5px', fontSize: '10px', color: '#64748b', fontWeight: 'bold', transform: 'translateY(-50%)' }}>120</span>
+                        <span style={{ position: 'absolute', top: '16.67%', right: '5px', fontSize: '10px', color: '#64748b', fontWeight: 'bold', transform: 'translateY(-50%)' }}>100</span>
+                        <span style={{ position: 'absolute', top: '37.5%', right: '5px', fontSize: '10px', color: '#64748b', fontWeight: 'bold', transform: 'translateY(-50%)' }}>75</span>
+                        <span style={{ position: 'absolute', top: '58.33%', right: '5px', fontSize: '10px', color: '#64748b', fontWeight: 'bold', transform: 'translateY(-50%)' }}>50</span>
+                        <span style={{ position: 'absolute', top: '79.17%', right: '5px', fontSize: '10px', color: '#64748b', fontWeight: 'bold', transform: 'translateY(-50%)' }}>25</span>
+
+                        <div style={{ position: 'absolute', top: '0%', right: '-1px', width: '4px', height: '1px', background: '#cbd5e1' }}></div>
+                        <div style={{ position: 'absolute', top: '16.67%', right: '-1px', width: '4px', height: '1px', background: '#cbd5e1' }}></div>
+                        <div style={{ position: 'absolute', top: '37.5%', right: '-1px', width: '4px', height: '1px', background: '#cbd5e1' }}></div>
+                        <div style={{ position: 'absolute', top: '58.33%', right: '-1px', width: '4px', height: '1px', background: '#cbd5e1' }}></div>
+                        <div style={{ position: 'absolute', top: '79.17%', right: '-1px', width: '4px', height: '1px', background: '#cbd5e1' }}></div>
+                        <div style={{ position: 'absolute', bottom: '0%', right: '-1px', width: '4px', height: '1px', background: '#cbd5e1' }}></div>
+                      </div>
+                      {/* Bars (Vuông vắn: borderRadius 0px, KH màu #1565C0) */}
+                      <div style={{ display: 'flex', height: '100%', alignItems: 'flex-end', gap: '20px', paddingLeft: '15px' }}>
+                        <div style={{ width: '38px', height: '83.33%', background: '#1565C0', position: 'relative', borderRadius: '0px' }} title="Kế hoạch (100%)">
+                          <span style={{ position: 'absolute', top: '-18px', width: '100%', textAlign: 'center', color: '#1565C0', fontSize: '11px', fontWeight: 'bold' }}>{tongKH.toLocaleString('vi-VN')}</span>
+                          <span style={{ position: 'absolute', top: '5px', width: '100%', textAlign: 'center', color: '#fff', fontSize: '10px', fontWeight: 'bold' }}>100%</span>
+                          <span style={{ position: 'absolute', bottom: '-22px', left: '50%', transform: 'translateX(-50%)', whiteSpace: 'nowrap', textAlign: 'center', fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>KH</span>
+                        </div>
+                        <div style={{ width: '38px', height: `${Math.min((numPercentTong / 120) * 100, 100)}%`, background: barColor, position: 'relative', borderRadius: '0px' }} title={`Thực tế: ${percentTong}%`}>
+                          <span style={{ position: 'absolute', top: '-18px', width: '100%', textAlign: 'center', color: barColor, fontSize: '11px', fontWeight: 'bold' }}>{tongTT.toLocaleString('vi-VN')}</span>
+                          <span style={{ position: 'absolute', top: '5px', width: '100%', textAlign: 'center', color: '#fff', fontSize: '10px', fontWeight: 'bold' }}>{percentTong}%</span>
+                          <span style={{ position: 'absolute', bottom: '-22px', left: '50%', transform: 'translateX(-50%)', whiteSpace: 'nowrap', textAlign: 'center', fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>THỰC TẾ</span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+            </div>
+          </div>
+
+          {/* ── ROW 3: SẢN XUẤT THÁNG & SCADA ── */}
+          <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
+            {/* SẢN XUẤT THÁNG */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <div style={{ background: '#d1fae5', padding: '8px 10px', fontWeight: 'bold', fontSize: '14px', marginBottom: '20px', border: '1px solid #10b981', color: '#065f46' }}>
+                SẢN XUẤT THÁNG {String(selectedMonth).padStart(2, '0')}-{selectedYear}
+              </div>
+              <div style={{ display: 'flex', gap: '20px', flex: 1 }}>
+                <div style={{ flex: 1 }}>
+                  <table style={{ width: '100%', fontSize: '14px', fontWeight: 'bold', borderCollapse: 'collapse' }}>
+                    <tbody>
+                      <tr style={{ borderBottom: '1px solid #d0dff0' }}>
+                        <td style={{ padding: '12px 10px', color: '#1e293b' }}>SL KẾ HOẠCH</td>
+                        <td style={{ textAlign: 'right', color: '#1565C0', padding: '12px 10px' }}>{(pieData?.keHoachThang || statsData?.tongKeHoachThang || 0).toLocaleString('vi-VN')}</td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #d0dff0' }}>
+                        <td style={{ padding: '12px 10px', color: '#1e293b' }}>SL THỰC TẾ</td>
+                        <td style={{ textAlign: 'right', color: getProgressColor(pieData?.tyLeDat ?? 0), padding: '12px 10px' }}>{(pieData?.sanLuongThucTe || statsData?.tongSanLuongThucTe || 0).toLocaleString('vi-VN')}</td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '12px 10px', color: '#1e293b' }}>MỨC HOÀN THÀNH</td>
+                        <td style={{ textAlign: 'right', color: getProgressColor(pieData?.tyLeDat ?? 0), padding: '12px 10px' }}>
+                          {pieData?.tyLeDat ?? 0}%
+                          {(pieData?.tyLeDat ?? 0) > 100 && (
+                            <span style={{ background: '#dbeafe', color: '#1e3a8a', border: '1px solid #93c5fd', fontSize: '10px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '0px', marginLeft: '6px' }}>Vượt KH</span>
+                          )}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* BIỂU ĐỒ CỘT THÁNG (Scale 0 -> 120, Vuông vắn, KH màu #1565C0) */}
+                <div style={{ width: '160px', borderLeft: '1px solid #e2e8f0', paddingLeft: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end' }}>
+                  {(() => {
+                    const tongKH = pieData?.keHoachThang || statsData?.tongKeHoachThang || 0;
+                    const tongTT = pieData?.sanLuongThucTe || statsData?.tongSanLuongThucTe || 0;
+                    const percentTong = pieData?.tyLeDat ?? (tongKH > 0 ? (tongTT / tongKH * 100).toFixed(1) : 0);
+                    const numPercentTong = Number(percentTong);
+
+                    let barColor = getProgressColor(numPercentTong);
+
+                    return (
+                      <div style={{ display: 'flex', height: '100%', minHeight: '130px', alignItems: 'flex-end', paddingBottom: '25px', paddingTop: '15px' }}>
+                        {/* Y-Axis (Trục mốc 0 - 120) */}
+                        <div style={{ position: 'relative', height: '100%', width: '28px', borderRight: '1px solid #cbd5e1' }}>
+                          <span style={{ position: 'absolute', top: '0%', right: '5px', fontSize: '10px', color: '#64748b', fontWeight: 'bold', transform: 'translateY(-50%)' }}>120</span>
+                          <span style={{ position: 'absolute', top: '16.67%', right: '5px', fontSize: '10px', color: '#64748b', fontWeight: 'bold', transform: 'translateY(-50%)' }}>100</span>
+                          <span style={{ position: 'absolute', top: '37.5%', right: '5px', fontSize: '10px', color: '#64748b', fontWeight: 'bold', transform: 'translateY(-50%)' }}>75</span>
+                          <span style={{ position: 'absolute', top: '58.33%', right: '5px', fontSize: '10px', color: '#64748b', fontWeight: 'bold', transform: 'translateY(-50%)' }}>50</span>
+                          <span style={{ position: 'absolute', top: '79.17%', right: '5px', fontSize: '10px', color: '#64748b', fontWeight: 'bold', transform: 'translateY(-50%)' }}>25</span>
+
+                          <div style={{ position: 'absolute', top: '0%', right: '-1px', width: '4px', height: '1px', background: '#cbd5e1' }}></div>
+                          <div style={{ position: 'absolute', top: '16.67%', right: '-1px', width: '4px', height: '1px', background: '#cbd5e1' }}></div>
+                          <div style={{ position: 'absolute', top: '37.5%', right: '-1px', width: '4px', height: '1px', background: '#cbd5e1' }}></div>
+                          <div style={{ position: 'absolute', top: '58.33%', right: '-1px', width: '4px', height: '1px', background: '#cbd5e1' }}></div>
+                          <div style={{ position: 'absolute', top: '79.17%', right: '-1px', width: '4px', height: '1px', background: '#cbd5e1' }}></div>
+                          <div style={{ position: 'absolute', bottom: '0%', right: '-1px', width: '4px', height: '1px', background: '#cbd5e1' }}></div>
+                        </div>
+                        {/* Bars */}
+                        <div style={{ display: 'flex', height: '100%', alignItems: 'flex-end', gap: '15px', paddingLeft: '12px' }}>
+                          <div style={{ width: '35px', height: '83.33%', background: '#3b82f6', position: 'relative', borderRadius: '4px 4px 0 0' }} title="Kế hoạch (100%)">
+                            <span style={{ position: 'absolute', top: '-18px', width: '100%', textAlign: 'center', color: '#3b82f6', fontSize: '11px', fontWeight: 'bold' }}>{Number(tongKH).toLocaleString('vi-VN')}</span>
+                            <span style={{ position: 'absolute', top: '5px', width: '100%', textAlign: 'center', color: '#fff', fontSize: '10px', fontWeight: 'bold' }}>100%</span>
+                            <span style={{ position: 'absolute', bottom: '-22px', left: '50%', transform: 'translateX(-50%)', whiteSpace: 'nowrap', textAlign: 'center', fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>KH</span>
+                          </div>
+                          <div style={{ width: '35px', height: `${Math.min((numPercentTong / 120) * 100, 100)}%`, background: barColor, position: 'relative', borderRadius: '4px 4px 0 0' }} title={`Thực tế: ${percentTong}%`}>
+                            <span style={{ position: 'absolute', top: '-18px', width: '100%', textAlign: 'center', color: barColor, fontSize: '11px', fontWeight: 'bold' }}>{Number(tongTT).toLocaleString('vi-VN')}</span>
+                            <span style={{ position: 'absolute', top: '5px', width: '100%', textAlign: 'center', color: '#fff', fontSize: '10px', fontWeight: 'bold' }}>{percentTong}%</span>
+                            <span style={{ position: 'absolute', bottom: '-22px', left: '50%', transform: 'translateX(-50%)', whiteSpace: 'nowrap', textAlign: 'center', fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>THỰC TẾ</span>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })()}
+                </div>
+              </div>
+            </div>
+
+            {/* BIỂU ĐỒ TRẠNG THÁI SCADA */}
+            <div style={{ flex: 2 }}>
+              <div style={{ background: '#e0f2fe', padding: '8px 10px', fontWeight: 'bold', fontSize: '14px', textTransform: 'uppercase', marginBottom: '10px', border: '1px solid #0ea5e9', color: '#0369a1' }}>
+                BIỂU ĐỒ TRẠNG THÁI SCADA THÁNG {selectedMonth} {selectedYear}
+              </div>
+              <div style={{ display: 'flex', height: '250px', alignItems: 'center' }}>
+                {/* Legend Table */}
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', maxWidth: '340px' }}>
+                  {(() => {
+                    // Log console dữ liệu SCADA hỗ trợ test lỗi theo quy tắc 3
+                    console.log("[SCADA Chart] Dữ liệu biểu đồ trạng thái tháng:", scadaChartData);
+                    return (
+                      <table style={{ width: '100%', fontSize: '11px', fontWeight: 'bold', color: '#475569', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '2px solid #cbd5e1', color: '#1e3a8a', fontSize: '11px', fontWeight: 'bold' }}>
+                            <th colSpan={2} style={{ padding: '6px 4px 6px 0', textAlign: 'left' }}>TRẠNG THÁI</th>
+                            <th style={{ padding: '6px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>THỜI GIAN</th>
+                            <th style={{ padding: '6px 0 6px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>TỶ LỆ</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[
+                            { label: 'Không xác định', fill: '#fff2cc' },
+                            { label: 'Máy chạy', fill: '#00b050' },
+                            { label: 'Máy dừng', fill: '#ffff00' },
+                            { label: 'Máy lỗi', fill: '#ff0000' },
+                            { label: 'Mất kết nối PLC', fill: '#ffc000' },
+                            { label: 'PLC Khởi động', fill: '#f8cbad' },
+                            { label: 'Không có kế hoạch', fill: '#b4c6e7' },
+                            { label: 'App Server tắt', fill: '#c55a11' },
+                            { label: 'Máy chủ tắt', fill: '#833c0c' },
+                          ].map((lgd, index) => {
+                            const found = scadaChartData.find(d => d.fill === lgd.fill);
+                            const valHours = found ? Number(found.value) : 0;
+                            const totalHours = scadaChartData.reduce((sum, d) => sum + Number(d.value), 0);
+                            const percent = totalHours > 0 ? ((valHours / totalHours) * 100).toFixed(1) : '0.0';
+
+                            return (
+                              <tr key={index} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                <td style={{ padding: '4px 0', width: '20px' }}>
+                                  <div style={{ width: 12, height: 12, background: lgd.fill, border: lgd.fill === '#fff2cc' ? '1px solid #cbd5e1' : 'none' }}></div>
+                                </td>
+                                <td style={{ padding: '4px 0', maxWidth: '110px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={lgd.label}>
+                                  {lgd.label}
+                                </td>
+                                <td style={{ padding: '4px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                  {valHours.toFixed(1)}h
+                                </td>
+                                <td style={{ padding: '4px 0 4px 12px', textAlign: 'right', color: '#64748b', whiteSpace: 'nowrap' }}>
+                                  {percent}%
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          {scadaChartData.filter(d => !['#fff2cc', '#00b050', '#ffff00', '#ff0000', '#ffc000', '#f8cbad', '#b4c6e7', '#c55a11', '#833c0c'].includes(d.fill)).map((entry, idx) => {
+                            const valHours = Number(entry.value);
+                            const totalHours = scadaChartData.reduce((sum, d) => sum + Number(d.value), 0);
+                            const percent = totalHours > 0 ? ((valHours / totalHours) * 100).toFixed(1) : '0.0';
+                            return (
+                              <tr key={`extra-${idx}`} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                <td style={{ padding: '4px 0', width: '20px' }}>
+                                  <div style={{ width: 12, height: 12, background: entry.fill }}></div>
+                                </td>
+                                <td style={{ padding: '4px 0', maxWidth: '110px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={entry.name}>
+                                  {entry.name}
+                                </td>
+                                <td style={{ padding: '4px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                  {valHours.toFixed(1)}h
+                                </td>
+                                <td style={{ padding: '4px 0 4px 12px', textAlign: 'right', color: '#64748b', whiteSpace: 'nowrap' }}>
+                                  {percent}%
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    );
+                  })()}
+                </div>
+                {/* Khung chứa Biểu đồ PieChart với chiều cao cố định height: 100%, minHeight: 250px */}
+                <div style={{ flex: 1, height: '100%', minHeight: '250px', position: 'relative' }}>
+                  {(() => {
+                    const RADIAN = Math.PI / 180;
+                    const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+                      if (percent < 0.05) return null; // Hide labels for < 5%
+                      const radius = innerRadius + (outerRadius - innerRadius) * 0.7;
+                      const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                      const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                      return (
+                        <text x={x} y={y} fill="#1e293b" textAnchor="middle" dominantBaseline="central" fontSize="11" fontWeight="bold">
+                          {`${(percent * 100).toFixed(1)}%`}
+                        </text>
+                      );
+                    };
+
+                    return (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            minAngle={3}
+                            data={scadaChartData}
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={85}
+                            dataKey="value"
+                            stroke="none"
+                            labelLine={false}
+                            isAnimationActive={false}
+                            label={renderCustomizedLabel}
+                          >
+                            {scadaChartData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.fill} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value) => `${Number(value).toFixed(2)} giờ`} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    );
+                  })()}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── BIỂU ĐỒ THỰC HIỆN KH THEO NGÀY ── */}
+          <div>
+            <div style={{ fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '10px', color: '#1565C0' }}>BIỂU THỰC HIỆN KH SẢN XUẤT THÁNG {String(selectedMonth).padStart(2, '0')}-{selectedYear} THEO NGÀY</div>
+            <div style={{ height: 260 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={dailyPlanData} margin={{ top: 4, right: 10, left: -10, bottom: 0 }} barSize={10}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#d0dff0" vertical={false} />
+                  <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#6890b0' }} tickLine={false} axisLine={false} />
+                  <YAxis domain={[0, 120]} ticks={[0, 20, 40, 60, 80, 100, 120]} tick={{ fontSize: 10, fill: '#6890b0' }} tickLine={false} axisLine={false} tickFormatter={v => `${v}%`} />
+                  <Tooltip contentStyle={{ fontSize: '12px' }} />
+                  <Bar dataKey="tyLe" radius={[0, 0, 0, 0]}>
+                    {dailyPlanData.map((entry, i) => {
+                      const barColor = getDailyPlanChartColor(entry.tyLe);
+                      // Console log hỗ trợ kiểm tra dữ liệu tỉ lệ ngày & màu cột khi test lỗi (Quy tắc 3)
+                      if (entry.tyLe > 0 || entry.sanLuong > 0) {
+                        console.log(`[DailyPlanChart] Ngày ${entry.day}: Tỷ lệ = ${entry.tyLe}%, Sản lượng = ${entry.sanLuong}, Màu = ${barColor}`);
+                      }
+                      return <Cell key={i} fill={barColor} />;
+                    })}
+                    <LabelList dataKey="sanLuong" position="top" style={{ fontSize: 8, fill: '#475569', fontWeight: 'bold' }} formatter={value => (value > 0 ? value : '')} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showChangeHistory && (
+        <ThanhHinhChangeHistory
+          equipmentId={equipmentId}
+          onClose={() => setShowChangeHistory(false)}
+        />
+      )}
+    </div>
+  );
+};
+
+export default MayThanhHinhDashboard;

@@ -1,0 +1,28 @@
+<service>
+  <id>shtech-api</id>
+  <name>SHTech API Service</name>
+  <description>SHTech Spring Boot Backend</description>
+
+  <!-- Full path java để tránh PATH issue khi chạy service -->
+  <executable>C:\Program Files\Eclipse Adoptium\jdk-21.0.10.7-hotspot\bin\java.exe</executable>
+
+  <!-- Đường dẫn JAR chính xác -->
+  <arguments>-Xms256m -Xmx1024m -jar "C:\shtech\backend\shtech-vn-backend-0.0.1-SNAPSHOT.jar" --spring.profiles.active=prod</arguments>
+
+  <!-- Env vars - dùng tên uppercase, Spring Boot tự bind -->
+  <env name="DB_USERNAME" value="shtech" />
+  <env name="DB_PASSWORD" value="shtech.vn" />  <!-- thay bằng pass thật nếu khác -->
+  <env name="JWT_SECRET" value="DayLaChuoiSecretKeySieuBaoMatCuaToi2026!@#" />
+
+  <!-- Log chi tiết hơn -->
+  <logmode>roll</logmode>  <!-- roll thay rotate nếu dùng WinSW mới -->
+  <logpath>C:\shtech\logs</logpath>
+  <logname>shtech-service.log</logname>
+  <errormode>roll</errormode>
+  <errorpath>C:\shtech\logs</errorpath>
+  <errorname>shtech-error.log</errorname>
+
+  <workingdirectory>C:\shtech\backend</workingdirectory>
+
+  
+</service>

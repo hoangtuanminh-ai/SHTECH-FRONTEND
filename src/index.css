@@ -1,0 +1,160 @@
+@import "tailwindcss";
+
+
+/* @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;500;600&display=swap'); */
+/* Font đẹp cho toàn bộ website */
+/* html, body, * {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif !important;
+} */
+/* Bộ font mặc định toàn site.
+   Trước đây dùng "Tinos" (serif) — font này KHÔNG có subset tiếng Việt nên các ký tự
+   có dấu (ằ, ộ, ữ, ...) bị rơi sang font thay thế của trình duyệt, làm chữ lệch kiểu
+   và không đồng nhất. Segoe UI là font hệ thống sẵn có trên Windows và hỗ trợ tiếng Việt
+   đầy đủ; Arial làm phương án dự phòng cho máy không có Segoe UI.
+   Cả hai đều là font cài sẵn nên không phụ thuộc mạng — quan trọng với máy trạm nhà máy. */
+body {
+  font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+  color: #2e2b29;
+}
+.tinos-bold {
+  font-family: "Tinos", serif;
+  font-weight: 700;
+  font-style: normal;
+}
+
+.tinos-regular-italic {
+  font-family: "Tinos", serif;
+  font-weight: 400;
+  font-style: italic;
+}
+
+.tinos-bold-italic {
+  font-family: "Tinos", serif;
+  font-weight: 700;
+  font-style: italic;
+}
+/* Tiêu đề dùng chung bộ font với body để hiển thị dấu tiếng Việt nhất quán */
+h1, h2, h3, h4, .font-heading {
+  font-family: 'Segoe UI', Arial, Helvetica, sans-serif !important;
+}
+/* Hiển thị tên font đúng kiểu trong dropdown */
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="roboto"]::before,
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="roboto"]::before {
+  font-family: "Roboto", sans-serif;
+  content: "Roboto";
+}
+
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="open-sans"]::before,
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="open-sans"]::before {
+  font-family: "Open Sans", sans-serif;
+  content: "Open Sans";
+}
+
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="lato"]::before,
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="lato"]::before {
+  font-family: "Lato", sans-serif;
+  content: "Lato";
+}
+
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="montserrat"]::before,
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="montserrat"]::before {
+  font-family: "Montserrat", sans-serif;
+  content: "Montserrat";
+}
+
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="times-new-roman"]::before,
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="times-new-roman"]::before {
+  font-family: "Times New Roman", serif;
+  content: "Times New Roman";
+}
+
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="arial"]::before,
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="arial"]::before {
+  font-family: Arial, sans-serif;
+  content: "Arial";
+}
+
+/* Áp dụng font vào nội dung editor */
+.ql-font-roboto { font-family: "Roboto", sans-serif; }
+.ql-font-open-sans { font-family: "Open Sans", sans-serif; }
+.ql-font-lato { font-family: "Lato", sans-serif; }
+.ql-font-montserrat { font-family: "Montserrat", sans-serif; }
+.ql-font-times-new-roman { font-family: "Times New Roman", serif; }
+.ql-font-arial { font-family: Arial, sans-serif; }
+/* Tăng độ mịn chữ trên macOS và Windows */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+:root {
+  --primary: #8B4513;     /* Nâu đất ấm */
+  --accent: #D4A574;      /* Vàng ánh kim */
+  --dark: #1A120B;        /* Đen cà phê */
+  --light: #FAF7F5;       /* Kem sữa */
+  --success: #6B8E23;     /* Xanh olive */
+}
+
+.dark {
+  --primary: #D4A574;
+  --accent: #8B4513;
+  --dark: #FAF7F5;
+  --light: #1A120B;
+}
+
+* {
+  font-family: 'Inter', sans-serif;
+}
+
+h1, h2, h3, .font-heading {
+  font-family: 'Playfair Display', serif;
+}
+
+/* 3D Card Effect */
+.card-3d {
+  transition: transform 0.4s ease, box-shadow 0.4s ease;
+  transform: perspective(1000px) rotateX(0deg) rotateY(0deg);
+}
+
+.card-3d:hover {
+  transform: perspective(1000px) rotateX(8deg) rotateY(-8deg) translateZ(20px);
+  box-shadow: 0 30px 60px rgba(0,0,0,0.15);
+}
+
+/* Parallax */
+.parallax {
+  background-attachment: fixed;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+* {
+    box-sizing: border-box;
+    font-family: "Quicksand", sans-serif;
+    line-height: 1.5;
+}
+
+.heroSection .swiper-pagination {
+    padding-bottom: 4px !important;
+}
+
+.custom-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+}
+
+.custom-pagination .swiper-pagination-bullet {
+    width: 8px;
+    height: 8px;
+    background-color: #E08282;
+    border-radius: 9999px;
+    opacity: 0.2;
+    transition: all 0.3s ease;
+}
+
+.custom-pagination .swiper-pagination-bullet-active {
+    width: 24px;
+    background-color: #E08282;
+    opacity: 1;
+}

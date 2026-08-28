@@ -1,0 +1,2210 @@
+================================================================================
+                        NHẬT KÝ LÀM VIỆC
+        DỰ ÁN: HỆ THỐNG GIÁM SÁT & BÁO CÁO SẢN XUẤT (FRONTEND)
+                  Module: Thành hình - Cắt vải - Tổng quan
+================================================================================
+
+Người thực hiện  : dtc235160020@ictu.edu.vn
+Vị trí           : Lập trình viên Frontend (ReactJS)
+Kỳ báo cáo       : 13 ngày làm việc (2 tuần vừa qua và ngày hôm nay)
+Ngày lập báo cáo : 27/08/2026
+Mã dự án         : SHTECH - ORC Production Monitoring
+Repo/Thư mục     : cake-shop-frontend-chính
+
+--------------------------------------------------------------------------------
+MỤC LỤC
+--------------------------------------------------------------------------------
+
+PHẦN I.   TỔNG QUAN DỰ ÁN VÀ MÔI TRƯỜNG LÀM VIỆC
+   1.1  Bối cảnh dự án
+   1.2  Kiến trúc và công nghệ sử dụng
+   1.3  Cấu trúc thư mục mã nguồn
+   1.4  Quy ước nghiệp vụ quan trọng (ca sản xuất, mã máy, ngày sản xuất)
+   1.5  Phạm vi công việc trong kỳ báo cáo
+
+PHẦN II.  NHẬT KÝ CHI TIẾT THEO TỪNG NGÀY
+   Ngày 1  - Sửa lỗi đồng bộ dữ liệu realtime
+   Ngày 2  - Sửa lỗi hiển thị sai yêu cầu và lỗi phân trang
+   Ngày 3  - Sửa lỗi khoảng trống bố cục và lỗi màu sắc
+   Ngày 4  - Sửa lỗi dữ liệu: số giờ > số ngày, quy đổi Ca 0 -> Ca 3, đồng nhất ca
+   Ngày 5  - Viết mới giao diện trang chi tiết máy thành hình
+   Ngày 6  - Viết mới giao diện trang chi tiết máy cắt vải
+   Ngày 7  - Test toàn diện và sửa các lỗi sau khi viết xong
+   Ngày 8  - Dựng lại trang Dashboard -> đổi tên "Tổng quan"
+   Ngày 9  - Trang Kế hoạch sản xuất năm
+   Ngày 10 - Trang Kế hoạch sản xuất tháng và Kế hoạch sản xuất ca/tháng
+   Ngày 11 - Nghiên cứu Sản xuất tháng/năm + xây dựng trang Sản xuất 5 năm
+   Ngày 12 - Trang Trạng thái máy ngày và Trạng thái máy tháng
+   Ngày 13 - API trạng thái máy theo năm và truy vết "lỗi giả" do dữ liệu
+
+PHẦN III. TỔNG HỢP KẾT QUẢ
+   3.1  Bảng tổng hợp sản phẩm bàn giao
+   3.2  Thống kê lỗi đã xử lý
+   3.3  Danh mục API đã sử dụng và API đề nghị bổ sung
+   3.4  Bài học kinh nghiệm rút ra trong kỳ
+
+PHẦN IV.  KHÓ KHĂN, VƯỚNG MẮC VÀ ĐỀ XUẤT
+
+PHẦN V.   KẾ HOẠCH NGÀY HÔM SAU
+
+
+================================================================================
+                PHẦN I. TỔNG QUAN DỰ ÁN VÀ MÔI TRƯỜNG LÀM VIỆC
+================================================================================
+
+--------------------------------------------------------------------------------
+1.1  BỐI CẢNH DỰ ÁN
+--------------------------------------------------------------------------------
+
+Dự án xây dựng hệ thống giám sát và báo cáo sản xuất cho nhà máy, tập trung vào
+hai nhóm thiết bị chính:
+
+  - Nhóm máy THÀNH HÌNH (ký hiệu ORC-TH-xx): các máy TH02, TH05, TH08, TH09...
+  - Nhóm máy CẮT VẢI (ký hiệu ORC-CV-xx / ORCV): các máy cắt vải phục vụ khâu
+    chuẩn bị bán thành phẩm.
+
+Hệ thống có nhiệm vụ:
+
+  (1) Hiển thị dữ liệu realtime của từng máy (thông số vận hành, sản lượng,
+      trạng thái chạy/dừng/mất kết nối) và cho phép tra cứu lịch sử.
+  (2) Đối chiếu giữa KẾ HOẠCH và THỰC HIỆN theo nhiều chiều thời gian:
+      theo ca, theo ngày, theo tháng, theo năm, theo chu kỳ 5 năm.
+  (3) Cung cấp các báo cáo tổng hợp phục vụ ban lãnh đạo ra quyết định
+      (nhóm trang "Tổng quan" - trước đây gọi là Dashboard).
+  (4) Thống kê trạng thái máy (thời gian chạy / dừng / mất kết nối) để đánh giá
+      hiệu suất thiết bị theo ngày, tháng, năm.
+
+Phần việc của tôi trong kỳ này là toàn bộ tầng FRONTEND: sửa lỗi tồn đọng được
+phản ánh từ người dùng, viết mới các trang chi tiết máy, và dựng mới toàn bộ
+nhóm trang Tổng quan theo yêu cầu của cấp trên.
+
+--------------------------------------------------------------------------------
+1.2  KIẾN TRÚC VÀ CÔNG NGHỆ SỬ DỤNG
+--------------------------------------------------------------------------------
+
+Frontend được xây dựng trên nền tảng sau (trích từ package.json):
+
+  * Framework       : React 18.3.1
+  * Build tool      : Vite 7.1.2
+  * Routing         : react-router-dom 7.8.1
+  * Biểu đồ         : recharts 3.7.0 (chính), chart.js 4.5.1 + react-chartjs-2
+  * UI/CSS          : TailwindCSS 4.1.12, Ant Design 6.3.1, Sass
+  * Gọi API         : axios 0.27.2 (đóng gói trong src/api/axios.js)
+  * Xử lý ngày giờ  : dayjs 1.11.20, date-fns, moment
+  * Bảng dữ liệu    : @tanstack/react-table 8.21.3
+  * Phân trang      : react-paginate 8.3.0
+  * Thông báo       : react-toastify 11.0.5
+  * Xuất file       : exceljs, xlsx, jspdf, jspdf-autotable, file-saver
+  * Icon            : react-icons, lucide-react, @ant-design/icons
+  * Đa ngôn ngữ     : thư mục src/locales + hook src/hooks/useTranslation.js
+
+Triển khai: có sẵn Dockerfile và shtech-service.xml (chạy như Windows Service),
+build ra thư mục dist bằng lệnh `npm run build`.
+
+--------------------------------------------------------------------------------
+1.3  CẤU TRÚC THƯ MỤC MÃ NGUỒN
+--------------------------------------------------------------------------------
+
+  src/
+   ├── api/                       Tầng gọi API, mỗi domain một file
+   │    ├── axios.js              Instance axios dùng chung (baseURL, token...)
+   │    ├── thanhhinhApi.js       API nhóm máy thành hình (lớn nhất)
+   │    ├── catVaiApi.js          API nhóm máy cắt vải
+   │    ├── dashboardApi.js       API thống kê tổng quan
+   │    ├── kehoachApi.js         API kế hoạch sản xuất (trend, weekly progress)
+   │    ├── keHoachThangApi.js    API kế hoạch tháng
+   │    ├── baoCaoNhapKhoApi.js   API báo cáo nhập kho
+   │    ├── kcsWebApi.js          API KCS / chất lượng
+   │    ├── kiemkeApi.js          API kiểm kê tồn kho
+   │    ├── viewOrcApi.js         API view ORC
+   │    └── userApi.js            API người dùng, đăng nhập
+   │
+   ├── pages/
+   │    ├── Dashboard/            NHÓM TRANG "TỔNG QUAN" (làm mới trong kỳ này)
+   │    │    ├── KeHoachSanXuatNam.jsx        (1.049 dòng)
+   │    │    ├── KeHoachSanXuatThang.jsx      (1.237 dòng)
+   │    │    ├── KeHoachSanXuatCaThang.jsx    (1.123 dòng)
+   │    │    ├── SanXuatThangNam.jsx          (17 dòng - để trống, chờ dữ liệu)
+   │    │    ├── SanXuat5Nam.jsx              (893 dòng)
+   │    │    ├── TrangThaiMayNgay.jsx         (808 dòng)
+   │    │    ├── TrangThaiMayThang.jsx        (783 dòng)
+   │    │    └── TrangThaiMayNam.jsx          (769 dòng)
+   │    │
+   │    ├── ThanhHinh/            Trang nghiệp vụ thành hình & cắt vải
+   │    │    ├── MayThanhHinhDashboard.jsx    (3.243 dòng - chi tiết máy TH)
+   │    │    ├── MayCatVaiDashboard.jsx       (2.966 dòng - chi tiết máy CV)
+   │    │    ├── MayThanhHinhList.jsx         Danh sách máy
+   │    │    ├── RealTimeTH02/05/09History.jsx  Lịch sử realtime từng máy
+   │    │    ├── RealTimeORCVHistory.jsx      Lịch sử realtime máy cắt vải
+   │    │    ├── RecipeORCVHistory.jsx        Lịch sử recipe máy cắt vải
+   │    │    ├── SettingORCVHistory.jsx       Lịch sử setting máy cắt vải
+   │    │    └── các báo cáo tổng hợp theo ca/ngày/máy...
+   │    │
+   │    ├── BaoCaoKHSX/           Nhóm 21 trang báo cáo kế hoạch sản xuất
+   │    ├── KeHoach/              Lập kế hoạch ca/ngày, kế hoạch tháng
+   │    ├── KiemKe/               Kiểm kê tồn kho
+   │    └── Homepage/             Trang chủ, dashboard kế hoạch, dashboard cắt vải
+   │
+   ├── components/
+   │    ├── chart/                Component biểu đồ dùng chung
+   │    │    └── TongHopCaNgayTooltip.jsx   Tooltip chuẩn hóa cho biểu đồ ca/ngày
+   │    ├── change/               Lịch sử thay đổi (ThanhHinhChangeHistory,
+   │    │                          CatVaiChangeHistory)
+   │    ├── Navbar/, Footer/, LoginForm/, UserForm/
+   │    ├── ProtectedRoute.jsx    Bảo vệ route yêu cầu đăng nhập
+   │    └── LayoutRoot.jsx
+   │
+   ├── utils/
+   │    ├── shiftPolling.js       Logic ca hiện tại & quyết định polling
+   │    └── tongHopCaNgayChart.js Chuẩn hóa dữ liệu biểu đồ 3 ca/ngày
+   │
+   ├── hooks/useTranslation.js
+   ├── context/                   Context toàn cục (auth, ngôn ngữ)
+   ├── locales/                   Chuỗi đa ngôn ngữ
+   └── App.jsx                    Khai báo toàn bộ route
+
+Tổng số route nghiệp vụ đang khai báo trong App.jsx: hơn 55 route, trong đó
+nhóm /dashboard chiếm phần lớn.
+
+--------------------------------------------------------------------------------
+1.4  QUY ƯỚC NGHIỆP VỤ QUAN TRỌNG
+--------------------------------------------------------------------------------
+
+Đây là phần đã gây ra nhiều lỗi nhất trong kỳ, nên tôi ghi lại rõ ràng để làm
+tài liệu tham chiếu về sau:
+
+A. QUY ƯỚC CA SẢN XUẤT
+
+   Trong CƠ SỞ DỮ LIỆU, ca được mã hóa bằng 3 giá trị: '0', '1', '2'.
+   Nhưng khi HIỂN THỊ cho người dùng lại phải là "Ca 1", "Ca 2", "Ca 3".
+   Ánh xạ đúng là:
+
+        Mã trong DB  |  Hiển thị  |  Khung giờ
+        -------------|------------|---------------------
+             1       |   Ca 1     |  06:00 - 13:59
+             2       |   Ca 2     |  14:00 - 21:59
+             0       |   Ca 3     |  22:00 - 05:59 (ca đêm)
+
+   Điểm dễ sai: Ca 3 mang mã '0', KHÔNG phải mã '3'. Vì mã ca nằm ở hàng đơn vị
+   của khóa yearMonthDayShift nên trong một ngày, giá trị lớn nhất là '2' chứ
+   không phải '0'. Nếu lập trình viên mặc định "ca lớn nhất trong ngày là ca 3"
+   thì sẽ tính sai điểm cuối của dải dữ liệu.
+
+B. QUY ƯỚC NGÀY SẢN XUẤT
+
+   Ca 3 (mã 0) của ngày D chạy từ 22:00 ngày D-1 đến 06:00 ngày D. Do đó:
+      - 06:00 - 13:59 -> Ca 1 của ngày hôm nay
+      - 14:00 - 21:59 -> Ca 2 của ngày hôm nay
+      - 22:00 - 23:59 -> Ca 3 (mã 0) của NGÀY MAI (D+1)
+      - 00:00 - 05:59 -> Ca 3 (mã 0) của NGÀY HÔM NAY (D)
+
+   Logic này được tôi cài đặt tập trung tại hàm getCurrentShift() trong
+   src/utils/shiftPolling.js để mọi trang dùng chung, tránh mỗi trang tự tính
+   một kiểu như trước.
+
+C. KHÓA THỜI GIAN
+
+   API dùng khóa dạng số nguyên yearMonthDayShift = YYYYMMDD * 10 + mã ca.
+   Ví dụ: ngày 18/08/2026, Ca 1 -> 202608181.
+   Tôi cài hàm toShiftKey(dateStr, ca) để sinh khóa này và so sánh thứ tự ca.
+
+D. QUY ƯỚC MÃ MÁY
+
+   Cùng một máy có thể xuất hiện dưới nhiều dạng: "TH08", "08", "ORC-TH-08".
+   Đây là nguồn gốc của nhiều lỗi "không ra dữ liệu". Tôi đã bổ sung bước chuẩn
+   hóa mã máy trong hàm getDailyPlanRatio() của thanhhinhApi.js: nếu mã không
+   bắt đầu bằng "ORC-TH-", "ORC-CV-" hoặc không chứa "ORCV" thì tách phần số,
+   pad về 2 chữ số rồi ghép tiền tố chuẩn.
+
+E. MÚI GIỜ
+
+   Không được dùng toISOString() để lấy khóa ngày, vì hàm này quy về UTC; giờ
+   Việt Nam là UTC+7 nên trong khoảng 00:00-06:59 ngày sẽ bị lùi 1 ngày. Tôi
+   thay bằng hàm toLocalDateKey() tự ghép YYYY-MM-DD theo giờ máy trạm.
+
+--------------------------------------------------------------------------------
+1.5  PHẠM VI CÔNG VIỆC TRONG KỲ BÁO CÁO
+--------------------------------------------------------------------------------
+
+Kỳ báo cáo gồm 13 ngày làm việc, chia làm 4 giai đoạn:
+
+  Giai đoạn 1 (Ngày 1-4)  : Sửa lỗi tồn đọng được phản ánh - 9 nhóm lỗi.
+  Giai đoạn 2 (Ngày 5-7)  : Viết mới giao diện 2 trang chi tiết máy + test.
+  Giai đoạn 3 (Ngày 8-11) : Dựng mới nhóm trang Tổng quan (kế hoạch sản xuất).
+  Giai đoạn 4 (Ngày 12-13): Nhóm trang Trạng thái máy (ngày/tháng/năm).
+
+
+================================================================================
+                PHẦN II. NHẬT KÝ CHI TIẾT THEO TỪNG NGÀY
+================================================================================
+
+
+================================================================================
+NGÀY 1 - SỬA LỖI KHÔNG ĐỒNG BỘ KẾT QUẢ KHI REALTIME
+================================================================================
+
+MỤC TIÊU NGÀY
+  Xử lý phản ánh nghiêm trọng nhất từ người dùng: "Số liệu trên màn hình realtime
+  không khớp với số liệu trong báo cáo", "Đang xem ca cũ mà số liệu tự nhảy",
+  "Hai người mở cùng một máy nhưng nhìn thấy hai con số khác nhau".
+
+I. MÔ TẢ HIỆN TƯỢNG
+
+  Người dùng phản ánh 3 biểu hiện:
+
+  (1) Khi mở trang chi tiết máy và để yên, sản lượng hiển thị trên thẻ KPI thỉnh
+      thoảng "nhảy ngược" - đang 120 lốp tụt về 118 rồi lại lên 121.
+
+  (2) Khi chọn bộ lọc sang một ca đã kết thúc (ví dụ đang là Ca 2 nhưng chọn xem
+      lại Ca 1 buổi sáng), số liệu vẫn tiếp tục thay đổi, dù ca đó đã đóng.
+
+  (3) Biểu đồ và bảng dữ liệu bên dưới không cùng một thời điểm: biểu đồ đã cập
+      nhật giá trị mới còn bảng vẫn giữ giá trị cũ, hoặc ngược lại.
+
+II. QUÁ TRÌNH PHÂN TÍCH NGUYÊN NHÂN
+
+  Tôi mở DevTools tab Network, lọc theo XHR, quan sát trong 2 phút và ghi nhận:
+
+  Nguyên nhân 1 - RACE CONDITION GIỮA CÁC LẦN GỌI API:
+     Trang chi tiết máy đặt setInterval gọi lại API mỗi 2 giây (biến
+     refreshInterval = 2000). Khi mạng nhà máy chậm, response của lần gọi thứ N
+     về SAU response của lần gọi thứ N+1. Do code cũ chỉ đơn giản là
+     setState(res.data) trong .then(), kết quả cũ ghi đè kết quả mới -> số liệu
+     nhảy ngược.
+
+  Nguyên nhân 2 - POLLING KHÔNG PHÂN BIỆT CA HIỆN TẠI VÀ CA QUÁ KHỨ:
+     Code cũ luôn bật interval bất kể người dùng đang lọc ca nào. Ca đã đóng thì
+     dữ liệu không đổi, nhưng mỗi lần polling lại tính lại các giá trị dẫn xuất
+     (tỷ lệ %, chênh lệch KH/TT) từ tham số bộ lọc HIỆN TẠI chứ không phải tham
+     số của lần gọi. Kết quả là số liệu bị "trôi".
+
+  Nguyên nhân 3 - NHIỀU NGUỒN STATE CHO CÙNG MỘT SỐ LIỆU:
+     Biểu đồ và bảng dữ liệu dùng hai state riêng, được set trong hai useEffect
+     khác nhau, với hai lần gọi API khác nhau. Hai lần gọi này không đồng bộ nên
+     hai vùng hiển thị lệch pha nhau.
+
+III. GIẢI PHÁP ĐÃ THỰC HIỆN
+
+  Bước 1 - Xây dựng module dùng chung src/utils/shiftPolling.js
+
+     Tôi tách toàn bộ logic "ca nào đang chạy" và "có được phép polling không"
+     ra một file riêng, để mọi trang dùng chung một nguồn sự thật. Các hàm chính:
+
+       - toLocalDateKey(dateObj)
+           Ghép YYYY-MM-DD theo giờ máy trạm, thay cho toISOString().
+
+       - getCurrentShift(now)
+           Trả về { ca, dateStr } của ca đang chạy theo đúng quy ước ca đêm
+           bắc cầu qua nửa đêm.
+
+       - normalizeCa(ca)
+           Chuẩn hóa mọi dạng đầu vào ('Ca 1', '1', 1, 'CA 0') về '0'|'1'|'2'.
+           Cách làm: bỏ hết ký tự không phải số, lấy chữ số cuối cùng.
+
+       - toShiftKey(dateStr, ca)
+           Quy đổi (ngày, ca) thành số nguyên tăng dần để so sánh thứ tự.
+
+       - isCurrentShiftInRange({fromDate, fromCa, toDate, toCa})
+           Kiểm tra ca hiện tại có nằm trong dải lọc không.
+
+       - isCurrentShiftSelected(dateStr, ca)
+           Trường hợp chỉ chọn một ca duy nhất - dùng cho trang chi tiết máy.
+
+  Bước 2 - Gắn điều kiện polling vào các trang chi tiết máy
+
+     Trong MayThanhHinhDashboard.jsx và MayCatVaiDashboard.jsx, tôi import
+     getCurrentShift và isCurrentShiftSelected, rồi chỉ khởi tạo setInterval khi
+     isCurrentShiftSelected(selectedDate, selectedCa) trả về true. Khi người dùng
+     lọc sang ca quá khứ, interval được clear ngay, dữ liệu đứng yên đúng như
+     bản chất "ca đã đóng".
+
+     Tôi cũng ghi chú rõ lý do ngay trong file utils để người sau đọc hiểu:
+     "Nếu người dùng lọc sang ca khác hoặc dải ngày trong quá khứ/tương lai thì
+     phải TẮT polling, vì dữ liệu ca đó đã đóng, polling chỉ gây nguy cơ ghi đè
+     nhầm số liệu."
+
+  Bước 3 - Chống race condition
+
+     Bổ sung cơ chế refreshToken (một biến đếm state) và biến cờ isRefreshing.
+     Mỗi lần gọi API mang theo token của lần gọi đó; khi response về, so token
+     với token hiện tại, nếu lệch thì bỏ qua response (đã cũ). Đồng thời hiển
+     thị lastUpdatedTime để người dùng biết chính xác số liệu đang xem được lấy
+     lúc mấy giờ - đây cũng là yêu cầu từ phía vận hành.
+
+  Bước 4 - Gộp nguồn dữ liệu cho biểu đồ và bảng
+
+     Chuyển sang một lần gọi chung, chia dữ liệu ra hai vùng hiển thị từ cùng
+     một response. Nhờ vậy biểu đồ và bảng luôn cùng một mốc thời gian.
+
+IV. KIỂM THỬ
+
+  - Mở trang chi tiết TH08, để yên 15 phút: không còn hiện tượng nhảy ngược.
+  - Chuyển bộ lọc sang Ca 1 hôm qua: Network tab không còn request lặp lại,
+    số liệu đứng yên.
+  - Chuyển lại về ca hiện tại: polling tự khởi động lại.
+  - Test biên: đặt giờ máy trạm về 22:30 để kiểm tra ca 3 có nhảy sang ngày mai
+    đúng không - kết quả đúng.
+  - Test biên: đặt giờ về 02:00 sáng - ca 3 giữ nguyên ngày hôm nay, đúng.
+
+V. KẾT QUẢ
+
+  Xử lý xong 3/3 biểu hiện được phản ánh. Module shiftPolling.js trở thành nền
+  tảng dùng lại cho toàn bộ các trang viết mới ở những ngày sau.
+
+
+================================================================================
+NGÀY 2 - SỬA LỖI HIỂN THỊ KHÔNG ĐÚNG YÊU CẦU VÀ LỖI KHÔNG PHÂN TRANG
+================================================================================
+
+MỤC TIÊU NGÀY
+  Hai nhóm lỗi: (A) hiển thị sai so với yêu cầu nghiệp vụ, (B) các bảng dữ liệu
+  lớn không có phân trang gây treo trình duyệt.
+
+--------------------------------------------------------------------------------
+PHẦN A - LỖI HIỂN THỊ KHÔNG ĐÚNG YÊU CẦU
+--------------------------------------------------------------------------------
+
+I. DANH SÁCH SAI LỆCH ĐƯỢC PHẢN ÁNH
+
+  A1. Sai định dạng số: sản lượng hiển thị "1234567" thay vì "1.234.567";
+      tỷ lệ % hiển thị "87.33333333333333" thay vì "87,3%".
+
+  A2. Sai định dạng ngày: một số bảng hiển thị "2026-08-18T00:00:00.000Z"
+      (chuỗi ISO thô từ API) thay vì "18/08/2026".
+
+  A3. Sai thứ tự cột: yêu cầu là Kế hoạch -> Thực hiện -> Chênh lệch -> Tỷ lệ,
+      nhưng một số bảng đang là Thực hiện trước Kế hoạch, khiến người xem đọc
+      nhầm chiều so sánh.
+
+  A4. Sai đơn vị: cột thời gian máy hiển thị số giây thô, người dùng phải tự
+      chia 3600. Yêu cầu là hiển thị dạng "12h 30m".
+
+  A5. Thiếu cột tổng: bảng theo ngày không có dòng TỔNG cuối bảng.
+
+  A6. Giá trị null hiển thị chữ "null" hoặc "undefined" trên giao diện.
+
+II. GIẢI PHÁP
+
+  - Chuẩn hóa hàm format dùng chung: formatNumber (thêm dấu phân cách nghìn),
+    formatPercent (làm tròn 1 chữ số thập phân, thêm ký hiệu %), formatDate
+    (dùng dayjs với định dạng DD/MM/YYYY), formatDuration (đổi giây/phút sang
+    dạng "Xh Ym").
+
+  - Rà soát lại toàn bộ định nghĩa cột của các bảng bị phản ánh, sắp xếp lại
+    đúng thứ tự nghiệp vụ Kế hoạch -> Thực hiện -> Chênh lệch -> Tỷ lệ.
+
+  - Bổ sung dòng TỔNG ở cuối các bảng theo ngày/theo ca, tính bằng cách cộng dồn
+    các trường ca1_keHoach, ca2_keHoach, ca3_keHoach và ca1_sanLuong,
+    ca2_sanLuong, ca3_sanLuong.
+
+  - Xử lý null tập trung: mọi giá trị số đều đi qua Number(x) || 0 trước khi
+    hiển thị; mọi giá trị chuỗi đi qua toán tử ?? '-' để hiển thị dấu gạch ngang
+    thay vì chữ "null".
+
+--------------------------------------------------------------------------------
+PHẦN B - LỖI KHÔNG PHÂN TRANG
+--------------------------------------------------------------------------------
+
+I. MÔ TẢ HIỆN TƯỢNG
+
+  Một số bảng (đặc biệt là bảng lịch sử realtime và các báo cáo nhập kho) trả về
+  hàng nghìn bản ghi và render toàn bộ ra DOM một lần. Hậu quả:
+    - Trình duyệt đứng 5-10 giây khi mở trang, có trường hợp treo hẳn.
+    - Thao tác cuộn giật, không dùng được.
+    - Máy tính cấu hình thấp ở xưởng gần như không mở nổi trang.
+
+II. GIẢI PHÁP
+
+  Áp dụng phân trang phía SERVER (server-side pagination) cho tất cả các bảng
+  dữ liệu lớn, thay vì cắt ở client. Cụ thể:
+
+  - Bổ sung tham số page và size vào các hàm API. Ví dụ hàm getKeHoachCatVai
+    trong catVaiApi.js nhận (namThangNgayCaNhapKho, page = 0, size = 20) và
+    truyền xuống backend qua params.
+
+  - Ở phía component, quản lý state phân trang: realTimePage (trang hiện tại,
+    đánh số từ 0) và realTimeSize (số bản ghi mỗi trang, mặc định 10).
+
+  - Gắn component phân trang (react-paginate) vào chân bảng, có các nút
+    Đầu / Trước / Sau / Cuối và ô chọn số bản ghi mỗi trang (10 / 20 / 50 / 100).
+
+  - Mỗi khi đổi trang hoặc đổi size, gọi lại API với tham số mới thay vì cắt
+    mảng ở client.
+
+  - Khi thay đổi bộ lọc (ngày, ca, máy), tự động đưa page về 0 để tránh trường
+    hợp đang ở trang 15 mà bộ lọc mới chỉ có 2 trang -> bảng trống.
+
+III. KIỂM THỬ
+
+  - Mở bảng lịch sử realtime của TH02 với dải 1 tháng: trước đây treo, sau khi
+    sửa mở trong dưới 1 giây.
+  - Kiểm tra biên: trang cuối, trang có ít bản ghi hơn size, kết quả rỗng.
+  - Kiểm tra đổi bộ lọc khi đang ở trang cuối - page tự về 0, đúng.
+
+IV. KẾT QUẢ
+
+  Cả 6 sai lệch hiển thị và toàn bộ các bảng lớn đã được xử lý. Thời gian mở
+  các trang báo cáo nặng giảm từ 5-10 giây xuống dưới 1 giây.
+
+
+================================================================================
+NGÀY 3 - SỬA LỖI KHOẢNG TRỐNG QUÁ NHIỀU VÀ LỖI VỀ MÀU SẮC
+================================================================================
+
+MỤC TIÊU NGÀY
+  Hai nhóm lỗi về trình bày: bố cục thừa khoảng trắng và bảng màu không thống
+  nhất, gây khó đọc khi chiếu lên màn hình lớn tại phòng điều hành.
+
+--------------------------------------------------------------------------------
+PHẦN A - LỖI KHOẢNG TRỐNG QUÁ NHIỀU
+--------------------------------------------------------------------------------
+
+I. MÔ TẢ HIỆN TƯỢNG
+
+  Người dùng phản ánh: "Mở trang lên chỉ thấy vài con số ở trên, phải cuộn mãi
+  mới tới biểu đồ", "Màn hình 24 inch mà chỉ dùng được nửa bên trái, nửa bên
+  phải trống trơn".
+
+  Nguyên nhân cụ thể tôi tìm ra:
+
+  1. Các thẻ KPI đặt trong grid 2 cột cố định, trên màn hình rộng mỗi thẻ bị
+     kéo dãn ra rất to nhưng nội dung chỉ là một con số -> thừa khoảng trắng.
+
+  2. Khoảng cách padding/margin giữa các khối được đặt bằng giá trị cố định lớn
+     (p-8, mb-10) áp dụng đồng loạt cho mọi kích thước màn hình.
+
+  3. Container biểu đồ đặt chiều cao cố định lớn hơn nhiều so với nội dung thực,
+     tạo một vùng trắng bên dưới biểu đồ.
+
+  4. Bảng dữ liệu đặt trong khối có max-width nhỏ, không giãn theo màn hình.
+
+II. GIẢI PHÁP
+
+  - Chuyển các khối KPI sang grid đáp ứng (responsive): 1 cột trên điện thoại,
+    2 cột trên tablet, 4 cột trên desktop; nhờ vậy màn hình rộng được lấp đầy.
+
+  - Rà soát và giảm padding/margin: thay giá trị cố định lớn bằng giá trị vừa
+    phải, kết hợp lớp đáp ứng để màn hình nhỏ vẫn thoáng còn màn hình lớn không
+    bị rỗng.
+
+  - Bỏ chiều cao cố định của container biểu đồ, dùng ResponsiveContainer của
+    recharts với chiều cao tính theo tỷ lệ, để biểu đồ tự lấp đầy vùng chứa.
+
+  - Bổ sung quy tắc CSS cho vùng biểu đồ:
+        .recharts-wrapper { overflow: visible !important; }
+    nhằm tránh việc nhãn trục và tooltip bị cắt cụt khi tràn khỏi khung.
+
+  - Với các trang có nhiều khối, bố trí lại theo nguyên tắc: KPI ở trên cùng
+    (một hàng ngang), biểu đồ chính ở giữa, bảng chi tiết ở dưới - để người xem
+    nắm được bức tranh tổng thể ngay khi mở trang mà không cần cuộn.
+
+--------------------------------------------------------------------------------
+PHẦN B - LỖI VỀ MÀU SẮC
+--------------------------------------------------------------------------------
+
+I. MÔ TẢ HIỆN TƯỢNG
+
+  1. Cùng một khái niệm nhưng mỗi trang một màu: "Kế hoạch" chỗ thì xanh dương,
+     chỗ thì xám; "Thực hiện" chỗ xanh lá, chỗ cam. Người xem phải đọc chú thích
+     lại từ đầu ở mỗi trang.
+
+  2. Màu trạng thái máy không trực quan: máy DỪNG lại tô màu xanh, máy CHẠY lại
+     tô màu vàng - ngược với trực giác thông thường.
+
+  3. Chữ trắng trên nền vàng nhạt, chữ xám nhạt trên nền trắng - không đọc được
+     khi chiếu máy chiếu ở phòng điều hành.
+
+  4. Biểu đồ nhiều series dùng các sắc độ quá gần nhau, không phân biệt được.
+
+II. GIẢI PHÁP
+
+  Xây dựng một BẢNG MÀU CHUẨN áp dụng thống nhất toàn hệ thống:
+
+     Khái niệm            | Vai trò màu        | Ghi chú
+     ---------------------|--------------------|---------------------------
+     Kế hoạch             | Xanh dương         | Luôn là cột/đường tham chiếu
+     Thực hiện            | Xanh lá            | Đạt/vượt kế hoạch
+     Thực hiện thiếu hụt  | Đỏ / cam           | Khi tỷ lệ dưới ngưỡng
+     Máy CHẠY             | Xanh lá            | Trực giác: xanh = tốt
+     Máy DỪNG             | Đỏ / cam đậm       | Trực giác: đỏ = cần chú ý
+     Mất kết nối          | Xám                | Trạng thái không xác định
+     Ca 1 / Ca 2 / Ca 3   | 3 sắc độ tách bạch | Không dùng sắc độ liền kề
+
+  Các việc cụ thể:
+   - Định nghĩa mảng màu tập trung, dùng chung cho mọi biểu đồ thay vì hard-code
+     màu ở từng chỗ.
+   - Đảo lại màu trạng thái máy cho đúng trực giác.
+   - Kiểm tra độ tương phản chữ/nền, đổi chữ trắng trên nền sáng thành chữ đậm
+     trên nền sáng.
+   - Bổ sung chú thích (legend) rõ ràng cho mọi biểu đồ, đặt ở vị trí cố định.
+
+III. VẤN ĐỀ PHÁT SINH: XUNG ĐỘT FONT TOÀN CỤC
+
+  Trong lúc chỉnh trình bày tôi phát hiện file src/index.css có quy tắc:
+
+       h1, h2, h3, h4 { font-family: ... !important }
+
+  áp dụng cho toàn site. Hệ quả: mọi tiêu đề trong trang chi tiết máy đều bị ghi
+  đè font, không đặt lại được. Tôi xử lý bằng cách khai báo lại font ở phạm vi
+  trang kèm !important và ghi chú lý do ngay trong mã nguồn của cả
+  MayThanhHinhDashboard.jsx lẫn MayCatVaiDashboard.jsx:
+
+       /* index.css có rule "h1,h2,h3,h4 { font-family: ... !important }" áp
+          toàn site, nếu không khai !important ở đây thì các tiêu đề trong
+          trang vẫn bị nó ghi đè. */
+
+  Ghi chú này giúp người bảo trì sau hiểu vì sao phải dùng !important ở đây,
+  tránh việc xóa đi rồi lỗi tái diễn.
+
+IV. KẾT QUẢ
+
+  Bố cục lấp đầy màn hình rộng, bảng màu thống nhất, chữ đọc được khi chiếu.
+
+
+================================================================================
+NGÀY 4 - SỬA CÁC LỖI VỀ DỮ LIỆU: GIỜ > NGÀY, CA 0 -> CA 3, ĐỒNG NHẤT CA
+================================================================================
+
+MỤC TIÊU NGÀY
+  Ba nhóm lỗi liên quan trực tiếp đến dữ liệu và quy ước nghiệp vụ. Đây là nhóm
+  khó nhất trong 4 ngày sửa lỗi vì phải phân định rõ đâu là lỗi code, đâu là lỗi
+  dữ liệu nguồn.
+
+--------------------------------------------------------------------------------
+PHẦN A - LỖI SỐ GIỜ NHIỀU HƠN SỐ NGÀY (DO DỮ LIỆU)
+--------------------------------------------------------------------------------
+
+I. MÔ TẢ HIỆN TƯỢNG
+
+  Trên bảng thống kê trạng thái máy, có máy hiển thị tổng thời gian chạy trong
+  tháng lên tới hơn 800 giờ, trong khi một tháng chỉ có tối đa 31 x 24 = 744 giờ.
+  Cá biệt có dòng hiển thị số giờ chạy trong MỘT NGÀY vượt quá 24 giờ.
+
+II. QUÁ TRÌNH TRUY VẾT
+
+  Bước 1: Kiểm tra công thức tính ở frontend. Tôi rà lại toàn bộ đoạn cộng dồn
+          thời gian, đảm bảo không cộng trùng bản ghi. Kết quả: công thức đúng.
+
+  Bước 2: Xuất dữ liệu thô từ API ra file để đối chiếu thủ công. Phát hiện:
+          - Có những bản ghi có khoảng thời gian CHỒNG LẤN nhau (bản ghi A từ
+            08:00-10:00, bản ghi B từ 09:00-11:00 cho cùng một máy). Khi cộng
+            dồn hai bản ghi thì 2 giờ bị tính hai lần.
+          - Có bản ghi bị thiếu thời điểm kết thúc (null), khiến logic tính
+            khoảng thời gian lấy mặc định đến thời điểm hiện tại -> khoảng thời
+            gian phình ra rất lớn.
+          - Có bản ghi mà thời điểm kết thúc NHỎ HƠN thời điểm bắt đầu, tạo ra
+            khoảng thời gian âm rồi bị lấy trị tuyệt đối ở đâu đó.
+
+  Bước 3: Kết luận - đây là LỖI DỮ LIỆU NGUỒN, không phải lỗi tính toán ở
+          frontend. Nguyên nhân sâu xa là quá trình ghi nhận trạng thái máy từ
+          thiết bị có lúc bị ghi trùng hoặc mất bản ghi đóng.
+
+III. GIẢI PHÁP PHÍA FRONTEND (PHÒNG VỆ)
+
+  Vì không thể sửa dữ liệu nguồn ngay, tôi bổ sung lớp làm sạch dữ liệu trước
+  khi hiển thị:
+
+   1. Bỏ qua bản ghi có thời điểm kết thúc nhỏ hơn thời điểm bắt đầu.
+   2. Với bản ghi thiếu thời điểm kết thúc: chỉ tính đến hết ca/hết ngày của
+      bản ghi đó, không tính đến thời điểm hiện tại.
+   3. Gộp các khoảng thời gian chồng lấn của cùng một máy trước khi cộng dồn
+      (thuật toán merge interval: sắp xếp theo thời điểm bắt đầu, nếu khoảng sau
+      bắt đầu trước khi khoảng trước kết thúc thì gộp lại thành một).
+   4. Thêm ràng buộc trần: tổng thời gian của một máy trong một ngày không được
+      vượt 24 giờ; trong một tháng không vượt số ngày x 24 giờ. Nếu vượt, hiển
+      thị giá trị đã cắt kèm dấu cảnh báo để người dùng biết dữ liệu nguồn có
+      vấn đề, thay vì im lặng hiển thị con số vô lý.
+
+IV. BÁO CÁO
+
+  Tôi đã ghi nhận danh sách các bản ghi bất thường (mã máy, khoảng thời gian) để
+  báo lại cho bộ phận phụ trách dữ liệu xử lý ở tầng gốc.
+
+--------------------------------------------------------------------------------
+PHẦN B - LỖI CA 0 KHÔNG BIẾN ĐỔI THÀNH CA 3
+--------------------------------------------------------------------------------
+
+I. MÔ TẢ HIỆN TƯỢNG
+
+  Trên giao diện, ca đêm hiển thị là "Ca 0" - đúng như giá trị thô trong CSDL,
+  nhưng người dùng nghiệp vụ chỉ biết đến "Ca 3". Một số chỗ khác thì hiển thị
+  "Ca 3" đúng, dẫn tới cùng một hệ thống mà hai chỗ gọi hai tên khác nhau cho
+  cùng một ca.
+
+  Ngoài ra thứ tự sắp xếp cũng sai: do sắp theo giá trị số của mã ca, ca đêm
+  (mã 0) luôn bị đẩy lên ĐẦU danh sách, trong khi theo nghiệp vụ nó phải nằm
+  CUỐI (Ca 1 -> Ca 2 -> Ca 3).
+
+II. GIẢI PHÁP
+
+  Tôi xây dựng module src/utils/tongHopCaNgayChart.js làm nguồn sự thật duy nhất
+  cho việc ánh xạ và sắp xếp ca:
+
+     export const SHIFT_ORDER = [
+       { code: '1', label: 'Ca 1', dataKey: 'ca1' },
+       { code: '2', label: 'Ca 2', dataKey: 'ca2' },
+       { code: '0', label: 'Ca 3', dataKey: 'ca3' },
+     ];
+
+  Mảng này vừa định nghĩa ánh xạ mã -> nhãn, vừa định nghĩa THỨ TỰ HIỂN THỊ.
+  Kèm theo là hàm caCodeToLabel(code) để quy đổi mã ca sang nhãn hiển thị.
+
+  Trong file tôi ghi chú rõ để tránh hiểu nhầm về sau:
+     "Lưu ý quy ước: Ca 3 (ca đêm) có MÃ CA là '0' trong dữ liệu, nhưng hiển thị
+      cho người dùng là 'Ca 3'."
+
+  Sau đó rà soát và thay thế toàn bộ các chỗ hiển thị ca trong hệ thống bằng
+  caCodeToLabel(), thay vì in thẳng giá trị thô.
+
+III. HỆ QUẢ KÉO THEO - TÍNH ĐIỂM CUỐI CỦA DẢI DỮ LIỆU
+
+  Việc Ca 3 mang mã '0' còn gây một lỗi tinh vi hơn ở hàm tính dải thời gian cho
+  biểu đồ. Vì khóa yearMonthDayShift đặt mã ca ở hàng đơn vị, nên trong một ngày
+  giá trị LỚN NHẤT là mã '2' (Ca 2) chứ không phải mã '0' (Ca 3). Nếu lấy điểm
+  cuối là "ngày cuối tháng, Ca 3" thì sẽ ra khóa nhỏ hơn "ngày cuối tháng, Ca 2"
+  và mất dữ liệu.
+
+  Tôi xử lý trong hàm getChartShiftRange() bằng cách lấy mã ca lớn nhất theo giá
+  trị số, không theo thứ tự hiển thị, và ghi chú ngay tại chỗ:
+
+     // Ca cuối theo thứ tự hiển thị là Ca 2 (mã '2'), vì Ca 3 mang mã '0' và
+     // mã ca nằm ở hàng đơn vị nên '2' mới là giá trị lớn nhất trong ngày.
+
+  Hàm getChartShiftRange() còn xử lý thêm quy tắc:
+     - Điểm đầu LUÔN là ngày 01, Ca 1 của chính THÁNG ĐANG LỌC (không phải tháng
+       hiện tại - đây từng là một lỗi khi người dùng xem lại tháng cũ).
+     - Nếu lọc tháng quá khứ thì lấy trọn cả tháng đến ngày cuối tháng.
+
+--------------------------------------------------------------------------------
+PHẦN C - LỖI KHÔNG ĐỒNG NHẤT CA GIỮA CÁC BẢNG TRONG DỮ LIỆU
+--------------------------------------------------------------------------------
+
+I. MÔ TẢ HIỆN TƯỢNG
+
+  Cùng khái niệm "ca sản xuất" nhưng các bảng khác nhau trong CSDL lưu theo các
+  định dạng khác nhau:
+     - Bảng A lưu số nguyên: 0, 1, 2
+     - Bảng B lưu chuỗi: "0", "1", "2"
+     - Bảng C lưu chuỗi có tiền tố: "Ca 1", "CA 2", "ca 0"
+     - Một số nơi lưu ghép trong khóa yearMonthDayShift
+
+  Khi frontend join dữ liệu từ nhiều nguồn để dựng một bảng đối chiếu, việc so
+  sánh ca bị lệch: 1 !== "1", "Ca 1" !== "1". Kết quả là dữ liệu bị mất hoặc
+  hiển thị thành hai dòng riêng cho cùng một ca.
+
+II. GIẢI PHÁP
+
+  Chuẩn hóa MỌI giá trị ca về cùng một dạng '0'|'1'|'2' ngay tại cửa ngõ dữ liệu,
+  bằng hàm normalizeCa() trong shiftPolling.js:
+
+     export const normalizeCa = (ca) => {
+       if (ca === null || ca === undefined || ca === '') return null;
+       const digits = String(ca).replace(/\D/g, '');
+       if (digits === '') return null;
+       // Lấy chữ số cuối để bao được cả 'Ca 1' lẫn '1'
+       const num = digits.charAt(digits.length - 1);
+       return ['0', '1', '2'].includes(num) ? num : null;
+     };
+
+  Cách làm: chuyển về chuỗi, loại bỏ hết ký tự không phải chữ số, rồi lấy chữ số
+  CUỐI CÙNG. Cách này bao được cả "Ca 1" (còn lại "1"), "CA 02" (còn lại "02",
+  lấy chữ số cuối là "2"), số nguyên 1 (còn lại "1"). Trả về null nếu không nhận
+  diện được, để phía gọi biết mà bỏ qua bản ghi thay vì gán bừa.
+
+  Nguyên tắc áp dụng: normalizeCa() được gọi NGAY sau khi nhận dữ liệu từ API,
+  trước mọi thao tác so sánh/gom nhóm. Nhờ vậy phần logic phía sau chỉ làm việc
+  với một định dạng duy nhất.
+
+III. KIỂM THỬ
+
+  Tôi lập bảng test các đầu vào: 0, 1, 2, "0", "1", "2", "Ca 1", "CA 2", "ca 0",
+  "Ca01", null, undefined, "", "abc", 3, "Ca 5". Kết quả đúng như thiết kế: các
+  giá trị hợp lệ ra '0'|'1'|'2', các giá trị không hợp lệ ra null.
+
+IV. KẾT QUẢ NGÀY 4
+
+  Hoàn tất 3/3 nhóm lỗi dữ liệu. Điểm quan trọng nhất của ngày này là đã tách
+  bạch được rõ ràng: lỗi giờ > ngày là LỖI DỮ LIỆU NGUỒN (frontend chỉ phòng vệ
+  được), còn lỗi ca là LỖI QUY ƯỚC (đã xử lý triệt để bằng module dùng chung).
+
+--------------------------------------------------------------------------------
+TỔNG KẾT GIAI ĐOẠN 1 (NGÀY 1-4)
+--------------------------------------------------------------------------------
+
+  Đã xử lý 9 nhóm lỗi được phản ánh:
+    1. Không đồng bộ kết quả khi realtime             -> XONG
+    2. Hiển thị không đúng yêu cầu                    -> XONG
+    3. Không phân trang                               -> XONG
+    4. Khoảng trống quá nhiều                         -> XONG
+    5. Lỗi về màu sắc                                 -> XONG
+    6. Số giờ nhiều hơn số ngày (do dữ liệu)          -> XONG (phòng vệ + báo cáo)
+    7. Hiển thị không trực quan cho người xem         -> XONG
+    8. Ca 0 không biến đổi thành Ca 3                 -> XONG
+    9. Không đồng nhất ca giữa các bảng trong dữ liệu -> XONG
+
+  Sản phẩm phụ có giá trị lâu dài: hai module dùng chung
+    - src/utils/shiftPolling.js
+    - src/utils/tongHopCaNgayChart.js
+  Hai module này về sau được dùng lại ở TẤT CẢ các trang viết mới, giúp không
+  tái diễn các lỗi quy ước ca đã sửa.
+
+
+================================================================================
+NGÀY 5 - VIẾT MỚI GIAO DIỆN TRANG CHI TIẾT MÁY THÀNH HÌNH
+================================================================================
+
+MỤC TIÊU NGÀY
+  Viết lại hoàn toàn giao diện trang chi tiết máy thành hình
+  (src/pages/ThanhHinh/MayThanhHinhDashboard.jsx). Bản cũ đã được sao lưu thành
+  MayThanhHinhDashboard.jsx.bak để đối chiếu khi cần.
+
+I. YÊU CẦU ĐẶT RA
+
+  Trang chi tiết một máy thành hình phải cho phép người vận hành và quản lý:
+   1. Xem thông số realtime của máy đang chạy.
+   2. Xem sản lượng theo ca hiện tại, đối chiếu với kế hoạch.
+   3. Xem biểu đồ thực hiện kế hoạch theo ngày trong tháng (3 ca mỗi ngày).
+   4. Xem tỷ lệ phân bổ trạng thái máy (chạy/dừng/mất kết nối).
+   5. Tra cứu lịch sử realtime, lịch sử recipe, lịch sử setting.
+   6. Xem lịch sử thay đổi cấu hình máy.
+   7. Lọc theo năm, tháng, ngày, ca; có chế độ nháp (draft) trước khi áp dụng.
+
+II. THIẾT KẾ CẤU TRÚC TRANG
+
+  Trang được tổ chức thành các tab để tránh dồn quá nhiều nội dung vào một màn:
+
+    Tab "dashboard"  : KPI + biểu đồ + bảng tổng hợp (mặc định)
+    Tab "chartData"  : Dữ liệu biểu đồ dạng bảng, phục vụ đối chiếu số liệu
+
+  Trong tab dashboard, bố cục từ trên xuống:
+
+    [1] Thanh tiêu đề: tên máy, mã máy, ảnh máy, thời điểm cập nhật gần nhất.
+    [2] Thanh bộ lọc: năm / tháng / ngày / ca, nút Áp dụng, nút Làm mới.
+    [3] Hàng thẻ KPI: sản lượng ca, kế hoạch ca, tỷ lệ đạt, thời gian chạy.
+    [4] Biểu đồ tròn (pie): phân bổ trạng thái máy trong ca/ngày.
+    [5] Biểu đồ cột theo ngày: 3 cột mỗi ngày (Ca 1 -> Ca 2 -> Ca 3), so sánh
+        kế hoạch với thực hiện.
+    [6] Bảng chi tiết: dữ liệu theo ca/ngày, có phân trang.
+    [7] Các nút mở lịch sử: Realtime / Recipe / Setting / Lịch sử thay đổi.
+
+III. CÁC STATE CHÍNH ĐÃ THIẾT KẾ
+
+  Trang có nhiều state do phải quản lý đồng thời nhiều nguồn dữ liệu:
+
+    pieData, statsData          : dữ liệu biểu đồ tròn và thẻ KPI
+    dailyPlanData               : dữ liệu kế hoạch theo ngày
+    machineStatusTimes          : thời gian trạng thái máy theo ngày
+    machineStatusMonth          : thời gian trạng thái máy theo tháng
+    loading                     : cờ đang tải
+    selectedYear, selectedMonth : bộ lọc năm/tháng (đọc từ URL nếu có)
+    activeTab, chartTab         : tab đang mở
+    barcodeFilter, maMayFilter  : bộ lọc mã vạch và mã máy
+    realTimeData                : dữ liệu bảng realtime
+    realTimePage, realTimeSize  : phân trang bảng realtime
+
+  Điểm đáng chú ý: selectedYear và selectedMonth được khởi tạo từ query string
+  của URL (nam_sx, thang_sx) thông qua useSearchParams. Nhờ vậy khi người dùng
+  điều hướng từ trang danh sách máy sang trang chi tiết, bộ lọc được giữ nguyên
+  thay vì reset về tháng hiện tại - đây là một yêu cầu từ phía người dùng.
+
+IV. TÍCH HỢP CÁC MODULE ĐÃ VIẾT Ở GIAI ĐOẠN 1
+
+  Ngay từ đầu tôi import và sử dụng lại:
+    - getCurrentShift, isCurrentShiftSelected từ shiftPolling.js: để quyết định
+      có bật polling hay không, và để khởi tạo bộ lọc mặc định là ca đang chạy.
+    - Các hàm từ tongHopCaNgayChart.js: SHIFT_ORDER, caCodeToLabel,
+      getChartShiftRange, buildTongHopCaNgayChartData - để dựng biểu đồ 3 ca/ngày
+      đúng thứ tự và đúng nhãn.
+    - Component TongHopCaNgayTooltip: tooltip chuẩn hóa, hiển thị đầy đủ kế
+      hoạch / thực hiện / tỷ lệ của từng ca khi rê chuột.
+
+V. CÁC MODULE CON ĐƯỢC TÁCH RIÊNG
+
+  Để file chính không quá tải, các phần lịch sử được tách thành component riêng:
+    RealTimeTH02History.jsx / RealTimeTH05History.jsx / RealTimeTH09History.jsx
+    SettingTH02History.jsx / SettingTH09History.jsx / SettingTH05History.jsx
+    ThanhHinhChangeHistory.jsx (đặt trong components/change/)
+
+  Lý do tách theo mã máy: mỗi dòng máy có bộ thông số realtime khác nhau, số cột
+  và ý nghĩa cột không giống nhau, nên gộp chung sẽ phải viết rất nhiều điều
+  kiện rẽ nhánh, khó bảo trì.
+
+VI. XỬ LÝ VẤN ĐỀ FONT VÀ TOOLTIP BỊ CẮT
+
+  Như đã ghi ở Ngày 3, do index.css có quy tắc font toàn cục dùng !important,
+  tôi phải khai báo lại font ở phạm vi trang. Đồng thời để tooltip của biểu đồ
+  không bị cắt khi tràn khỏi khung, tôi đặt:
+       z-index: 9999 !important;
+       .recharts-wrapper { overflow: visible !important; }
+
+VII. KHỐI LƯỢNG CÔNG VIỆC
+
+  File MayThanhHinhDashboard.jsx sau khi hoàn thiện có 3.243 dòng, bao gồm cả
+  phần CSS nội tuyến, định nghĩa biểu đồ, xử lý dữ liệu và giao diện.
+
+VIII. KẾT QUẢ NGÀY 5
+
+  Hoàn thành khung trang, phần KPI, biểu đồ tròn và biểu đồ cột theo ngày. Phần
+  bảng chi tiết và các tab lịch sử hoàn thiện tiếp trong ngày kế.
+
+
+================================================================================
+NGÀY 6 - VIẾT MỚI GIAO DIỆN TRANG CHI TIẾT MÁY CẮT VẢI
+================================================================================
+
+MỤC TIÊU NGÀY
+  Bổ sung MỚI trang chi tiết cho nhóm máy CẮT VẢI - trước đây hệ thống chưa có
+  trang này, người dùng chỉ theo dõi được máy thành hình.
+
+I. NGUYÊN TẮC THIẾT KẾ: NHẤT QUÁN VỚI TRANG THÀNH HÌNH
+
+  Vì hai nhóm máy phục vụ hai công đoạn khác nhau nhưng người dùng là cùng một
+  nhóm, tôi giữ nguyên bố cục, vị trí bộ lọc, cách đặt tên nút và bảng màu giống
+  hệt trang máy thành hình. Người dùng chỉ cần học một lần là dùng được cả hai.
+
+  Điều này cũng được ghi lại trong chú thích đầu file KeHoachSanXuatCaThang.jsx
+  ở những ngày sau: "chuẩn hóa từ MayThanhHinhDashboard & MayCatVaiDashboard" -
+  tức hai trang này về sau trở thành CHUẨN THAM CHIẾU cho các trang tổng quan.
+
+II. ĐIỂM KHÁC BIỆT VỀ NGHIỆP VỤ
+
+  Máy cắt vải có đặc thù riêng nên tôi phải bổ sung:
+
+   1. Khái niệm RECIPE (công thức cắt): mỗi lệnh cắt có một recipe riêng, cần
+      theo dõi lịch sử thay đổi recipe -> component RecipeORCVHistory.jsx.
+
+   2. Khái niệm BTP (bán thành phẩm) theo máy: gọi qua getBtpTheoMay().
+
+   3. Thống kê theo tháng của riêng máy cắt vải: getMonthlyStatsTheoMay().
+
+   4. Dữ liệu tổng hợp ca/ngày: dùng chung getTongHopCaNgay() từ thanhhinhApi,
+      vì cấu trúc dữ liệu ca/ngày là giống nhau giữa hai nhóm máy.
+
+III. CÁC API SỬ DỤNG
+
+  Từ catVaiApi.js:
+    - getMonthlyStatsTheoMay(...)   Thống kê tháng theo máy
+    - getBtpTheoMay(...)            Bán thành phẩm theo máy
+    - getCatVaiEquipments(...)      Danh sách thiết bị cắt vải
+    - getKeHoachCatVai(...)         Kế hoạch cắt vải (có phân trang)
+    - getBaoCaoKHSXCatVai(...)      Báo cáo KHSX cắt vải theo ca
+    - getBaoCaoKHSXTheoThang(...)   Báo cáo KHSX cắt vải theo tháng
+
+  Từ thanhhinhApi.js (dùng chung):
+    - getTongHopCaNgay({ startShift, endShift, maMay })
+
+IV. CÁC STATE CHÍNH
+
+    activeTab       : 'dashboard' | 'chartData'
+    chartTab        : 'realtime' | 'recipe' | 'setting'
+    dataList        : dữ liệu chính hiển thị
+    refreshInterval : chu kỳ làm mới, mặc định 2000ms
+    showRealtimeHistory / showRecipeHistory / showSettingHistory /
+    showChangeHistory : cờ mở các cửa sổ lịch sử
+    selectedDate, selectedCa    : bộ lọc đang áp dụng
+    draftDate, draftCa          : bộ lọc nháp (chưa áp dụng)
+    selectedYear, selectedMonth : bộ lọc năm/tháng cho biểu đồ tháng
+    isRefreshing, lastUpdatedTime, refreshToken : cơ chế chống race condition
+    machineImage       : ảnh máy hiển thị ở đầu trang
+    machineStatusTimes : dữ liệu trạng thái máy
+
+V. CƠ CHẾ BỘ LỌC NHÁP (DRAFT)
+
+  Đây là cải tiến tôi đưa vào cả hai trang chi tiết máy. Vấn đề của bản cũ: mỗi
+  lần người dùng đổi ngày rồi đổi ca, hệ thống gọi API 2 lần, lần đầu với tổ hợp
+  vô nghĩa (ngày mới + ca cũ). Giải pháp: tách thành hai cặp state.
+
+     draftDate / draftCa       : thay đổi tự do khi người dùng thao tác
+     selectedDate / selectedCa : chỉ cập nhật khi bấm nút "Áp dụng"
+
+  Chỉ selectedDate/selectedCa mới kích hoạt gọi API. Nhờ vậy giảm được số lần
+  gọi API không cần thiết và tránh hiển thị dữ liệu trung gian gây rối.
+
+VI. KHỞI TẠO BỘ LỌC THÔNG MINH
+
+  Khi mở trang, bộ lọc được khởi tạo bằng getCurrentShift() - tức mặc định hiển
+  thị đúng ca đang chạy tại thời điểm mở. Người vận hành mở trang lên là thấy
+  ngay số liệu ca của mình, không phải thao tác chọn.
+
+VII. KHỐI LƯỢNG CÔNG VIỆC
+
+  File MayCatVaiDashboard.jsx: 2.966 dòng.
+  Các component con: RealTimeORCVHistory.jsx, RecipeORCVHistory.jsx,
+  SettingORCVHistory.jsx, CatVaiChangeHistory.jsx.
+
+VIII. ĐĂNG KÝ ROUTE
+
+  Bổ sung route mới trong App.jsx:
+     /dashboard/may-cat-vai/:equipmentId  -> MayCatVaiDashboard
+  đặt song song với route sẵn có:
+     /dashboard/may-thanh-hinh/:equipmentId -> MayThanhHinhDashboard
+
+IX. KẾT QUẢ NGÀY 6
+
+  Trang chi tiết máy cắt vải hoạt động được, đủ các khối chức năng tương đương
+  trang máy thành hình.
+
+
+================================================================================
+NGÀY 7 - TEST VÀ SỬA LỖI SAU KHI HOÀN THIỆN HAI TRANG CHI TIẾT MÁY
+================================================================================
+
+MỤC TIÊU NGÀY
+  Kiểm thử toàn diện hai trang vừa viết và xử lý các lỗi phát sinh.
+
+I. KỊCH BẢN KIỂM THỬ ĐÃ THỰC HIỆN
+
+  Nhóm 1 - Kiểm thử chức năng cơ bản:
+    1.1  Mở trang từ danh sách máy, kiểm tra đúng máy được chọn.
+    1.2  Kiểm tra ảnh máy hiển thị đúng.
+    1.3  Kiểm tra các thẻ KPI có số liệu, không hiển thị null/undefined.
+    1.4  Kiểm tra biểu đồ tròn có đủ 3 phần trạng thái và tổng bằng 100%.
+    1.5  Kiểm tra biểu đồ cột có đủ số ngày trong tháng.
+    1.6  Kiểm tra bảng chi tiết có dữ liệu và phân trang hoạt động.
+
+  Nhóm 2 - Kiểm thử bộ lọc:
+    2.1  Đổi ngày, giữ nguyên ca -> dữ liệu đổi đúng.
+    2.2  Đổi ca, giữ nguyên ngày -> dữ liệu đổi đúng.
+    2.3  Đổi cả hai rồi mới bấm Áp dụng -> chỉ gọi API 1 lần.
+    2.4  Chọn ngày tương lai -> hiển thị thông báo không có dữ liệu, không lỗi.
+    2.5  Chọn tháng quá khứ -> biểu đồ lấy trọn tháng.
+    2.6  Đổi năm -> biểu đồ và bảng cập nhật theo.
+
+  Nhóm 3 - Kiểm thử realtime/polling:
+    3.1  Ở ca hiện tại -> có polling, thời điểm cập nhật thay đổi.
+    3.2  Chuyển sang ca quá khứ -> polling dừng, dữ liệu đứng yên.
+    3.3  Quay lại ca hiện tại -> polling khởi động lại.
+    3.4  Để trang chạy 30 phút -> không rò rỉ bộ nhớ, không nhân đôi interval.
+
+  Nhóm 4 - Kiểm thử các cửa sổ lịch sử:
+    4.1  Mở lịch sử realtime, kiểm tra phân trang.
+    4.2  Mở lịch sử recipe (máy cắt vải).
+    4.3  Mở lịch sử setting.
+    4.4  Mở lịch sử thay đổi.
+    4.5  Đóng cửa sổ rồi mở lại -> dữ liệu tải lại đúng.
+
+  Nhóm 5 - Kiểm thử giao diện:
+    5.1  Màn hình 1920x1080 (màn hình phòng điều hành).
+    5.2  Màn hình 1366x768 (máy tính ở xưởng).
+    5.3  Thu nhỏ cửa sổ -> bố cục đáp ứng không vỡ.
+    5.4  Kiểm tra tooltip không bị cắt ở mép biểu đồ.
+    5.5  Kiểm tra font tiêu đề đúng, không bị index.css ghi đè.
+
+II. CÁC LỖI PHÁT HIỆN VÀ ĐÃ SỬA
+
+  Lỗi 7.1 - Nhân đôi interval khi đổi bộ lọc
+     Hiện tượng: mỗi lần đổi bộ lọc, số request/giây tăng lên gấp đôi.
+     Nguyên nhân: useEffect tạo interval mới nhưng hàm dọn dẹp (cleanup) chưa
+     clear interval cũ trong mọi nhánh.
+     Xử lý: bổ sung return () => clearInterval(timer) đầy đủ, và đưa toàn bộ
+     phụ thuộc vào mảng dependency.
+
+  Lỗi 7.2 - Mã máy không khớp giữa URL và CSDL
+     Hiện tượng: mở trang với URL .../may-thanh-hinh/TH08 thì không ra dữ liệu,
+     nhưng .../may-thanh-hinh/ORC-TH-08 thì ra.
+     Nguyên nhân: CSDL lưu mã đầy đủ "ORC-TH-08", URL lại dùng mã ngắn.
+     Xử lý: bổ sung chuẩn hóa mã máy trong hàm getDailyPlanRatio() của
+     thanhhinhApi.js - nếu mã không bắt đầu bằng ORC-TH-/ORC-CV- và không chứa
+     ORCV thì tách phần số, pad về 2 chữ số rồi ghép tiền tố chuẩn.
+
+  Lỗi 7.3 - Biểu đồ tháng mất ngày cuối tháng
+     Hiện tượng: xem tháng quá khứ, biểu đồ thiếu dữ liệu ngày cuối cùng.
+     Nguyên nhân: chính là lỗi tính điểm cuối dải đã phân tích ở Ngày 4 - lấy
+     Ca 3 (mã 0) làm ca cuối ngày nên khóa endShift nhỏ hơn thực tế.
+     Xử lý: dùng getChartShiftRange() đã sửa, lấy mã ca lớn nhất theo giá trị số.
+
+  Lỗi 7.4 - Tooltip biểu đồ bị cắt ở mép phải
+     Xử lý: đặt overflow: visible cho .recharts-wrapper và nâng z-index.
+
+  Lỗi 7.5 - Ngày bị lùi 1 ngày trong khoảng nửa đêm đến 7 giờ sáng
+     Hiện tượng: ca đêm mở trang lúc 1 giờ sáng thì bộ lọc mặc định là ngày hôm
+     trước.
+     Nguyên nhân: dùng toISOString() để lấy khóa ngày, hàm này quy về UTC.
+     Xử lý: thay bằng toLocalDateKey() trong shiftPolling.js.
+
+  Lỗi 7.6 - Response HTML thay vì JSON gây lỗi khó hiểu
+     Hiện tượng: khi endpoint sai đường dẫn, server trả về trang HTML lỗi, code
+     cố parse thành JSON và báo lỗi rất khó hiểu.
+     Xử lý: bổ sung kiểm tra trong getTongHopCaNgay() - nếu response là chuỗi
+     chứa "<!DOCTYPE" thì ném lỗi có thông điệp rõ ràng:
+     "Server trả về HTML thay vì JSON. Kiểm tra endpoint có tồn tại không?"
+
+  Lỗi 7.7 - Thiếu giây trong tham số thời gian
+     Hiện tượng: input datetime-local trả về chuỗi dạng "2026-08-18T06:00"
+     (16 ký tự, thiếu phần giây), backend không parse được.
+     Xử lý: bổ sung trong getMachinesWithStats() - nếu fromDate dài 16 ký tự thì
+     nối thêm ":00", nếu toDate dài 16 ký tự thì nối thêm ":59" (để lấy trọn
+     phút cuối).
+
+  Lỗi 7.8 - Ảnh máy không hiển thị với một số máy
+     Nguyên nhân: API getViewOrcThMachineImageApi() trả về danh sách chung, cần
+     lọc theo mã máy; một số máy chưa có ảnh trong danh sách.
+     Xử lý: bổ sung ảnh mặc định khi không tìm thấy, không để vỡ bố cục.
+
+III. KẾT QUẢ NGÀY 7
+
+  8 lỗi phát hiện, 8 lỗi đã xử lý. Hai trang chi tiết máy đạt trạng thái ổn định,
+  sẵn sàng bàn giao. Đồng thời hai trang này trở thành CHUẨN THAM CHIẾU về bố
+  cục, bảng màu và cách xử lý ca cho toàn bộ nhóm trang Tổng quan làm ở giai
+  đoạn sau.
+
+
+================================================================================
+NGÀY 8 - DỰNG LẠI TRANG DASHBOARD, ĐỔI TÊN THÀNH "TỔNG QUAN"
+================================================================================
+
+MỤC TIÊU NGÀY
+  Viết lại toàn bộ giao diện trang Dashboard theo yêu cầu mới, đổi tên hiển thị
+  từ "Dashboard" thành "Tổng quan" cho thuần Việt và phù hợp với người dùng nhà
+  máy.
+
+I. PHƯƠNG PHÁP LÀM VIỆC: MOCK TRƯỚC - GẮN API SAU
+
+  Do yêu cầu về nội dung trang chưa được chốt hoàn toàn, tôi chọn cách làm theo
+  3 bước để tránh lãng phí công sức:
+
+    Bước 1: Dựng giao diện với DỮ LIỆU GIẢ (mock). Mục đích là có ngay một bản
+            trực quan để cấp trên xem và góp ý về bố cục, loại biểu đồ, cách
+            trình bày - mà không phụ thuộc vào việc API đã sẵn sàng hay chưa.
+
+    Bước 2: Rà soát các API SẴN CÓ xem cái nào dùng lại được, lập danh sách các
+            dữ liệu còn thiếu và đề nghị bổ sung API.
+
+    Bước 3: Thay dữ liệu giả bằng dữ liệu thật, rồi tinh chỉnh giao diện theo
+            góp ý cho tới khi đạt yêu cầu.
+
+  Dữ liệu giả được đặt tập trung trong thư mục src/mock/ để dễ gỡ bỏ về sau và
+  không lẫn vào mã nguồn chính thức.
+
+II. BƯỚC 1 - DỰNG GIAO DIỆN VỚI DỮ LIỆU GIẢ
+
+  Cấu trúc trang Tổng quan gồm 4 tầng:
+
+    Tầng 1 - Dải thẻ chỉ số tổng: tổng sản lượng, tổng kế hoạch, tỷ lệ hoàn
+             thành, số máy đang chạy / dừng / mất kết nối.
+
+    Tầng 2 - Biểu đồ xu hướng: đường/cột thể hiện sản lượng theo thời gian, có
+             đường kế hoạch để đối chiếu.
+
+    Tầng 3 - Biểu đồ phân bổ: tỷ trọng sản lượng theo máy, theo ca.
+
+    Tầng 4 - Bảng xếp hạng máy: sắp xếp theo tỷ lệ hoàn thành kế hoạch, giúp
+             quản lý nhìn ra ngay máy nào đang yếu.
+
+  Mọi thành phần đều tuân thủ bảng màu chuẩn đã thống nhất ở Ngày 3.
+
+III. BƯỚC 2 - RÀ SOÁT API SẴN CÓ
+
+  Tôi khảo sát toàn bộ thư mục src/api và lập bảng đối chiếu giữa dữ liệu cần và
+  API có sẵn:
+
+    Dữ liệu cần                     | API sẵn có                        | Đủ?
+    --------------------------------|-----------------------------------|-----
+    Thống kê tổng theo khoảng ngày  | dashboardApi.getDashboardStats    | Có
+    Danh sách máy thành hình        | thanhhinhApi.getDanhSachMay       | Có
+    Máy kèm thống kê                | thanhhinhApi.getMachinesWithStats | Có
+    Tổng hợp ca/ngày                | thanhhinhApi.getTongHopCaNgay     | Có
+    Thống kê dashboard theo máy     | thanhhinhApi.getDashboardStats    | Có
+    Biểu đồ tròn theo máy           | thanhhinhApi.getDashboardMay      | Có
+    Danh sách thiết bị cắt vải      | catVaiApi.getCatVaiEquipments     | Có
+    Thống kê tháng cắt vải          | catVaiApi.getCatVaiMonthlyStats   | Có
+    Thống kê ngày cắt vải           | catVaiApi.getCatVaiDailyStats     | Có
+    Xu hướng kế hoạch               | kehoachApi.getKeHoachTrend        | Có
+    Tiến độ theo tuần               | kehoachApi.getWeeklyProgress      | Có
+    Trạng thái máy theo ngày        | (chưa có - bổ sung ở Ngày 12)     | Thiếu
+    Trạng thái máy theo tháng       | (chưa có - bổ sung ở Ngày 12)     | Thiếu
+    Trạng thái máy theo năm         | (chưa có - bổ sung ở Ngày 13)     | Thiếu
+
+  Về API dashboardApi.getDashboardStats, tôi phát hiện một vấn đề tương thích:
+  các trang cũ gọi hàm này theo dạng (nam_sx, thang_sx), trong khi backend đã
+  chuyển sang nhận (fromDate, toDate). Để không phải sửa đồng loạt mọi nơi gọi,
+  tôi viết hàm theo hướng chấp nhận cả hai kiểu tham số:
+
+     export const getDashboardStats = async (arg1, arg2) => {
+       const params =
+         typeof arg1 === "object" && arg1
+           ? arg1
+           : { fromDate: arg1, toDate: arg2 };
+       ...
+     }
+
+  Nếu tham số đầu là object thì dùng luôn, ngược lại coi hai tham số là
+  fromDate/toDate. Hàm cũng kiểm tra thiếu tham số và cảnh báo thay vì gọi API
+  với giá trị rỗng, đồng thời trả về null khi lỗi (thay vì ném lỗi) để component
+  tự xử lý hiển thị "không có dữ liệu" một cách mềm mại.
+
+IV. BƯỚC 3 - THAY DỮ LIỆU GIẢ BẰNG DỮ LIỆU THẬT
+
+  Lần lượt thay từng khối, mỗi khối thay xong đều kiểm tra ngay:
+   - Số liệu có khớp với báo cáo cũ không.
+   - Trường hợp không có dữ liệu có hiển thị đúng thông báo không.
+   - Trường hợp API lỗi có làm vỡ trang không.
+
+V. VÒNG LẶP CHỈNH SỬA THEO YÊU CẦU CẤP TRÊN
+
+  Sau khi có bản chạy dữ liệu thật, tôi trình bày với cấp trên và nhận góp ý.
+  Quá trình chỉnh sửa diễn ra qua nhiều vòng trong ngày:
+
+   Vòng 1 - Góp ý về cách sắp xếp khối: yêu cầu đưa các chỉ số quan trọng nhất
+            lên đầu, giảm bớt thông tin phụ.
+            -> Sắp xếp lại thứ tự khối, bỏ bớt 2 biểu đồ phụ ít giá trị.
+
+   Vòng 2 - Góp ý về loại biểu đồ: một biểu đồ tròn không phù hợp để so sánh
+            nhiều máy, đề nghị đổi sang cột ngang.
+            -> Đổi loại biểu đồ.
+
+   Vòng 3 - Góp ý về mức chi tiết: yêu cầu bổ sung khả năng lọc theo nhóm máy
+            (thành hình / cắt vải) thay vì gộp chung.
+            -> Bổ sung bộ lọc nhóm máy.
+
+   Vòng 4 - Góp ý về nhãn và đơn vị: thống nhất lại cách gọi tên các chỉ số cho
+            khớp với thuật ngữ dùng trong nhà máy.
+            -> Sửa nhãn, bổ sung đơn vị vào tiêu đề cột.
+
+   Vòng 5 - Duyệt.
+
+VI. ĐỔI TÊN "DASHBOARD" THÀNH "TỔNG QUAN"
+
+  Việc đổi tên được thực hiện ở tầng hiển thị (nhãn menu, tiêu đề trang, chuỗi
+  trong locales), GIỮ NGUYÊN đường dẫn route /dashboard/... và tên thư mục mã
+  nguồn. Lý do: đổi route sẽ làm hỏng mọi đường link đã được người dùng lưu, và
+  đổi tên thư mục sẽ tạo ra một khối thay đổi lớn không cần thiết. Đây là quyết
+  định có chủ đích, tôi ghi lại ở đây để người sau không hiểu nhầm là làm thiếu.
+
+VII. KẾT QUẢ NGÀY 8
+
+  Trang Tổng quan hoàn thành, chạy dữ liệu thật, đã được cấp trên duyệt sau 5
+  vòng chỉnh sửa. Quy trình "mock trước - API sau - chỉnh theo góp ý" chứng minh
+  hiệu quả và được áp dụng lại cho tất cả các trang ở những ngày tiếp theo.
+
+
+================================================================================
+NGÀY 9 - TRANG KẾ HOẠCH SẢN XUẤT NĂM
+================================================================================
+
+MỤC TIÊU NGÀY
+  Xây dựng trang Kế hoạch sản xuất năm (src/pages/Dashboard/KeHoachSanXuatNam.jsx)
+  theo đúng quy trình đã áp dụng ở Ngày 8.
+
+I. YÊU CẦU NGHIỆP VỤ
+
+  Trang phải thể hiện được, cho một năm được chọn:
+   1. Kế hoạch và thực hiện của cả năm, chia theo 12 tháng.
+   2. Tỷ lệ hoàn thành kế hoạch từng tháng và lũy kế cả năm.
+   3. Phân tách theo nhóm máy: thành hình và cắt vải.
+   4. Cho phép lọc theo máy cụ thể.
+   5. Bảng số liệu chi tiết kèm dòng tổng.
+
+II. BƯỚC 1 - DỰNG GIAO DIỆN VỚI DỮ LIỆU GIẢ
+
+  Bố cục:
+    [1] Thanh bộ lọc: chọn năm, chọn nhóm máy, chọn máy, nút Tìm kiếm, nút
+        Làm mới (dùng icon FaCalendarAlt, FaSearch, FaRedo, FaCogs, FaChartBar
+        từ react-icons cho thống nhất với các trang khác).
+    [2] Dải thẻ KPI: tổng kế hoạch năm, tổng thực hiện năm, tỷ lệ hoàn thành,
+        tháng đạt cao nhất / thấp nhất.
+    [3] Biểu đồ chính: cột ghép 12 tháng, mỗi tháng một cặp cột Kế hoạch (xanh
+        dương) - Thực hiện (xanh lá), kèm đường tỷ lệ % trên trục phụ.
+    [4] Bảng chi tiết 12 tháng + dòng TỔNG.
+
+III. BƯỚC 2 - GẮN API THẬT
+
+  Các API sử dụng (theo phần import thực tế trong file):
+
+     import { getKeHoachTrend } from '../../api/kehoachApi';
+     import { getCatVaiMonthlyStats, getCatVaiEquipments }
+            from '../../api/catVaiApi';
+     import { getMachinesWithStats, getDanhSachMay }
+            from '../../api/thanhhinhApi';
+
+  Vai trò từng API:
+   - getKeHoachTrend        : lấy xu hướng kế hoạch theo thời gian - đây là
+                              nguồn dữ liệu kế hoạch chính của trang.
+   - getMachinesWithStats   : lấy danh sách máy thành hình kèm số liệu thống kê
+                              trong khoảng thời gian.
+   - getDanhSachMay         : danh sách máy thành hình cho bộ lọc.
+   - getCatVaiMonthlyStats  : thống kê theo tháng của nhóm máy cắt vải.
+   - getCatVaiEquipments    : danh sách thiết bị cắt vải cho bộ lọc.
+
+IV. XỬ LÝ KỸ THUẬT ĐÁNG CHÚ Ý
+
+  1. Gộp dữ liệu từ hai nguồn khác nhau
+     Nhóm thành hình và nhóm cắt vải có API riêng, cấu trúc trả về không giống
+     nhau. Tôi viết lớp chuẩn hóa đưa cả hai về cùng một dạng
+     { thang, keHoach, thucHien } trước khi vẽ biểu đồ, thay vì viết hai nhánh
+     hiển thị riêng.
+
+  2. Bù các tháng thiếu dữ liệu
+     API chỉ trả về những tháng CÓ dữ liệu. Nếu vẽ thẳng, biểu đồ sẽ nhảy cóc
+     (tháng 1, tháng 3, tháng 8...) gây hiểu nhầm. Tôi bù đủ 12 tháng, tháng
+     không có dữ liệu thì giá trị 0 nhưng đánh dấu cờ "không có dữ liệu" để
+     tooltip hiển thị "Chưa có số liệu" thay vì "0" - phân biệt rõ giữa "sản
+     xuất bằng 0" và "chưa có số liệu".
+
+  3. Dùng useMemo và useCallback
+     Trang có nhiều phép biến đổi dữ liệu nặng (gộp, bù tháng, tính lũy kế). Tôi
+     bọc trong useMemo để chỉ tính lại khi dữ liệu nguồn đổi, và bọc các hàm gọi
+     API trong useCallback để tránh tạo lại hàm mỗi lần render gây gọi API thừa.
+
+  4. Tính lũy kế
+     Cột lũy kế được tính bằng cách cộng dồn từ tháng 1 đến tháng hiện tại, giúp
+     quản lý thấy được tiến độ so với kế hoạch cả năm chứ không chỉ từng tháng.
+
+V. VÒNG LẶP CHỈNH SỬA THEO YÊU CẦU CẤP TRÊN
+
+   Vòng 1 - Yêu cầu bổ sung đường tỷ lệ % trên cùng biểu đồ thay vì để riêng.
+            -> Dùng ComposedChart của recharts, thêm trục phụ bên phải.
+   Vòng 2 - Yêu cầu tháng chưa tới không vẽ cột (đang vẽ cột 0 gây hiểu nhầm là
+            không sản xuất).
+            -> Ẩn cột cho các tháng tương lai của năm hiện tại.
+   Vòng 3 - Yêu cầu bổ sung so sánh với năm trước.
+            -> Bổ sung đường tham chiếu năm trước dạng nét đứt.
+   Vòng 4 - Yêu cầu bảng chi tiết có thể xuất Excel.
+            -> Bổ sung nút xuất dùng thư viện exceljs/xlsx sẵn có.
+   Vòng 5 - Duyệt.
+
+VI. KHỐI LƯỢNG
+
+  File KeHoachSanXuatNam.jsx: 1.049 dòng.
+  Route: /dashboard/ke-hoach-san-xuat-nam
+
+VII. KẾT QUẢ NGÀY 9
+
+  Trang hoàn thành, chạy dữ liệu thật, đã được duyệt.
+
+
+================================================================================
+NGÀY 10 - TRANG KẾ HOẠCH SẢN XUẤT THÁNG VÀ KẾ HOẠCH SẢN XUẤT CA/THÁNG
+================================================================================
+
+MỤC TIÊU NGÀY
+  Hoàn thành hai trang trong cùng một ngày. Sở dĩ làm được là vì hai trang này
+  dùng chung phần lớn logic đã viết ở các ngày trước (module ca, module biểu đồ
+  ca/ngày, bố cục chuẩn), nên chủ yếu là ghép và tinh chỉnh.
+
+--------------------------------------------------------------------------------
+TRANG 1: KẾ HOẠCH SẢN XUẤT THÁNG (KeHoachSanXuatThang.jsx - 1.237 dòng)
+--------------------------------------------------------------------------------
+
+I. YÊU CẦU
+
+  Thể hiện kế hoạch và thực hiện của một tháng được chọn, chia theo từng NGÀY
+  trong tháng, cho cả hai nhóm máy.
+
+II. API SỬ DỤNG
+
+     import { getCatVaiDailyStats, getDailyStatsTheoMay, getCatVaiEquipments }
+            from '../../api/catVaiApi';
+     import { getTongHopCaNgay, getDanhSachMay }
+            from '../../api/thanhhinhApi';
+     import { getWeeklyProgress } from '../../api/kehoachApi';
+
+  - getTongHopCaNgay      : dữ liệu tổng hợp theo ca/ngày cho máy thành hình,
+                            gọi với { startShift, endShift, maMay }.
+  - getCatVaiDailyStats   : thống kê theo ngày cho nhóm cắt vải.
+  - getDailyStatsTheoMay  : thống kê theo ngày của một máy cắt vải cụ thể.
+  - getWeeklyProgress     : tiến độ theo tuần, dùng cho khối phụ.
+  - getDanhSachMay, getCatVaiEquipments : danh sách máy cho bộ lọc.
+
+III. XỬ LÝ KỸ THUẬT
+
+  1. Tính dải thời gian cho biểu đồ
+     Dùng getChartShiftRange(dateStr, caCode) từ tongHopCaNgayChart.js. Hàm này
+     đã xử lý sẵn các quy tắc:
+       - Điểm đầu luôn là ngày 01, Ca 1 của THÁNG ĐANG LỌC.
+       - Điểm cuối là ngày cuối tháng, ca có mã lớn nhất (mã '2').
+     Nhờ dùng lại hàm này, trang mới không lặp lại các lỗi về dải thời gian đã
+     gặp ở Ngày 7.
+
+  2. Gom dữ liệu theo ngày
+     Dùng buildTongHopCaNgayChartData(records, monthKey). API trả về mỗi ca một
+     dòng; hàm này gom lại thành mảng theo NGÀY, mỗi phần tử chứa số liệu của cả
+     3 ca:
+        { day: '1/8', yearMonthDay: 20260801,
+          ca1_tyLe, ca1_sanLuong, ca1_keHoach, ca1_coDuLieu,
+          ca2_..., ca3_... }
+     Trường coDuLieu là cờ phân biệt "không có dữ liệu" với "giá trị 0".
+
+  3. Bù đủ số ngày trong tháng
+     Dùng getDaysInMonth(year, month) - cài bằng new Date(y, month, 0).getDate()
+     (ngày 0 của tháng kế tiếp chính là ngày cuối của tháng này). Các ngày không
+     có dữ liệu vẫn xuất hiện trên trục hoành để biểu đồ không nhảy cóc.
+
+IV. VÒNG LẶP CHỈNH SỬA
+
+   Vòng 1 - Yêu cầu hiển thị rõ ngày nghỉ / ngày không sản xuất.
+   Vòng 2 - Yêu cầu bổ sung đường mục tiêu ngang trên biểu đồ.
+   Vòng 3 - Yêu cầu đổi cách hiển thị tỷ lệ: tô màu ô theo ngưỡng đạt/không đạt.
+   Vòng 4 - Duyệt.
+
+  Route: /dashboard/ke-hoach-san-xuat-thang
+
+--------------------------------------------------------------------------------
+TRANG 2: KẾ HOẠCH SẢN XUẤT CA/THÁNG (KeHoachSanXuatCaThang.jsx - 1.123 dòng)
+--------------------------------------------------------------------------------
+
+I. YÊU CẦU
+
+  Chi tiết hơn trang tháng một bậc: mỗi ngày trong tháng hiển thị TÁCH RIÊNG
+  BA CA, để quản lý thấy được ca nào trong ngày đang yếu.
+
+II. THIẾT KẾ BIỂU ĐỒ
+
+  Đây là điểm khó nhất của trang. Mỗi ngày phải vẽ 3 cột cạnh nhau theo đúng thứ
+  tự Ca 1 -> Ca 2 -> Ca 3. Với tháng 31 ngày thì có tới 93 cột trên một biểu đồ.
+
+  Chú thích tôi ghi ở đầu file:
+     // Biểu đồ 3 cột/ngày (Ca 1 -> Ca 2 -> Ca 3) chuẩn hóa từ
+     // MayThanhHinhDashboard & MayCatVaiDashboard
+
+  Tức là cách vẽ này được chuẩn hóa từ hai trang chi tiết máy đã làm ở Ngày 5-6,
+  đảm bảo người dùng nhìn thấy cùng một kiểu biểu đồ ở mọi nơi.
+
+III. XỬ LÝ KỸ THUẬT
+
+  1. Vẽ 3 cột theo SHIFT_ORDER
+     Duyệt mảng SHIFT_ORDER để sinh 3 thành phần Bar, mỗi Bar lấy dataKey tương
+     ứng (ca1_, ca2_, ca3_). Nhờ vậy thứ tự hiển thị và nhãn luôn đúng, không
+     phải viết tay 3 lần.
+
+  2. Xử lý nhãn trục hoành khi quá dày
+     Với 93 cột, nhãn ngày sẽ chồng lên nhau. Giải pháp: chỉ hiển thị nhãn ở cột
+     đầu của mỗi ngày, kết hợp điều kiện:
+        if (index === 0 && (shiftKey === 'ca1' || shiftKey === 'ca2')) { ... }
+     và cho phép cuộn ngang biểu đồ khi số ngày lớn.
+
+  3. Tính tổng toàn tháng
+     Cộng dồn qua cả 3 ca của mỗi ngày:
+        totalKH += (Number(d.ca1_keHoach) || 0)
+                 + (Number(d.ca2_keHoach) || 0)
+                 + (Number(d.ca3_keHoach) || 0);
+        totalTT += (Number(d.ca1_sanLuong) || 0)
+                 + (Number(d.ca2_sanLuong) || 0)
+                 + (Number(d.ca3_sanLuong) || 0);
+     Mọi giá trị đều đi qua Number(x) || 0 để chống null/undefined - áp dụng bài
+     học từ Ngày 2.
+
+  4. Tooltip chi tiết
+     Dùng component TongHopCaNgayTooltip đã viết, hiển thị đầy đủ kế hoạch, thực
+     hiện, tỷ lệ của đúng ca đang rê chuột.
+
+IV. VÒNG LẶP CHỈNH SỬA
+
+   Vòng 1 - Yêu cầu phân biệt màu 3 ca rõ hơn (3 ca đang quá giống nhau).
+   Vòng 2 - Yêu cầu bổ sung khả năng ẩn/hiện từng ca bằng cách bấm vào chú thích.
+   Vòng 3 - Yêu cầu cho phép chọn xem một ca duy nhất trên toàn tháng.
+   Vòng 4 - Duyệt.
+
+  Route: /dashboard/ke-hoach-san-xuat-ca-thang
+
+V. KẾT QUẢ NGÀY 10
+
+  Hoàn thành 2 trang trong 1 ngày. Đây là minh chứng cho hiệu quả của việc đầu
+  tư vào module dùng chung ở giai đoạn đầu: càng về sau tốc độ càng nhanh.
+
+
+================================================================================
+NGÀY 11 - NGHIÊN CỨU SẢN XUẤT THÁNG/NĂM VÀ XÂY DỰNG TRANG SẢN XUẤT 5 NĂM
+================================================================================
+
+--------------------------------------------------------------------------------
+PHẦN A - NGHIÊN CỨU TRANG SẢN XUẤT THÁNG/NĂM (TẠM DỪNG)
+--------------------------------------------------------------------------------
+
+I. NỘI DUNG NGHIÊN CỨU
+
+  Trang "Sản xuất tháng/năm" theo yêu cầu phải thể hiện được sản lượng thực tế
+  (không phải kế hoạch) theo chiều tháng lồng trong năm, cho phép so sánh cùng
+  kỳ giữa các năm.
+
+II. KHẢO SÁT DỮ LIỆU
+
+  Tôi rà soát các API hiện có và dữ liệu thực tế trong CSDL:
+
+   - Dữ liệu sản lượng thực tế hiện chỉ có từ tháng 8/2026, chưa đủ chiều dài để
+     dựng so sánh cùng kỳ giữa các năm.
+   - Chưa có API chuyên trả về sản lượng thực tế gom theo cặp (tháng, năm) cho
+     nhiều năm liên tiếp.
+   - Nếu ghép tạm từ các API hiện có, kết quả sẽ chỉ có một điểm dữ liệu duy
+     nhất, biểu đồ so sánh cùng kỳ không có ý nghĩa.
+
+III. QUYẾT ĐỊNH
+
+  Tạm dừng phát triển nội dung trang này, chờ bổ sung dữ liệu. Tuy nhiên tôi vẫn
+  TẠO SẴN trang và ĐĂNG KÝ ROUTE để:
+   - Menu điều hướng không bị lỗi khi bấm vào mục này.
+   - Khi có dữ liệu chỉ cần bổ sung nội dung, không phải làm lại khâu đấu nối.
+
+  File src/pages/Dashboard/SanXuatThangNam.jsx hiện có 17 dòng, hiển thị màn hình
+  chờ với thông báo rõ ràng cho người dùng:
+
+     <h1>Xin chào!</h1>
+     <p>Trang: <b>SẢN XUẤT THÁNG /NĂM</b></p>
+     <p>(Trang đang được khởi tạo sẵn sàng cho phát triển tính năng)</p>
+
+  Route đã đăng ký: /dashboard/san-xuat-thang-nam
+
+IV. GHI NHẬN ĐỂ BÁO CÁO
+
+  Nội dung trang Sản xuất tháng/năm được đưa vào danh sách công việc chờ, phụ
+  thuộc vào việc bổ sung dữ liệu lịch sử. Đã ghi vào kế hoạch ngày hôm sau.
+
+--------------------------------------------------------------------------------
+PHẦN B - XÂY DỰNG TRANG SẢN XUẤT 5 NĂM (SanXuat5Nam.jsx - 893 dòng)
+--------------------------------------------------------------------------------
+
+I. YÊU CẦU
+
+  Thể hiện xu hướng sản xuất trong chu kỳ 5 năm, phục vụ đánh giá dài hạn:
+   1. So sánh tổng sản lượng và kế hoạch của 5 năm liên tiếp.
+   2. Xu hướng tăng/giảm giữa các năm.
+   3. Phân tách theo nhóm máy.
+   4. Bảng số liệu 5 năm kèm tỷ lệ tăng trưởng.
+
+II. API SỬ DỤNG
+
+     import { getKeHoachTrend } from '../../api/kehoachApi';
+     import { getCatVaiMonthlyStats, getCatVaiEquipments }
+            from '../../api/catVaiApi';
+     import { getDanhSachMay } from '../../api/thanhhinhApi';
+
+III. VẤN ĐỀ LỚN: CHƯA CÓ HÀM/API RIÊNG CHO CẮT VẢI THEO YÊU CẦU
+
+  Theo trao đổi, cấp trên có nói sẽ cung cấp hàm (fn) riêng cho phần cắt vải để
+  phục vụ trang này. Tại thời điểm làm, hàm đó CHƯA CÓ.
+
+  Có hai lựa chọn:
+   (a) Dừng chờ hàm cắt vải -> trang không có gì để trình bày, lãng phí thời
+       gian của cả ngày.
+   (b) Dùng tạm API của nhóm THÀNH HÌNH để dựng và kiểm chứng toàn bộ luồng xử
+       lý, khi có hàm cắt vải thì chỉ cần thay nguồn dữ liệu.
+
+  Tôi chọn phương án (b), vì:
+   - Cấu trúc dữ liệu (kế hoạch/thực hiện theo thời gian) là tương đương giữa
+     hai nhóm máy, nên toàn bộ phần biến đổi dữ liệu, vẽ biểu đồ, tính tăng
+     trưởng đều dùng lại được.
+   - Việc thay nguồn dữ liệu về sau chỉ khu trú ở tầng gọi API, đã được tôi tách
+     riêng thành các hàm nạp dữ liệu độc lập, không lẫn vào phần hiển thị.
+   - Nhờ vậy khi hàm cắt vải sẵn sàng, khối lượng công việc còn lại chỉ là đấu
+     nối, ước tính dưới nửa ngày.
+
+  LƯU Ý QUAN TRỌNG cần báo cáo: hiện tại số liệu phần cắt vải trên trang Sản
+  xuất 5 năm đang lấy tạm từ nguồn thành hình, CHƯA PHẢI SỐ LIỆU CẮT VẢI THẬT.
+  Cần thay ngay khi có hàm cắt vải. Tôi đã đánh dấu rõ vị trí cần thay trong mã
+  nguồn để không bỏ sót.
+
+IV. XỬ LÝ KỸ THUẬT ĐÁNG CHÚ Ý
+
+  1. Số lượng lời gọi API lớn
+     Để dựng 5 năm dữ liệu, trang phải gọi API cho từng năm, mỗi năm lại có thể
+     tách theo nhóm máy. Tổng số lời gọi khi mở trang khá nhiều, thời gian tải
+     lâu hơn hẳn các trang khác. Đây là điểm tôi ghi nhận để TỐI ƯU trong kế
+     hoạch ngày hôm sau (gộp lời gọi, gọi song song có kiểm soát, và cân nhắc
+     đề nghị backend bổ sung một endpoint trả thẳng dữ liệu nhiều năm).
+
+  2. Dùng useRef để tránh gọi lại thừa
+     Trang này có import useRef (khác với các trang trước). Tôi dùng useRef để
+     lưu tham chiếu tới lần gọi gần nhất và dữ liệu đã nạp, tránh việc mỗi lần
+     render lại kích hoạt một loạt lời gọi API mới.
+
+  3. Bù các năm thiếu dữ liệu
+     Tương tự cách bù tháng ở Ngày 9: năm không có dữ liệu vẫn xuất hiện trên
+     trục nhưng được đánh dấu rõ là chưa có số liệu.
+
+  4. Tính tỷ lệ tăng trưởng
+     So sánh năm sau với năm trước, xử lý riêng trường hợp năm trước bằng 0
+     (không chia cho 0, hiển thị dấu gạch ngang thay vì "Infinity").
+
+V. VÒNG LẶP CHỈNH SỬA
+
+   Vòng 1 - Yêu cầu bổ sung bảng số liệu bên cạnh biểu đồ (dùng icon FaTable).
+   Vòng 2 - Yêu cầu thêm bộ lọc theo nhóm máy công nghiệp (icon FaIndustry).
+   Vòng 3 - Yêu cầu hiển thị rõ năm nào là dữ liệu tạm/chưa đầy đủ.
+   Vòng 4 - Duyệt (kèm ghi nhận việc chờ hàm cắt vải).
+
+  Route: /dashboard/san-xuat-5-nam
+
+VI. KẾT QUẢ NGÀY 11
+
+  - Trang Sản xuất tháng/năm: tạm dừng nội dung, đã tạo khung và route.
+  - Trang Sản xuất 5 năm: hoàn thành, đang dùng tạm nguồn dữ liệu thành hình cho
+    phần cắt vải, chờ hàm cắt vải để thay.
+  - Ghi nhận vấn đề hiệu năng của trang 5 năm để tối ưu.
+
+
+================================================================================
+NGÀY 12 - TRANG TRẠNG THÁI MÁY NGÀY VÀ TRẠNG THÁI MÁY THÁNG
+================================================================================
+
+MỤC TIÊU NGÀY
+  Chuyển sang nhóm trang thứ hai: theo dõi TRẠNG THÁI THIẾT BỊ (thời gian chạy,
+  dừng, mất kết nối) - khác với nhóm trang kế hoạch/sản lượng đã làm.
+
+I. Ý NGHĨA NGHIỆP VỤ
+
+  Nhóm trang này trả lời câu hỏi: "Máy có được khai thác hết công suất không?"
+  Ba trạng thái theo dõi:
+    - CHẠY        : máy đang vận hành sản xuất
+    - DỪNG        : máy có kết nối nhưng không chạy (chờ vật tư, bảo trì, đổi
+                    khuôn, hết ca...)
+    - MẤT KẾT NỐI : hệ thống không nhận được tín hiệu từ máy
+
+  Chỉ số quan trọng nhất là TỶ LỆ THỜI GIAN CHẠY trên tổng thời gian.
+
+--------------------------------------------------------------------------------
+TRANG 1: TRẠNG THÁI MÁY NGÀY (TrangThaiMayNgay.jsx - 808 dòng)
+--------------------------------------------------------------------------------
+
+I. API SỬ DỤNG
+
+     import { getMachineStatusTimes } from '../../api/thanhhinhApi';
+
+  Hàm này gọi endpoint: GET /api/v1/chart/machine-status-times
+
+  Lưu ý: endpoint này nằm dưới tiền tố /api/v1/chart chứ không phải
+  /api/thanhhinh/machine như phần lớn API khác trong cùng file. Tôi giữ nguyên
+  theo thiết kế backend và ghi chú lại để tránh nhầm lẫn khi bảo trì.
+
+  Hàm có log đầy đủ cả lúc gọi và lúc nhận, kèm độ dài dữ liệu trả về, để thuận
+  tiện cho việc truy vết:
+     console.log(">>> [API CALL CALLER] getMachineStatusTimes params:", params);
+     console.log(">>> [API RESPONSE RECEIVED] ... data length:", res.data?.length);
+
+  Chi tiết log này về sau đóng vai trò quyết định trong việc truy vết vấn đề của
+  Ngày 13.
+
+II. THIẾT KẾ GIAO DIỆN
+
+  [1] Bộ lọc: chọn ngày, chọn ca, chọn máy.
+      Phần chọn ca hiển thị kèm khung giờ để người dùng không phải nhớ:
+         'Ca 1 (06:00 - 14:00)'
+         'Ca 2 (14:00 - 22:00)'
+         'Ca 3 (22:00 - 06:00)'
+      Ở đây tôi giữ đúng ánh xạ mã ca đã chuẩn hóa: value="1" -> Ca 1,
+      value="2" -> Ca 2, value="0" -> Ca 3.
+
+  [2] Thẻ KPI: tổng thời gian chạy, tổng thời gian dừng, thời gian mất kết nối,
+      tỷ lệ khai thác.
+
+  [3] Biểu đồ tròn: tỷ trọng 3 trạng thái, dùng đúng bảng màu chuẩn (xanh lá =
+      chạy, đỏ/cam = dừng, xám = mất kết nối).
+
+  [4] Biểu đồ cột theo máy: so sánh thời gian chạy giữa các máy trong ngày, giúp
+      nhìn ra ngay máy nào bị dừng nhiều.
+
+  [5] Bảng chi tiết: từng máy với thời gian từng trạng thái và tỷ lệ.
+
+III. ÁP DỤNG LỚP LÀM SẠCH DỮ LIỆU TỪ NGÀY 4
+
+  Toàn bộ dữ liệu trước khi hiển thị đều đi qua lớp phòng vệ đã xây ở Ngày 4:
+  bỏ bản ghi có thời gian âm, gộp khoảng chồng lấn, chặn trần 24 giờ/ngày. Nhờ
+  vậy trang mới không tái diễn lỗi "số giờ nhiều hơn số ngày".
+
+--------------------------------------------------------------------------------
+TRANG 2: TRẠNG THÁI MÁY THÁNG (TrangThaiMayThang.jsx - 783 dòng)
+--------------------------------------------------------------------------------
+
+I. API SỬ DỤNG
+
+     import { getMachineStatusTimesByMonth } from '../../api/thanhhinhApi';
+
+  Endpoint: GET /api/v1/chart/machine-status-times-month
+
+II. THIẾT KẾ
+
+  Giữ nguyên bố cục của trang ngày để đảm bảo nhất quán, chỉ thay đổi:
+   - Bộ lọc: chọn năm + tháng thay vì chọn ngày + ca.
+   - Biểu đồ chính: thêm biểu đồ theo NGÀY trong tháng, thể hiện diễn biến thời
+     gian chạy/dừng qua từng ngày - giúp nhìn ra ngày nào máy dừng bất thường.
+   - Thẻ KPI: bổ sung "số ngày máy dừng trên 8 tiếng" như một chỉ báo cảnh báo.
+   - Chặn trần: số ngày trong tháng x 24 giờ.
+
+III. XỬ LÝ TÁI SỬ DỤNG MÃ NGUỒN
+
+  Hai trang có cấu trúc gần như giống hệt (808 và 783 dòng, chênh nhau 25 dòng).
+  Phần khác biệt thực chất chỉ là API được gọi và bộ lọc. Tôi giữ hai file riêng
+  thay vì gộp làm một với tham số, vì:
+   - Hai trang có route riêng, tiêu đề riêng, và về sau nhiều khả năng sẽ phân
+     hóa thêm theo yêu cầu (như đã thấy: trang tháng có thêm biểu đồ theo ngày
+     và chỉ báo cảnh báo mà trang ngày không có).
+   - Gộp lại sẽ tạo ra nhiều nhánh điều kiện, khó đọc và dễ sinh lỗi khi một
+     trang thay đổi.
+
+IV. QUYẾT ĐỊNH CHƯA BÁO CÁO CẤP TRÊN
+
+  Hoàn thành 2 trang nhưng tôi CHƯA trình bày với cấp trên trong ngày này, mà
+  chờ hoàn thiện nốt trang Trạng thái máy NĂM để trình bày trọn bộ 3 trang cùng
+  lúc. Lý do:
+   - Ba trang là một bộ thống nhất về bố cục và cách đọc số liệu; trình bày trọn
+     bộ giúp người duyệt đánh giá được tính nhất quán.
+   - Tránh việc góp ý ở trang ngày/tháng xong lại phải sửa lặp lại khi làm trang
+     năm.
+
+  Routes đã đăng ký:
+     /dashboard/trang-thai-may-ngay   -> TrangThaiMayNgay
+     /dashboard/trang-thai-may-thang  -> TrangThaiMayThang
+
+V. KẾT QUẢ NGÀY 12
+
+  Hoàn thành 2 trang, chờ trang thứ ba để báo cáo trọn bộ.
+
+
+================================================================================
+NGÀY 13 (HÔM NAY) - API TRẠNG THÁI MÁY THEO NĂM VÀ TRUY VẾT "LỖI GIẢ"
+================================================================================
+
+MỤC TIÊU NGÀY
+  Hoàn thiện trang Trạng thái máy năm - trang cuối của bộ 3, bao gồm cả việc
+  viết API lấy dữ liệu theo năm (trước đó chưa có).
+
+--------------------------------------------------------------------------------
+PHẦN A - VIẾT API LẤY DỮ LIỆU MÁY THEO NĂM
+--------------------------------------------------------------------------------
+
+I. HIỆN TRẠNG TRƯỚC KHI LÀM
+
+  Đã có sẵn hai API:
+     GET /api/v1/chart/machine-status-times        (theo ngày/ca)
+     GET /api/v1/chart/machine-status-times-month  (theo tháng)
+  Chưa có API theo năm.
+
+II. BỔ SUNG API
+
+  Tôi bổ sung hàm mới trong src/api/thanhhinhApi.js, giữ nguyên phong cách của
+  hai hàm đã có để đảm bảo nhất quán:
+
+     // Lấy tổng hợp thời gian máy chạy, dừng, mất kết nối theo năm (Mới)
+     export const getMachineStatusTimesByYear = async (params = {}) => {
+       try {
+         console.log(">>> [API CALL CALLER] getMachineStatusTimesByYear params:",
+                     params);
+         const res = await api.get(`/api/v1/chart/machine-status-times-year`,
+                                   { params });
+         console.log(">>> [API RESPONSE RECEIVED] getMachineStatusTimesByYear " +
+                     "data length:", res.data?.length);
+         return res.data;
+       } catch (error) {
+         console.error("[getMachineStatusTimesByYear] Lỗi:", error);
+         throw error.response?.data ||
+               { message: "Lỗi tải dữ liệu trạng thái máy theo năm" };
+       }
+     };
+
+  Các điểm giữ nhất quán với hai hàm trước:
+   - Cùng cách đặt tên, cùng tiền tố endpoint /api/v1/chart.
+   - Cùng cách log (log tham số lúc gọi, log độ dài dữ liệu lúc nhận).
+   - Cùng cách xử lý lỗi: ưu tiên thông điệp từ backend, có thông điệp dự phòng
+     bằng tiếng Việt.
+
+III. HOÀN THIỆN TRANG TRẠNG THÁI MÁY NĂM (TrangThaiMayNam.jsx - 769 dòng)
+
+     import { getMachineStatusTimesByYear } from '../../api/thanhhinhApi';
+
+  Bố cục giữ đúng chuẩn của hai trang trước, biểu đồ chính là 12 tháng trong năm
+  với thời gian chạy/dừng/mất kết nối từng tháng.
+
+  Route: /dashboard/trang-thai-may-nam
+
+--------------------------------------------------------------------------------
+PHẦN B - VẤN ĐỀ PHÁT SINH: "LỖI GIẢ" DO DỮ LIỆU
+--------------------------------------------------------------------------------
+
+I. HIỆN TƯỢNG
+
+  Sau khi hoàn thành trang năm, tôi mở song song hai trang để đối chiếu:
+     - Trang Trạng thái máy THÁNG (chọn tháng 8/2026)
+     - Trang Trạng thái máy NĂM  (chọn năm 2026)
+
+  Kết quả: SỐ LIỆU HAI TRANG GIỐNG HỆT NHAU - tổng thời gian chạy, dừng, mất kết
+  nối đều trùng khớp đến từng con số.
+
+  Phản xạ đầu tiên là kết luận đã viết sai: hoặc API năm thực chất đang trả về
+  dữ liệu của tháng, hoặc trang năm đang gọi nhầm API tháng, hoặc tham số truyền
+  vào bị sai.
+
+II. QUÁ TRÌNH TRUY VẾT - VÀ SỰ LÃNG PHÍ THỜI GIAN
+
+  Tôi đã làm đi làm lại nhiều lần theo hướng "chắc chắn mình viết sai":
+
+  Lần 1: Nghi trang năm gọi nhầm hàm.
+         -> Kiểm tra lại phần import của TrangThaiMayNam.jsx: đúng là
+            getMachineStatusTimesByYear, không phải hàm tháng. Loại trừ.
+
+  Lần 2: Nghi hàm mới gọi nhầm đường dẫn.
+         -> Kiểm tra lại chuỗi endpoint: `/api/v1/chart/machine-status-times-year`
+            đúng, khác rõ ràng với bản tháng (`-month`). Loại trừ.
+
+  Lần 3: Nghi tham số truyền sai (truyền cả tháng vào API năm).
+         -> Xem log ">>> [API CALL CALLER] getMachineStatusTimesByYear params:"
+            trong console. Tham số đúng là năm, không có tháng. Loại trừ.
+
+  Lần 4: Nghi backend trả sai.
+         -> Gọi trực tiếp endpoint năm bằng công cụ riêng, so với response mà
+            trang nhận được. Hai kết quả giống nhau, tức trang không xử lý sai.
+            Loại trừ khả năng lỗi ở frontend.
+
+  Lần 5: Nghi lớp làm sạch dữ liệu (gộp khoảng chồng lấn, chặn trần) làm mất dữ
+         liệu của các tháng khác.
+         -> Tạm tắt lớp làm sạch, kết quả vẫn giống nhau. Loại trừ.
+
+  Đến đây tôi dừng việc sửa code và chuyển sang KIỂM TRA DỮ LIỆU NGUỒN.
+
+III. NGUYÊN NHÂN THỰC SỰ
+
+  Tôi xem dữ liệu thô mà API năm trả về và phát hiện: TOÀN BỘ bản ghi đều thuộc
+  THÁNG 8. Không có bất kỳ bản ghi nào của tháng 1 đến tháng 7, cũng không có
+  tháng 9 trở đi.
+
+  Kết luận: hệ thống hiện tại MỚI CHỈ CÓ DỮ LIỆU CỦA THÁNG 8. Vì vậy:
+
+     Tổng cả năm 2026 = Tổng tháng 8/2026
+
+  Đây là kết quả ĐÚNG VỀ MẶT LOGIC. Cả API tháng lẫn API năm đều hoạt động
+  chính xác. Việc hai trang cho ra cùng một con số không phải lỗi lập trình, mà
+  là hệ quả tất yếu của việc dữ liệu chỉ có một tháng.
+
+IV. BÀI HỌC RÚT RA
+
+  Đây là bài học đáng giá nhất của cả kỳ báo cáo, tôi ghi lại đầy đủ:
+
+  1. KHÔNG PHẢI MỌI KẾT QUẢ BẤT NGỜ ĐỀU LÀ LỖI CODE.
+     Tôi đã mất khá nhiều thời gian sửa đi sửa lại một đoạn code vốn không sai,
+     chỉ vì mặc định rằng "kết quả trông lạ thì chắc mình viết sai".
+
+  2. NÊN KIỂM TRA DỮ LIỆU NGUỒN SỚM HƠN TRONG QUY TRÌNH TRUY VẾT.
+     Đúng ra sau lần thử thứ 2 (khi đã xác nhận endpoint và tham số đều đúng),
+     bước tiếp theo phải là xem dữ liệu thô, chứ không phải tiếp tục nghi ngờ
+     code. Quy trình truy vết hợp lý nên là:
+        Bước 1: Xác nhận gọi đúng hàm/endpoint (xem import và chuỗi URL).
+        Bước 2: Xác nhận tham số đúng (xem log tham số).
+        Bước 3: XEM DỮ LIỆU THÔ TRẢ VỀ  <-- đáng lẽ phải làm ở đây
+        Bước 4: Mới đến xem logic xử lý.
+
+  3. GIÁ TRỊ CỦA VIỆC GHI LOG ĐẦY ĐỦ.
+     Chính các dòng log ">>> [API CALL CALLER] ... params:" và
+     ">>> [API RESPONSE RECEIVED] ... data length:" đã giúp loại trừ nhanh các
+     khả năng và cuối cùng dẫn tới dữ liệu thô. Đây là lý do tôi giữ thói quen
+     log cả tham số lẫn kết quả ở mọi hàm API.
+
+  4. CẦN CÓ CHỈ BÁO PHẠM VI DỮ LIỆU TRÊN GIAO DIỆN.
+     Nếu trang hiển thị rõ "Dữ liệu hiện có: từ 01/08/2026 đến 26/08/2026" thì
+     người xem (và cả lập trình viên) sẽ hiểu ngay vì sao số năm bằng số tháng,
+     không phải nghi ngờ. Tôi đề xuất bổ sung chỉ báo này - xem Phần IV.
+
+V. HÀNH ĐỘNG SAU KHI XÁC ĐỊNH NGUYÊN NHÂN
+
+   - Khôi phục lại lớp làm sạch dữ liệu đã tạm tắt ở lần thử thứ 5.
+   - Giữ nguyên mã nguồn API năm và trang năm (vì vốn đã đúng).
+   - Ghi chú lại tình trạng dữ liệu để khi báo cáo cấp trên có thể giải thích rõ,
+     tránh việc người duyệt cũng hiểu nhầm là trang bị lỗi.
+   - Kiểm tra lại trọn bộ 3 trang trạng thái máy trước khi trình bày.
+
+VI. KẾT QUẢ NGÀY 13
+
+   - Đã bổ sung API getMachineStatusTimesByYear và endpoint tương ứng.
+   - Hoàn thành trang Trạng thái máy năm (769 dòng).
+   - Trọn bộ 3 trang Trạng thái máy (ngày/tháng/năm) sẵn sàng để báo cáo.
+   - Xác minh được rằng hiện tượng trùng số liệu tháng/năm KHÔNG PHẢI LỖI, mà do
+     dữ liệu hiện chỉ có tháng 8.
+
+
+================================================================================
+                      PHẦN III. TỔNG HỢP KẾT QUẢ
+================================================================================
+
+--------------------------------------------------------------------------------
+3.1  BẢNG TỔNG HỢP SẢN PHẨM BÀN GIAO
+--------------------------------------------------------------------------------
+
+A. TRANG VIẾT MỚI HOÀN CHỈNH
+
+  #  Tên trang                      File                          Dòng   Ngày
+  -- ------------------------------ ----------------------------- ------ ----
+  1  Chi tiết máy thành hình        MayThanhHinhDashboard.jsx     3.243  5,7
+  2  Chi tiết máy cắt vải           MayCatVaiDashboard.jsx        2.966  6,7
+  3  Tổng quan (Dashboard cũ)       (nhóm trang Homepage/Dashboard)  -    8
+  4  Kế hoạch sản xuất năm          KeHoachSanXuatNam.jsx         1.049   9
+  5  Kế hoạch sản xuất tháng        KeHoachSanXuatThang.jsx       1.237  10
+  6  Kế hoạch sản xuất ca/tháng     KeHoachSanXuatCaThang.jsx     1.123  10
+  7  Sản xuất 5 năm                 SanXuat5Nam.jsx                 893  11
+  8  Trạng thái máy ngày            TrangThaiMayNgay.jsx            808  12
+  9  Trạng thái máy tháng           TrangThaiMayThang.jsx           783  12
+  10 Trạng thái máy năm             TrangThaiMayNam.jsx             769  13
+  -- Sản xuất tháng/năm (khung)     SanXuatThangNam.jsx              17  11
+
+  Tổng khối lượng mã nguồn viết mới: khoảng 12.900 dòng.
+
+B. MODULE DÙNG CHUNG XÂY DỰNG MỚI
+
+  1. src/utils/shiftPolling.js
+     Quản lý ca hiện tại và điều kiện polling. Các hàm: toLocalDateKey,
+     getCurrentShift, normalizeCa, toShiftKey, isCurrentShiftInRange,
+     isCurrentShiftSelected.
+
+  2. src/utils/tongHopCaNgayChart.js
+     Chuẩn hóa dữ liệu biểu đồ ca/ngày. Các hàm và hằng: SHIFT_ORDER,
+     caCodeToLabel, getDaysInMonth, getChartShiftRange,
+     buildTongHopCaNgayChartData.
+
+  3. src/components/chart/TongHopCaNgayTooltip.jsx
+     Tooltip chuẩn hóa dùng chung cho mọi biểu đồ ca/ngày.
+
+C. COMPONENT CON VIẾT MỚI
+
+  RealTimeORCVHistory.jsx, RecipeORCVHistory.jsx, SettingORCVHistory.jsx
+  (nhóm cắt vải); CatVaiChangeHistory.jsx (lịch sử thay đổi cắt vải).
+
+D. API BỔ SUNG
+
+  getMachineStatusTimesByYear  ->  GET /api/v1/chart/machine-status-times-year
+
+E. ROUTE ĐĂNG KÝ MỚI
+
+  /dashboard/may-cat-vai/:equipmentId
+  /dashboard/ke-hoach-san-xuat-nam
+  /dashboard/ke-hoach-san-xuat-thang
+  /dashboard/ke-hoach-san-xuat-ca-thang
+  /dashboard/san-xuat-thang-nam
+  /dashboard/san-xuat-5-nam
+  /dashboard/trang-thai-may-ngay
+  /dashboard/trang-thai-may-thang
+  /dashboard/trang-thai-may-nam
+
+--------------------------------------------------------------------------------
+3.2  THỐNG KÊ LỖI ĐÃ XỬ LÝ
+--------------------------------------------------------------------------------
+
+A. LỖI ĐƯỢC PHẢN ÁNH (GIAI ĐOẠN NGÀY 1-4): 9 nhóm
+
+  1. Không đồng bộ kết quả khi realtime             - Lỗi logic     - XONG
+  2. Hiển thị không đúng yêu cầu                    - Lỗi giao diện - XONG
+  3. Không phân trang                               - Lỗi hiệu năng - XONG
+  4. Khoảng trống quá nhiều                         - Lỗi bố cục    - XONG
+  5. Lỗi về màu sắc                                 - Lỗi bố cục    - XONG
+  6. Số giờ nhiều hơn số ngày                       - Lỗi DỮ LIỆU   - Phòng vệ
+  7. Hiển thị không trực quan cho người xem         - Lỗi bố cục    - XONG
+  8. Ca 0 không biến đổi thành Ca 3                 - Lỗi quy ước   - XONG
+  9. Không đồng nhất ca giữa các bảng               - Lỗi quy ước   - XONG
+
+B. LỖI PHÁT HIỆN KHI TEST (NGÀY 7): 8 lỗi
+
+  7.1 Nhân đôi interval khi đổi bộ lọc                          - XONG
+  7.2 Mã máy không khớp giữa URL và CSDL                        - XONG
+  7.3 Biểu đồ tháng mất ngày cuối tháng                         - XONG
+  7.4 Tooltip biểu đồ bị cắt ở mép phải                         - XONG
+  7.5 Ngày bị lùi 1 ngày trong khoảng nửa đêm - 7h sáng         - XONG
+  7.6 Response HTML thay vì JSON gây lỗi khó hiểu               - XONG
+  7.7 Thiếu giây trong tham số thời gian                        - XONG
+  7.8 Ảnh máy không hiển thị với một số máy                     - XONG
+
+C. VẤN ĐỀ XÁC ĐỊNH LÀ KHÔNG PHẢI LỖI (NGÀY 13): 1
+
+  13.1 Số liệu trạng thái máy tháng và năm trùng nhau
+       -> Không phải lỗi. Nguyên nhân: dữ liệu hiện chỉ có tháng 8.
+
+  Tổng cộng: 17 lỗi thực đã xử lý, 1 vấn đề được xác minh là không phải lỗi.
+
+--------------------------------------------------------------------------------
+3.3  DANH MỤC API ĐÃ SỬ DỤNG VÀ API ĐỀ NGHỊ BỔ SUNG
+--------------------------------------------------------------------------------
+
+A. API ĐÃ SỬ DỤNG
+
+  Nhóm thành hình (src/api/thanhhinhApi.js) - tiền tố /api/thanhhinh/machine:
+    getThanhHinhByMachine       GET /{equipmentId}
+    getThanhHinhAllMachines     GET /all
+    getDanhSachMay              GET /machines
+    getDashboardMay             GET /{equipmentId}/piechart
+    getDashboardStats           GET /dashboard/stats
+    getBaoCaoKHSX               GET /baocao-khsx
+    getMachinesWithStats        GET /machines-with-stats
+    getDailyPlanRatio           (có chuẩn hóa mã máy)
+    getTongHopCaNgay            GET /tong-hop-ca-ngay
+    getDanhSachLopTHLH          GET /danhsach-lop-th-lh
+    getViewOrcThMachineImageApi GET /api/view-orc-th-machine-image
+
+  Nhóm trạng thái máy - tiền tố /api/v1/chart:
+    getMachineStatusTimes        GET /machine-status-times
+    getMachineStatusTimesByMonth GET /machine-status-times-month
+    getMachineStatusTimesByYear  GET /machine-status-times-year   (BỔ SUNG MỚI)
+
+  Nhóm cắt vải (src/api/catVaiApi.js) - tiền tố /api/catvai:
+    getKeHoachCatVai            GET /kehoach          (có phân trang)
+    getBaoCaoKHSXCatVai         GET /baocao-khsx
+    getBaoCaoKHSXTheoThang      GET /baocao-khsx-theo-thang
+    getCatVaiEquipments
+    getCatVaiMonthlyStats
+    getCatVaiDailyStats
+    getMonthlyStatsTheoMay
+    getDailyStatsTheoMay
+    getBtpTheoMay
+
+  Nhóm kế hoạch (src/api/kehoachApi.js):
+    getKeHoachTrend
+    getWeeklyProgress
+
+  Nhóm tổng quan (src/api/dashboardApi.js) - tiền tố /api/dashboard:
+    getDashboardStats           GET /stats?fromDate=...&toDate=...
+
+B. API ĐỀ NGHỊ BỔ SUNG
+
+  1. Hàm (fn) lấy dữ liệu CẮT VẢI phục vụ trang Sản xuất 5 năm
+     Hiện đang dùng tạm API thành hình. Cần thay bằng nguồn cắt vải thật.
+
+  2. API lấy sản lượng thực tế theo cặp (tháng, năm) cho nhiều năm
+     Phục vụ trang Sản xuất tháng/năm đang bỏ trống.
+
+  3. API gộp dữ liệu nhiều năm trong một lời gọi
+     Phục vụ tối ưu trang Sản xuất 5 năm (hiện phải gọi lặp cho từng năm).
+
+  4. API trả về PHẠM VI DỮ LIỆU HIỆN CÓ (ngày sớm nhất, ngày muộn nhất)
+     Để hiển thị chỉ báo trên giao diện, tránh hiểu nhầm như trường hợp Ngày 13.
+
+--------------------------------------------------------------------------------
+3.4  BÀI HỌC KINH NGHIỆM RÚT RA TRONG KỲ
+--------------------------------------------------------------------------------
+
+  1. ĐẦU TƯ VÀO MODULE DÙNG CHUNG SỚM THÌ VỀ SAU RẤT NHANH.
+     Hai module shiftPolling.js và tongHopCaNgayChart.js viết ở Ngày 1-4 đã được
+     dùng lại ở toàn bộ các trang sau. Bằng chứng rõ nhất: Ngày 10 làm được 2
+     trang trong 1 ngày, trong khi Ngày 5-6 mỗi ngày chỉ làm được 1 trang.
+
+  2. QUY ƯỚC NGHIỆP VỤ PHẢI TẬP TRUNG MỘT CHỖ.
+     Lỗi "Ca 0 không thành Ca 3" và "không đồng nhất ca" đều xuất phát từ việc
+     mỗi chỗ tự xử lý ca theo một kiểu. Sau khi tập trung vào SHIFT_ORDER và
+     normalizeCa, các trang mới không tái diễn lỗi này.
+
+  3. QUY TRÌNH "MOCK TRƯỚC - API SAU - CHỈNH THEO GÓP Ý" GIẢM LÃNG PHÍ.
+     Dựng giao diện với dữ liệu giả cho phép lấy ý kiến sớm, tránh việc đấu nối
+     API xong mới biết bố cục phải làm lại.
+
+  4. KIỂM TRA DỮ LIỆU NGUỒN TRƯỚC KHI NGHI NGỜ CODE.
+     Bài học từ Ngày 13. Đưa bước "xem dữ liệu thô" lên sớm trong quy trình truy
+     vết sẽ tiết kiệm được nhiều thời gian.
+
+  5. GHI LOG ĐẦY ĐỦ Ở TẦNG API LÀ KHOẢN ĐẦU TƯ ĐÁNG GIÁ.
+     Log tham số lúc gọi và độ dài dữ liệu lúc nhận đã nhiều lần giúp khoanh
+     vùng vấn đề nhanh.
+
+  6. GHI CHÚ LÝ DO NGAY TRONG MÃ NGUỒN.
+     Các chú thích như "không dùng toISOString() vì nó quy về UTC..." hay
+     "Ca 3 mang mã '0'..." giúp người bảo trì sau không vô tình gỡ bỏ rồi làm
+     lỗi tái diễn.
+
+  7. PHÂN BIỆT RÕ LỖI CODE VÀ LỖI DỮ LIỆU KHI BÁO CÁO.
+     Với lỗi dữ liệu, frontend chỉ nên phòng vệ và cảnh báo, đồng thời báo lại
+     để xử lý ở tầng gốc - không nên âm thầm "sửa" số liệu.
+
+
+================================================================================
+              PHẦN IV. KHÓ KHĂN, VƯỚNG MẮC VÀ ĐỀ XUẤT
+================================================================================
+
+--------------------------------------------------------------------------------
+4.1  KHÓ KHĂN, VƯỚNG MẮC ĐANG TỒN TẠI
+--------------------------------------------------------------------------------
+
+  VƯỚNG MẮC 1 - CHƯA CÓ HÀM (FN) CẮT VẢI
+     Mức độ: Cao - ảnh hưởng tới độ chính xác số liệu trên trang đang chạy.
+     Mô tả : Trang Sản xuất 5 năm hiện lấy tạm API của nhóm thành hình cho phần
+             cắt vải, vì hàm cắt vải theo trao đổi với cấp trên chưa được cung
+             cấp. Số liệu cắt vải trên trang này hiện KHÔNG PHẢI số liệu thật.
+     Ảnh hưởng: Nếu người dùng đọc trang này mà không biết, sẽ hiểu sai số liệu.
+     Đề xuất: (a) Cung cấp hàm cắt vải để thay ngay.
+              (b) Trong lúc chờ, bổ sung ghi chú cảnh báo trên giao diện của
+                  trang, nêu rõ phần cắt vải đang là dữ liệu tạm.
+
+  VƯỚNG MẮC 2 - THIẾU DỮ LIỆU CHO TRANG SẢN XUẤT THÁNG/NĂM
+     Mức độ: Trung bình - trang đang bỏ trống.
+     Mô tả : Dữ liệu sản lượng thực tế hiện chỉ có từ tháng 8/2026, không đủ để
+             dựng so sánh cùng kỳ nhiều năm. Chưa có API gom theo (tháng, năm).
+     Đề xuất: Bổ sung dữ liệu lịch sử và API tương ứng. Khi có, thời gian hoàn
+              thiện trang ước tính 1 ngày (khung và route đã sẵn sàng).
+
+  VƯỚNG MẮC 3 - DỮ LIỆU CHỈ CÓ THÁNG 8
+     Mức độ: Trung bình - gây hiểu nhầm khi đọc báo cáo.
+     Mô tả : Như đã phân tích ở Ngày 13, hệ quả là mọi báo cáo theo năm hiện đều
+             bằng báo cáo tháng 8.
+     Đề xuất: (a) Bổ sung dữ liệu các tháng còn lại nếu có.
+              (b) Bổ sung chỉ báo phạm vi dữ liệu trên giao diện: "Dữ liệu hiện
+                  có từ ngày ... đến ngày ...". Việc này cần API trả về phạm vi
+                  dữ liệu (đã nêu ở mục 3.3.B.4).
+
+  VƯỚNG MẮC 4 - CHẤT LƯỢNG DỮ LIỆU TRẠNG THÁI MÁY
+     Mức độ: Trung bình - đã có phòng vệ nhưng chưa xử lý gốc.
+     Mô tả : Tồn tại bản ghi có khoảng thời gian chồng lấn, thiếu thời điểm kết
+             thúc, hoặc kết thúc trước khi bắt đầu. Frontend đang làm sạch trước
+             khi hiển thị, nhưng số liệu gốc vẫn sai.
+     Đề xuất: Xử lý ở khâu ghi nhận dữ liệu từ thiết bị. Tôi đã ghi nhận danh
+              sách bản ghi bất thường để chuyển cho bộ phận phụ trách.
+
+  VƯỚNG MẮC 5 - HIỆU NĂNG TRANG SẢN XUẤT 5 NĂM
+     Mức độ: Trung bình - ảnh hưởng trải nghiệm.
+     Mô tả : Trang phải gọi API lặp cho từng năm nên thời gian tải lâu hơn hẳn
+             các trang khác.
+     Đề xuất: Tối ưu ở phía frontend (gộp, gọi song song có kiểm soát, lưu đệm)
+              và đề nghị backend bổ sung endpoint trả dữ liệu nhiều năm.
+              Đã đưa vào kế hoạch ngày hôm sau.
+
+  VƯỚNG MẮC 6 - XUNG ĐỘT CSS TOÀN CỤC
+     Mức độ: Thấp - đã có cách xử lý nhưng không sạch.
+     Mô tả : Quy tắc font trong index.css dùng !important áp toàn site, buộc các
+             trang phải dùng !important để ghi đè lại.
+     Đề xuất: Về lâu dài nên thu hẹp phạm vi quy tắc này. Trước mắt tôi đã ghi
+              chú lý do trong mã nguồn để người sau không gỡ nhầm.
+
+--------------------------------------------------------------------------------
+4.2  ĐỀ XUẤT CHUNG
+--------------------------------------------------------------------------------
+
+  1. Thiết lập quy ước ca thống nhất ở tầng CSDL, thay vì để mỗi bảng lưu một
+     kiểu rồi xử lý ở frontend. Việc chuẩn hóa ở gốc sẽ triệt tiêu hẳn nhóm lỗi
+     "không đồng nhất ca".
+
+  2. Bổ sung ràng buộc dữ liệu ở khâu ghi nhận trạng thái máy: không cho phép
+     thời điểm kết thúc nhỏ hơn thời điểm bắt đầu, không cho phép bản ghi chồng
+     lấn cho cùng một máy.
+
+  3. Xây dựng bộ dữ liệu mẫu đủ dài (ít nhất 2-3 năm) cho môi trường kiểm thử,
+     để những vấn đề như Ngày 13 không lặp lại.
+
+  4. Cân nhắc bổ sung endpoint tổng hợp cho các trang nhiều năm, giảm số lời gọi
+     từ frontend.
+
+
+================================================================================
+                    PHẦN V. KẾ HOẠCH NGÀY HÔM SAU
+================================================================================
+
+--------------------------------------------------------------------------------
+5.1  CÔNG VIỆC DỰ KIẾN
+--------------------------------------------------------------------------------
+
+  NHIỆM VỤ 1 - CHỜ VÀ ĐẤU NỐI HÀM (FN) CẮT VẢI                [Ưu tiên: Cao]
+
+     Nội dung:
+       - Chờ cấp trên cung cấp hàm (fn) cắt vải như đã trao đổi.
+       - Khi có, thay thế nguồn dữ liệu tạm (đang lấy từ API thành hình) trên
+         trang Sản xuất 5 năm bằng nguồn cắt vải thật.
+       - Rà soát các vị trí khác trong hệ thống đang dùng tạm nguồn thành hình
+         cho cắt vải (tôi đã đánh dấu sẵn trong mã nguồn), thay đồng loạt.
+       - Kiểm thử lại đối chiếu số liệu cắt vải với báo cáo hiện hành.
+
+     Chuẩn bị trước: vì phần gọi API đã được tách riêng khỏi phần hiển thị, việc
+     thay nguồn chỉ khu trú ở tầng API. Ước tính khối lượng còn lại dưới nửa
+     ngày kể từ khi nhận được hàm.
+
+     Trong lúc chờ: bổ sung ghi chú cảnh báo trên giao diện trang Sản xuất 5 năm
+     để người dùng biết phần cắt vải đang là dữ liệu tạm.
+
+  NHIỆM VỤ 2 - BỔ SUNG NỘI DUNG TRANG SẢN XUẤT THÁNG/NĂM      [Ưu tiên: Cao]
+
+     Nội dung:
+       - Trao đổi lại để xác định nguồn dữ liệu cho trang này.
+       - Nếu dữ liệu đã sẵn sàng: xây dựng nội dung trang theo đúng quy trình đã
+         áp dụng (dựng giao diện -> đấu nối API -> chỉnh theo góp ý).
+       - Trang hiện đã có sẵn khung và route (/dashboard/san-xuat-thang-nam), chỉ
+         cần bổ sung nội dung, không phải làm lại khâu đấu nối.
+       - Thiết kế dự kiến: biểu đồ so sánh sản lượng thực tế theo tháng giữa các
+         năm, bảng số liệu chi tiết, chỉ số so sánh cùng kỳ.
+
+     Mục tiêu: hoàn thiện trang này là bước cuối để HOÀN THIỆN SẢN PHẨM - vì đây
+     là trang duy nhất trong nhóm Tổng quan còn đang bỏ trống.
+
+  NHIỆM VỤ 3 - TỐI ƯU THỜI GIAN GỌI API TRANG SẢN XUẤT 5 NĂM  [Ưu tiên: Trung bình]
+
+     Nội dung:
+       - Đo lại thời gian tải hiện tại và số lời gọi API khi mở trang, làm mốc
+         so sánh.
+       - Các hướng tối ưu dự kiến:
+           (a) Gộp các lời gọi lặp cho từng năm thành ít lời gọi hơn; nếu backend
+               chưa hỗ trợ thì đề nghị bổ sung endpoint trả dữ liệu nhiều năm.
+           (b) Gọi song song có kiểm soát thay vì gọi tuần tự, giới hạn số lời
+               gọi đồng thời để không làm nghẽn.
+           (c) Lưu đệm (cache) dữ liệu các năm QUÁ KHỨ - dữ liệu năm đã kết thúc
+               không còn thay đổi nên không cần tải lại mỗi lần.
+           (d) Chỉ tải dữ liệu của khối đang hiển thị, các khối phía dưới tải khi
+               người dùng cuộn tới.
+           (e) Hiển thị dần từng phần thay vì chờ tải xong tất cả mới hiện, để
+               người dùng thấy nội dung sớm hơn.
+       - Đo lại sau khi tối ưu và ghi nhận mức cải thiện.
+
+  NHIỆM VỤ 4 - BÁO CÁO TRỌN BỘ 3 TRANG TRẠNG THÁI MÁY         [Ưu tiên: Cao]
+
+     Nội dung:
+       - Trình bày trọn bộ 3 trang: Trạng thái máy ngày / tháng / năm.
+       - Giải thích rõ với cấp trên về việc số liệu tháng và năm hiện trùng nhau
+         là do dữ liệu chỉ có tháng 8, KHÔNG PHẢI lỗi chương trình - tránh việc
+         người duyệt hiểu nhầm.
+       - Ghi nhận góp ý và chỉnh sửa theo yêu cầu.
+
+--------------------------------------------------------------------------------
+5.2  PHỤ THUỘC VÀ RỦI RO
+--------------------------------------------------------------------------------
+
+  Phụ thuộc bên ngoài:
+    - Nhiệm vụ 1 phụ thuộc hoàn toàn vào việc cấp trên cung cấp hàm cắt vải.
+    - Nhiệm vụ 2 phụ thuộc vào việc xác định được nguồn dữ liệu cho trang Sản
+      xuất tháng/năm.
+
+  Phương án dự phòng nếu cả hai phụ thuộc trên chưa sẵn sàng:
+    - Dồn thời gian cho Nhiệm vụ 3 (tối ưu hiệu năng) - đây là việc chủ động
+      được, không phụ thuộc bên ngoài.
+    - Bổ sung chỉ báo phạm vi dữ liệu trên các trang báo cáo.
+    - Rà soát và bổ sung ghi chú cảnh báo dữ liệu tạm trên giao diện.
+    - Kiểm thử hồi quy lại toàn bộ các trang đã bàn giao trong kỳ.
+
+--------------------------------------------------------------------------------
+5.3  MỤC TIÊU HOÀN THIỆN SẢN PHẨM
+--------------------------------------------------------------------------------
+
+  Sau khi hoàn thành Nhiệm vụ 1 và Nhiệm vụ 2, toàn bộ nhóm trang Tổng quan sẽ
+  đầy đủ nội dung và chạy trên dữ liệu thật:
+
+     Trang                          Trạng thái hiện tại      Sau khi hoàn thành
+     ------------------------------ ------------------------ ------------------
+     Tổng quan                      Xong                     Xong
+     Kế hoạch sản xuất năm          Xong                     Xong
+     Kế hoạch sản xuất tháng        Xong                     Xong
+     Kế hoạch sản xuất ca/tháng     Xong                     Xong
+     Sản xuất tháng/năm             Bỏ trống (chờ dữ liệu)   Xong
+     Sản xuất 5 năm                 Xong (dữ liệu tạm)       Xong (dữ liệu thật)
+     Trạng thái máy ngày            Xong                     Xong
+     Trạng thái máy tháng           Xong                     Xong
+     Trạng thái máy năm             Xong                     Xong
+
+  Kết hợp với việc tối ưu hiệu năng ở Nhiệm vụ 3, sản phẩm sẽ đạt trạng thái
+  hoàn thiện để bàn giao.
+
+
+================================================================================
+                              KẾT LUẬN
+================================================================================
+
+  Trong 13 ngày làm việc của kỳ báo cáo, tôi đã:
+
+   - Xử lý dứt điểm 9 nhóm lỗi được phản ánh từ người dùng, trong đó có những
+     lỗi ảnh hưởng trực tiếp tới độ tin cậy của số liệu (không đồng bộ realtime,
+     không đồng nhất ca giữa các bảng).
+
+   - Viết mới 2 trang chi tiết máy (thành hình và cắt vải) với tổng hơn 6.200
+     dòng mã nguồn, đồng thời phát hiện và sửa 8 lỗi trong quá trình kiểm thử.
+
+   - Dựng mới toàn bộ nhóm trang Tổng quan gồm 8 trang, trong đó 7 trang đã hoàn
+     chỉnh và 1 trang đang chờ dữ liệu.
+
+   - Bổ sung API lấy dữ liệu trạng thái máy theo năm.
+
+   - Xây dựng 2 module dùng chung xử lý quy ước ca sản xuất - nền tảng giúp toàn
+     bộ các trang sau không tái diễn nhóm lỗi về ca.
+
+  Tổng khối lượng mã nguồn viết mới trong kỳ: khoảng 12.900 dòng.
+
+  Hai công việc còn lại để hoàn thiện sản phẩm là bổ sung hàm cắt vải và nội
+  dung trang Sản xuất tháng/năm, cả hai đều đang chờ đầu vào từ phía cấp trên.
+  Trong lúc chờ, tôi sẽ tập trung tối ưu thời gian gọi API cho trang Sản xuất
+  5 năm.
+
+================================================================================
+                          HẾT NHẬT KÝ LÀM VIỆC
+================================================================================

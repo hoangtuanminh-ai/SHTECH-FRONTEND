@@ -1,0 +1,61 @@
+{
+  "navbar": {
+    "home": "HOME",
+    "products": "PRODUCTS",
+    "sample": "SAMPLE & PARTNERSHIP",
+    "sustainable": "SUSTAINABLE IMPACT",
+    "blog": "BLOG",
+    "contact": "CONTACT",
+    "about": "ABOUT US",
+    "sampleItem1": "Request Sample",
+    "sampleItem2": "Partnership & Distribution",
+    "login": "Login",
+    "register": "Register",
+    "myAccount": "My Account",
+    "orders": "Orders",
+    "logout": "Logout"
+  },
+  "productDetail": {
+    "breadcrumbHome": "Home",
+    "breadcrumbCategory": "Categories",
+    "beanType": "Bean Type:",
+    "selectSize": "Select Size",
+    "selectRoast": "Select Roast Level",
+    "quantity": "Quantity",
+    "descriptionTitle": "Product Description",
+    "addToCart": "Add to Cart",
+    "featuredTitle": "Featured Products",
+    "loadingFeatured": "Loading featured products...",
+    "previous": "Previous",
+    "next": "Next",
+    "hot": "Hot",
+    "loginWarning": "Please login!",
+    "selectSizeWarning": "Please select size",
+    "selectRoastWarning": "Please select roast level",
+    "addSuccess": "Added to cart!",
+    "addError": "Failed to add to cart!",
+    "loadingProduct": "Loading product...",
+    "notFound": "Product not found"
+  },
+  "roast": {
+    "light": "Light Roast",
+    "medium": "Medium Roast",
+    "dark": "Dark Roast"
+  },
+  "collectionDetail": {
+    "allProducts": "All Products",
+    "filter": "Filter",
+    "filterBy": "Filtered by:",
+    "sortDefault": "Default",
+    "sortPriceAsc": "Price: Low to High",
+    "sortPriceDesc": "Price: High to Low",
+    "sortNewest": "Newest First",
+    "originalTaste": "– Original Roast",
+    "description": "{title} at {brand} is carefully selected from high-quality growing regions, hand-roasted in small batches to preserve the natural flavor, deep sweet aftertaste, and authentic Vietnamese coffee spirit.",
+    "heroSubtitle": "Essence from nature – Hand-harvested – Preserving the full flavor",
+    "loading": "Loading...",
+    "error": "Unable to load products.",
+    "seoTitleSuffix": " | ABC Specialty Coffee",
+    "seoDescription": "Discover {title} – pure hand-roasted coffee, harvested with care, preserving natural flavors and the true spirit of Vietnamese coffee."
+  }
+}

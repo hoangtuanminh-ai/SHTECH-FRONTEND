@@ -1,0 +1,62 @@
+{
+  "navbar": {
+    "home": "TRANG CHỦ",
+    "products": "SẢN PHẨM",
+    "sample": "NHẬN MẪU & HỢP TÁC",
+    "sustainable": "TÁC ĐỘNG BỀN VỮNG",
+    "blog": "BLOG",
+    "contact": "LIÊN HỆ",
+    "about": "GIỚI THIỆU",
+    "sampleItem1": "Nhận mẫu thử",
+    "sampleItem2": "Hợp tác & Phân phối",
+    "login": "Đăng nhập",
+    "register": "Đăng ký",
+    "myAccount": "Tài khoản",
+    "orders": "Đơn hàng",
+    "logout": "Đăng xuất"
+  },
+  "productDetail": {
+    "breadcrumbHome": "Trang chủ",
+    "breadcrumbCategory": "Danh mục",
+    "beanType": "Loại hạt:",
+    "selectSize": "Chọn kích thước",
+    "selectRoast": "Chọn mức rang",
+    "quantity": "Số lượng",
+    "descriptionTitle": "Đặc điểm sản phẩm",
+    "addToCart": "Thêm vào giỏ hàng để liên hệ",
+    "featuredTitle": "Sản phẩm nổi bật",
+    "loadingFeatured": "Đang tải sản phẩm nổi bật...",
+    "previous": "Trước",
+    "next": "Sau",
+    "hot": "Hot",
+    "loginWarning": "Vui lòng đăng nhập!",
+    "selectSizeWarning": "Vui lòng chọn kích thước",
+    "selectRoastWarning": "Vui lòng chọn mức rang",
+    "addSuccess": "Đã thêm vào giỏ hàng!",
+    "addError": "Thêm vào giỏ hàng thất bại!",
+    "loadingProduct": "Đang tải sản phẩm...",
+    "notFound": "Không tìm thấy sản phẩm"
+  },
+  "roast": {
+    "light": "Rang nhạt",
+    "medium": "Rang vừa",
+    "dark": "Rang đậm"
+  },
+   "collectionDetail": {
+    "allProducts": "Tất cả sản phẩm",
+    "filter": "Bộ lọc",
+    "filterBy": "Lọc theo:",
+    "sortDefault": "Mặc định",
+    "sortPriceAsc": "Giá tăng dần",
+    "sortPriceDesc": "Giá giảm dần",
+    "sortNewest": "Mới nhất",
+    "originalTaste": "– Rang mộc nguyên bản",
+    "description": "{title} tại {brand} được tuyển chọn từ vùng nguyên liệu chất lượng, rang thủ công theo mẻ nhỏ nhằm giữ trọn hương vị tự nhiên, hậu ngọt sâu và tinh thần cà phê Việt đích thực.",
+    "heroSubtitle": "Tinh hoa từ đất trời – Thu hoạch thủ công – Gìn giữ trọn vẹn hương vị",
+    "loading": "Đang tải...",
+    "error": "Không thể tải sản phẩm.",
+    "seoTitleSuffix": " | Cà phê rang mộc ABC",
+    "seoDescription": "Khám phá {title} – cà phê rang mộc nguyên chất, thu hoạch thủ công, giữ trọn hương vị tự nhiên và tinh thần cà phê Việt."
+  }
+  
+}
