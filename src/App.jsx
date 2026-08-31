@@ -88,10 +88,10 @@ const AppContent = () => {
       {/* Chỉ hiển thị Navbar nếu đã đăng nhập */}
       {userInfo && <Navbar />}
 
-      {/* Căn lề trái cho main content nếu có Navbar (md:ml-64) */}
+      {/* Căn lề trái và thụt đầu trên mobile dưới topbar DRC System */}
       <main className={`
         flex-1 
-        ${userInfo ? "md:ml-64" : "ml-0"} 
+        ${userInfo ? "md:ml-64 pt-[42px] md:pt-0" : "ml-0"} 
         p-0 
         overflow-y-auto
         transition-all duration-300

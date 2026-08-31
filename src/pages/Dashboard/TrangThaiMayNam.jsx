@@ -335,12 +335,12 @@ const css = `
   }
 `;
 
-/* ─── Render Label % trên biểu đồ tròn PieChart (Chữ nhỏ gọn & Lát nhỏ đẩy ra ngoài đa hướng) ─── */
+/* ─── Render Label % trên biểu đồ tròn PieChart (Chống dính chữ tuyệt đối & Lát nhỏ tách 2 hướng) ─── */
 const renderCustomPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
   if (!percent || percent < 0.002) return null; // Hiển thị các lát từ 0.2% trở lên
   const RADIAN = Math.PI / 180;
 
-  // Lát bánh từ 7% trở lên (như 9.8%, 86.5%): hiển thị số % nhỏ gọn bên trong lát bánh
+  // Lát bánh từ 7% trở lên (như 9.8%, 14.5%, 30.7%, 43.0%, 86.5%): hiển thị số % nhỏ gọn bên trong lát bánh
   if (percent >= 0.07) {
     const radius = innerRadius + (outerRadius - innerRadius) * (percent >= 0.15 ? 0.58 : 0.65);
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
@@ -361,13 +361,13 @@ const renderCustomPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, perc
     );
   }
 
-  // Lát bánh nhỏ (< 7%): Đẩy ra ngoài bằng đường kẻ thanh mảnh tỏa theo góc midAngle
+  // Lát bánh nhỏ (< 7%): Đẩy ra ngoài bằng đường kẻ thanh mảnh so le đa tầng tách về 2 phía
   const cos = Math.cos(-midAngle * RADIAN);
   const sin = Math.sin(-midAngle * RADIAN);
 
-  // So le độ dài đường kẻ 3 tầng để các lát gần nhau không đè lên nhau
+  // So le độ dài đường kẻ 3 tầng (6px, 14px, 22px) để các lát kề nhau không đè cao độ
   const tier = (index || 0) % 3;
-  const extendDist = 4 + tier * 5;
+  const extendDist = 6 + tier * 8;
 
   // Điểm 1: Mép ngoài đường tròn
   const sx = cx + (outerRadius + 1) * cos;
@@ -377,24 +377,14 @@ const renderCustomPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, perc
   const mx = cx + (outerRadius + extendDist) * cos;
   const my = cy + (outerRadius + extendDist) * sin;
 
-  // Điểm 3: Bẻ ngang theo hướng (trái/phải/đỉnh)
-  let ex = mx;
-  let ey = my;
-  let textAnchor = 'middle';
-  let textX = mx;
-  let textY = my;
-
-  if (Math.abs(cos) < 0.15) {
-    // Đỉnh hoặc đáy: vươn thẳng đứng
-    ey = my + (sin < 0 ? -3 : 3);
-    textY = ey + (sin < 0 ? -3 : 3);
-    textAnchor = 'middle';
-  } else {
-    // Hai bên trái / phải: bẻ ngang ngắn
-    ex = mx + (cos >= 0 ? 1 : -1) * 3;
-    textX = ex + (cos >= 0 ? 2 : -2);
-    textAnchor = cos >= 0 ? 'start' : 'end';
-  }
+  // Điểm 3: Luôn bẻ ngang tách về 2 phía (Bên phải -> bẻ sang Phải, Bên trái -> bẻ sang Trái)
+  const isRightSide = cos >= 0;
+  const elbowLength = 5 + tier * 2;
+  const ex = mx + (isRightSide ? elbowLength : -elbowLength);
+  const ey = my;
+  const textAnchor = isRightSide ? 'start' : 'end';
+  const textX = ex + (isRightSide ? 2 : -2);
+  const textY = ey;
 
   return (
     <g key={`pie-lbl-${index}`}>

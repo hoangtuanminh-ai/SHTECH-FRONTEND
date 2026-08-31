@@ -506,19 +506,91 @@ const css = `
 
   /* Bảng số liệu + biểu đồ cột nhỏ nằm cạnh nhau bên trong 1 thẻ */
   .th-split {
-    display: grid; grid-template-columns: minmax(0, 1fr) 200px;
-    gap: 14px; flex: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 210px;
+    gap: 16px;
+    flex: 1;
+    align-items: stretch;
+    min-width: 0;
+    max-width: 100%;
   }
-  @media (max-width: 700px) { .th-split { grid-template-columns: 1fr; } }
+  @media (max-width: 900px) {
+    .th-split {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+  }
   .th-split-side {
-    display: flex; align-items: flex-end; justify-content: center;
-    border-left: 1px solid #e2e8f0; padding-left: 14px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    border-left: 1px solid #cbd5e1;
+    padding-left: 14px;
+    padding-right: 6px;
+    min-width: 0;
   }
-  @media (max-width: 700px) { .th-split-side { border-left: none; padding-left: 0; } }
+  @media (max-width: 900px) {
+    .th-split-side {
+      border-left: none;
+      padding-left: 0;
+      padding-right: 0;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 12px;
+    }
+  }
+
+  /* Bảng responsive hỗ trợ cuộn ngang trên điện thoại */
+  .th-table-responsive {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto !important;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #0284c7 #f1f5f9;
+    box-sizing: border-box;
+  }
+  .th-table-responsive::-webkit-scrollbar {
+    height: 6px;
+  }
+  .th-table-responsive::-webkit-scrollbar-track {
+    background: #f1f5f9;
+  }
+  .th-table-responsive::-webkit-scrollbar-thumb {
+    background: #0284c7;
+    border-radius: 3px;
+  }
+  .th-ca-table {
+    width: 100%;
+    min-width: 520px; /* Bắt buộc để 5 cột luôn đầy đủ, kích hoạt cuộn ngang mượt mà trên mobile */
+    border-collapse: collapse;
+    text-align: center;
+    font-size: 13px;
+  }
+  .th-ca-table th {
+    background: #f8fafc;
+    color: #475569;
+    font-size: 11.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    border-bottom: 2px solid #cbd5e1;
+    padding: 8px 10px;
+  }
+  .th-ca-table td {
+    border-bottom: 1px solid #e2e8f0;
+    padding: 8px 10px;
+  }
+  @media (max-width: 768px) {
+    .th-ca-table th, .th-ca-table td {
+      padding: 7px 8px !important;
+    }
+  }
 
   .th-card {
     background: #fff; border: 1px solid #cbd5e1; border-radius: 4px;
     overflow: hidden; display: flex; flex-direction: column; height: 100%;
+    min-width: 0; max-width: 100%;
   }
 
   /* ── Tooltip biểu đồ luôn nổi trên cùng ──
@@ -598,6 +670,29 @@ const css = `
        thân biểu đồ, tiêu đề xuống 2 dòng sẽ ép thân co lại làm biểu đồ lùn hẳn. */
     flex-shrink: 0;
     min-height: 34px;
+  }
+  .th-ca-card-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  @media (max-width: 768px) {
+    .th-ca-card-head {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      padding: 8px 10px;
+    }
+    .th-ca-card-head .th-card-title {
+      width: 100%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .th-ca-card-head .th-card-meta {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
   }
   .th-card-title {
     font-size: 12px; font-weight: 900; color: #1a3a5c;
@@ -2842,22 +2937,23 @@ const MayThanhHinhDashboard = () => {
 
           {/* ── SẢN XUẤT TRONG THEO CA ── */}
           <div className="th-card" style={{ marginBottom: '12px' }}>
-            <div className="th-card-head">
+            <div className="th-card-head th-ca-card-head">
               <div className="th-card-title">Theo dõi kế hoạch sản xuất trong ca</div>
-              <div className="th-card-meta">Ca {caLabel} · {dateLabel}</div>
+              <div className="th-card-meta">
+                <span>Ca {caLabel} · {dateLabel}</span>
+              </div>
             </div>
             <div className="th-card-body">
               <div className="th-split">
-                <div style={{ minWidth: 0, height: '100%' }}>
-                  {/* height:100% để các dòng giãn đều, không hở đáy khi bảng ít dòng */}
-                  <table style={{ width: '100%', height: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: '13px' }}>
+                <div className="th-table-responsive" style={{ minWidth: 0, height: '100%' }}>
+                  <table className="th-ca-table" style={{ width: '100%', height: '100%' }}>
                     <thead>
-                      <tr style={{ background: '#f8fafc', color: '#475569', fontSize: '12px' }}>
-                        <th style={{ textAlign: 'left', borderBottom: '2px solid #cbd5e1', padding: '10px 12px', width: '15%' }}>MÃ QUY CÁCH</th>
-                        <th style={{ textAlign: 'left', borderBottom: '2px solid #cbd5e1', padding: '10px 12px' }}>QUY CÁCH LỐP</th>
-                        <th style={{ borderBottom: '2px solid #cbd5e1', padding: '10px 12px' }}>THỰC TẾ SX</th>
-                        <th style={{ borderBottom: '2px solid #cbd5e1', padding: '10px 12px' }}>KẾ HOẠCH</th>
-                        <th style={{ borderBottom: '2px solid #cbd5e1', padding: '10px 12px', width: '35%' }}>% HOÀN THÀNH</th>
+                      <tr>
+                        <th style={{ textAlign: 'left', width: '100px', whiteSpace: 'nowrap' }}>MÃ QUY CÁCH</th>
+                        <th style={{ textAlign: 'left', minWidth: '140px' }}>QUY CÁCH LỐP</th>
+                        <th style={{ width: '95px', whiteSpace: 'nowrap' }}>THỰC TẾ SX</th>
+                        <th style={{ width: '95px', whiteSpace: 'nowrap' }}>KẾ HOẠCH</th>
+                        <th style={{ width: '200px', minWidth: '160px' }}>% HOÀN THÀNH</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2871,34 +2967,28 @@ const MayThanhHinhDashboard = () => {
                         console.log(`[ShiftStats] Dòng ${idx}: Quy cách = ${row.MaquycachLop || row.maQuyCachLop || 'N/A'}, Thực tế = ${row.SanluongLopSX || 0}, Kế hoạch = ${row.SoLuong_KH_HieuLuc || 0}, % = ${percent}%, Màu = ${rowColor}`);
 
                         return (
-                          <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0', background: isVuotKH ? '#f0f9ff' : 'transparent' }}>
-                            <td style={{ textAlign: 'left', padding: '12px', color: '#1565C0', fontWeight: 'bold', fontSize: '13px' }}>
+                          <tr key={idx} style={{ background: isVuotKH ? '#f0f9ff' : 'transparent' }}>
+                            <td style={{ textAlign: 'left', color: '#1565C0', fontWeight: 'bold', fontSize: '13px', whiteSpace: 'nowrap' }}>
                               {row.MaquycachLop || row.maQuyCachLop || row.MaQuyCach || row.maQuyCach || '—'}
                             </td>
-                            <td style={{ textAlign: 'left', padding: '12px' }}>
-                              <div style={{ color: '#1565C0', fontWeight: 'bold', fontSize: '14px' }}>{row.TenQuycachLop || 'Không có tên quy cách'}</div>
+                            <td style={{ textAlign: 'left', minWidth: '140px' }}>
+                              <div style={{ color: '#1565C0', fontWeight: 'bold', fontSize: '13px', lineHeight: '1.25' }}>{row.TenQuycachLop || 'Không có tên quy cách'}</div>
                             </td>
-                            <td style={{ color: '#1565C0', fontWeight: 'bold', fontSize: '15px', padding: '12px' }}>{row.SanluongLopSX || 0}</td>
-                            <td style={{ color: '#1565C0', fontWeight: 'bold', fontSize: '15px', padding: '12px' }}>{row.SoLuong_KH_HieuLuc || 0}</td>
-                            <td style={{ padding: '12px' }}>
+                            <td style={{ color: '#1565C0', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap' }}>{row.SanluongLopSX || 0}</td>
+                            <td style={{ color: '#1565C0', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap' }}>{row.SoLuong_KH_HieuLuc || 0}</td>
+                            <td style={{ minWidth: '160px' }}>
                               {/* Container tổng chứa thanh tiến độ và phần trăm */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 {/* Thanh tiến độ nền */}
-                                <div style={{ flex: 1, height: '16px', background: '#e2e8f0', borderRadius: '0px', overflow: 'hidden', position: 'relative' }} title={`Tiến độ: ${percent}% (Thang đo 0-120%)`}>
+                                <div style={{ flex: 1, height: '14px', background: '#e2e8f0', borderRadius: '0px', overflow: 'hidden', position: 'relative' }} title={`Tiến độ: ${percent}% (Thang đo 0-120%)`}>
                                   {/* Vạch mốc 100% Kế hoạch */}
                                   <div style={{ position: 'absolute', top: 0, bottom: 0, left: '83.33%', width: '2px', background: '#64748b', zIndex: 2, opacity: 0.6 }} title="Mốc 100% Kế hoạch"></div>
                                   {/* Thanh phần trăm tiến độ đã hoàn thành (sử dụng dải màu getTablePercentColor) */}
                                   <div style={{ height: '100%', width: `${Math.min((numPercent / 120) * 100, 100)}%`, background: rowColor, transition: 'width 0.5s', borderRadius: '0px' }}></div>
                                 </div>
-                                {/* Khối hiển thị số % và nhãn Vượt KH */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', minWidth: '95px', justifyContent: 'flex-end' }}>
-                                  <span style={{ fontSize: '13px', fontWeight: 'bold', color: rowColor }}>{percent}%</span>
-                                  {isVuotKH && (
-                                    <span style={{ background: '#dbeafe', color: '#1e3a8a', border: '1px solid #93c5fd', fontSize: '9px', fontWeight: 'bold', padding: '1px 4px', borderRadius: '0px', whiteSpace: 'nowrap' }}>
-                                      Vượt KH
-                                    </span>
-                                  )}
-                                </div>
+                                <span style={{ minWidth: '58px', textAlign: 'right', fontSize: '12px', fontWeight: 'bold', color: rowColor, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                  {percent}%
+                                </span>
                               </div>
                             </td>
                           </tr>
@@ -2913,23 +3003,18 @@ const MayThanhHinhDashboard = () => {
                         const tongColor = getTablePercentColor(numPercentTong);
                         return (
                           <tr style={{ background: isVuotKH ? '#e0f2fe' : '#f1f5f9' }}>
-                            <td colSpan={2} style={{ color: '#1e3a8a', fontWeight: 'bold', fontSize: '14px', padding: '12px', textAlign: 'left' }}>TỔNG CỘNG</td>
-                            <td style={{ color: '#1e3a8a', fontWeight: 'bold', fontSize: '16px', padding: '12px' }}>{tongTT}</td>
-                            <td style={{ color: '#1e3a8a', fontWeight: 'bold', fontSize: '16px', padding: '12px' }}>{tongKH}</td>
-                            <td style={{ padding: '12px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <div style={{ flex: 1, height: '16px', background: '#cbd5e1', borderRadius: '0px', overflow: 'hidden', position: 'relative' }} title={`Tổng cộng tiến độ: ${percentTong}% (Thang đo 0-120%)`}>
+                            <td colSpan={2} style={{ color: '#1e3a8a', fontWeight: 'bold', fontSize: '13px', textAlign: 'left', whiteSpace: 'nowrap' }}>TỔNG CỘNG</td>
+                            <td style={{ color: '#1e3a8a', fontWeight: 'bold', fontSize: '15px', whiteSpace: 'nowrap' }}>{tongTT}</td>
+                            <td style={{ color: '#1e3a8a', fontWeight: 'bold', fontSize: '15px', whiteSpace: 'nowrap' }}>{tongKH}</td>
+                            <td style={{ minWidth: '160px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ flex: 1, height: '14px', background: '#cbd5e1', borderRadius: '0px', overflow: 'hidden', position: 'relative' }} title={`Tổng cộng tiến độ: ${percentTong}% (Thang đo 0-120%)`}>
                                   <div style={{ position: 'absolute', top: 0, bottom: 0, left: '83.33%', width: '2px', background: '#475569', zIndex: 2, opacity: 0.8 }} title="Mốc 100% Kế hoạch"></div>
                                   <div style={{ height: '100%', width: `${Math.min((numPercentTong / 120) * 100, 100)}%`, background: tongColor, transition: 'width 0.5s', borderRadius: '0px' }}></div>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', minWidth: '95px', justifyContent: 'flex-end' }}>
-                                  <span style={{ color: tongColor, fontWeight: 'bold', fontSize: '15px' }}>{percentTong}%</span>
-                                  {isVuotKH && (
-                                    <span style={{ background: '#dbeafe', color: '#1e3a8a', border: '1px solid #93c5fd', fontSize: '9px', fontWeight: 'bold', padding: '1px 4px', borderRadius: '0px', whiteSpace: 'nowrap' }}>
-                                      Vượt KH
-                                    </span>
-                                  )}
-                                </div>
+                                <span style={{ minWidth: '58px', textAlign: 'right', fontSize: '13px', fontWeight: 'bold', color: tongColor, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                  {percentTong}%
+                                </span>
                               </div>
                             </td>
                           </tr>
@@ -3157,10 +3242,11 @@ const MayThanhHinhDashboard = () => {
                     {(() => {
                       const RADIAN = Math.PI / 180;
                       const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
-                        if (!percent || percent < 0.002) return null; // Hiển thị tất cả các lát từ 0.2% trở lên
+                        if (!percent || percent <= 0.0001) return null; // Hiển thị tất cả các lát có dữ liệu (> 0%)
                         const RADIAN = Math.PI / 180;
+                        const labelStr = `${(percent * 100).toFixed(2)}%`;
 
-                        // Lát từ 7% trở lên (như 9.8%, 86.5%): Hiển thị ngay BÊN TRONG lát bánh
+                        // Lát từ 7% trở lên: Hiển thị ngay BÊN TRONG lát bánh
                         if (percent >= 0.07) {
                           const radius = innerRadius + (outerRadius - innerRadius) * (percent >= 0.15 ? 0.65 : 0.70);
                           const x = cx + radius * Math.cos(-midAngle * RADIAN);
@@ -3172,42 +3258,33 @@ const MayThanhHinhDashboard = () => {
                               fill="#0f172a"
                               textAnchor="middle"
                               dominantBaseline="central"
-                              fontSize={percent >= 0.15 ? "11" : "9.5"}
+                              fontSize={percent >= 0.15 ? "10.5" : "9"}
                               fontWeight="900"
                             >
-                              {`${(percent * 100).toFixed(1)}%`}
+                              {labelStr}
                             </text>
                           );
                         }
 
-                        // Lát nhỏ (< 7%): Vẽ đường kẻ bậc thang so le tỏa ra ngoài đa hướng
+                        // Lát nhỏ (< 7%): Vẽ đường kẻ bậc thang so le tỏa ra ngoài đa hướng (4 tầng so le)
                         const cos = Math.cos(-midAngle * RADIAN);
                         const sin = Math.sin(-midAngle * RADIAN);
-                        const tier = (index || 0) % 3;
-                        const extendDist = 6 + tier * 10;
+                        const tier = (index || 0) % 4;
+                        const extendDist = 7 + tier * 9;
 
                         const sx = cx + (outerRadius + 2) * cos;
                         const sy = cy + (outerRadius + 2) * sin;
                         const mx = cx + (outerRadius + extendDist) * cos;
                         const my = cy + (outerRadius + extendDist) * sin;
 
-                        let ex = mx;
-                        let ey = my;
-                        let textAnchor = 'middle';
-                        let textX = mx;
-                        let textY = my;
-
-                        if (Math.abs(cos) < 0.18) {
-                          // Đỉnh hoặc đáy
-                          ey = my + (sin < 0 ? -4 : 4);
-                          textY = ey + (sin < 0 ? -3 : 3);
-                          textAnchor = 'middle';
-                        } else {
-                          // Hai bên trái / phải
-                          ex = mx + (cos >= 0 ? 1 : -1) * (6 + tier * 2);
-                          textX = ex + (cos >= 0 ? 3 : -3);
-                          textAnchor = cos >= 0 ? 'start' : 'end';
-                        }
+                        // Luôn bẻ ngang tách về 2 phía (Bên phải -> bẻ sang Phải, Bên trái -> bẻ sang Trái)
+                        const isRightSide = cos >= 0;
+                        const elbowLength = 7 + tier * 3;
+                        const ex = mx + (isRightSide ? elbowLength : -elbowLength);
+                        const ey = my;
+                        const textAnchor = isRightSide ? 'start' : 'end';
+                        const textX = ex + (isRightSide ? 3 : -3);
+                        const textY = ey;
 
                         return (
                           <g key={`pie-th-lbl-${index}`}>
@@ -3227,7 +3304,7 @@ const MayThanhHinhDashboard = () => {
                               fontSize="8.5"
                               fontWeight="bold"
                             >
-                              {`${(percent * 100).toFixed(1)}%`}
+                              {labelStr}
                             </text>
                           </g>
                         );

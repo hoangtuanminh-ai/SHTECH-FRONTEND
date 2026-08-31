@@ -236,7 +236,6 @@ const css = `
     overflow: hidden;
   }
   .drc-year-chart-head {
-    text-align: center;
     font-size: 12.5px;
     font-weight: 900;
     color: #1a3a5c;
@@ -245,10 +244,53 @@ const css = `
     border-bottom: 1px solid #e2e8f0;
     background: #f8fafc;
     letter-spacing: 0.3px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .drc-year-chart-scroll-hint {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #0284c7;
+    text-transform: none;
+    letter-spacing: 0;
+    display: none;
+  }
+  @media (max-width: 768px) {
+    .drc-year-chart-scroll-hint { display: inline-block; }
   }
   .drc-year-chart-body {
     padding: 10px 12px 6px 6px;
-    height: 250px;
+    height: 260px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #0284c7 #f1f5f9;
+    -webkit-overflow-scrolling: touch;
+  }
+  .drc-year-chart-body::-webkit-scrollbar {
+    height: 6px;
+  }
+  .drc-year-chart-body::-webkit-scrollbar-track {
+    background: #f1f5f9;
+  }
+  .drc-year-chart-body::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 3px;
+  }
+  .drc-year-chart-canvas {
+    width: 100%;
+    min-width: 100%;
+    height: 100%;
+    position: relative;
+  }
+  @media (max-width: 768px) {
+    .drc-year-chart-canvas {
+      width: 1080px;
+      min-width: 1080px;
+    }
   }
   .drc-chart-legend {
     display: flex;
@@ -372,7 +414,7 @@ const VerticalMiniBarChart = ({ actual = 0, plan = 0, pct = 0 }) => {
         }}
       />
 
-      {/* 2 Cột đứng song song: SX (Xanh lá) & KH (Xanh dương) */}
+      {/* 2 Cột đứng song song: KH (Xanh dương - Bên trái) & SX (Màu trạng thái - Bên phải) */}
       <div
         style={{
           width: '100%',
@@ -384,16 +426,7 @@ const VerticalMiniBarChart = ({ actual = 0, plan = 0, pct = 0 }) => {
           zIndex: 1
         }}
       >
-        <div
-          style={{
-            width: '20px',
-            height: `${sxBarHeightPct}%`,
-            background: sxBarColor,
-            borderRadius: '2px 2px 0 0',
-            transition: 'height 0.4s ease'
-          }}
-          title={`Sản xuất (SX): ${Number(actual || 0).toLocaleString('vi-VN')}`}
-        />
+        {/* Cột Kế hoạch (KH) - Bên trái */}
         <div
           style={{
             width: '20px',
@@ -404,9 +437,20 @@ const VerticalMiniBarChart = ({ actual = 0, plan = 0, pct = 0 }) => {
           }}
           title={`Kế hoạch (KH): ${Number(plan || 0).toLocaleString('vi-VN')}`}
         />
+        {/* Cột Sản xuất (SX) - Bên phải */}
+        <div
+          style={{
+            width: '20px',
+            height: `${sxBarHeightPct}%`,
+            background: sxBarColor,
+            borderRadius: '2px 2px 0 0',
+            transition: 'height 0.4s ease'
+          }}
+          title={`Sản xuất (SX): ${Number(actual || 0).toLocaleString('vi-VN')}`}
+        />
       </div>
 
-      {/* Nhãn chữ SX và KH */}
+      {/* Nhãn chữ KH (Trái) và SX (Phải) */}
       <div
         style={{
           width: '100%',
@@ -419,8 +463,8 @@ const VerticalMiniBarChart = ({ actual = 0, plan = 0, pct = 0 }) => {
           paddingTop: '2px'
         }}
       >
-        <span style={{ color: sxBarColor }}>SX</span>
         <span style={{ color: '#0070c0' }}>KH</span>
+        <span style={{ color: sxBarColor }}>SX</span>
       </div>
     </div>
   );
@@ -675,33 +719,15 @@ const DashboardKeHoach = () => {
     const fromDateYear = `${currentYear}-01-01`;
     const toDateYear = `${currentYear}-12-31`;
 
-    console.log(`>>> [DashboardKeHoach] BẮT ĐẦU GỌI SONG SONG 7 API đồng thời lúc ${dayjs().format('HH:mm:ss')} (Ca: ${shift.ca}, Ngày: ${shift.dateStr}, Năm: ${currentYear})`);
+    console.log(`>>> [DashboardKeHoach] 🚀 BẮT ĐẦU BẮN SONG SONG 7 API ĐỘC LẬP lúc ${dayjs().format('HH:mm:ss')} (API nào hoàn thành trước sẽ cập nhật và hiển thị biểu đồ đó ngay lập tức!)`);
 
-    // BẮN TẤT CẢ 7 REQUEST CÙNG LÚC (0ms)
-    const [
-      resMachinesRes,
-      resStatsMonthRes,
-      resStatsYearRes,
-      resCvSummaryRes,
-      resCvYearSummaryRes,
-      resTrendRes,
-      resCvMonthlyRes
-    ] = await Promise.allSettled([
-      getMachinesWithStats({
-        fromIdKehoach: 'RA10.' + ymds,
-        toIdKehoach: 'RA10.' + ymds
-      }),
-      getDashboardStats(fromDateMonth, toDateMonth),
-      getDashboardStats(fromDateYear, toDateYear),
-      getCatVaiSummaryStats(fromDateMonth, toDateMonth),
-      getCatVaiSummaryStats(fromDateYear, toDateYear),
-      getKeHoachTrend(currentYear),
-      getCatVaiMonthlyStats(currentYear)
-    ]);
-
-    // 1. XỬ LÝ KẾT QUẢ getMachinesWithStats (Trạng thái thiết bị & KPI Ca hiện tại)
-    if (resMachinesRes.status === 'fulfilled') {
-      const resMachines = resMachinesRes.value;
+    // ── TASK 1: API Lấy trạng thái thiết bị & KPI Ca hiện tại (getMachinesWithStats) ──
+    const taskMachines = getMachinesWithStats({
+      fromIdKehoach: 'RA10.' + ymds,
+      toIdKehoach: 'RA10.' + ymds
+    }).then(resMachines => {
+      const t = (performance.now() - startTime).toFixed(0);
+      console.log(`>>> [DashboardKeHoach] ⚡ [${t}ms] API Thiết bị & Ca hoàn tất -> Hiển thị Biểu đồ tròn Thiết bị & KPI Ca ngay!`);
       let machines = [];
       if (resMachines && resMachines.success && Array.isArray(resMachines.data)) {
         machines = resMachines.data;
@@ -748,13 +774,14 @@ const DashboardKeHoach = () => {
       } else {
         console.warn(">>> [DashboardKeHoach] getMachinesWithStats trả về danh sách rỗng.");
       }
-    } else {
-      console.error(">>> [DashboardKeHoach API ERROR] getMachinesWithStats thất bại:", resMachinesRes.reason);
-    }
+    }).catch(err => {
+      console.error(">>> [DashboardKeHoach API ERROR] getMachinesWithStats thất bại:", err);
+    });
 
-    // 2. XỬ LÝ KẾT QUẢ THỐNG KÊ THÁNG & NĂM CỦA THÀNH HÌNH
-    if (resStatsMonthRes.status === 'fulfilled') {
-      const resStatsMonth = resStatsMonthRes.value;
+    // ── TASK 2: API Thống kê Tháng Thành Hình (getDashboardStats Tháng) ──
+    const taskThMonth = getDashboardStats(fromDateMonth, toDateMonth).then(resStatsMonth => {
+      const t = (performance.now() - startTime).toFixed(0);
+      console.log(`>>> [DashboardKeHoach] ⚡ [${t}ms] API Tháng TH hoàn tất -> Cập nhật thẻ Tháng Thành Hình ngay!`);
       if (resStatsMonth && resStatsMonth.tongSoLuongKH > 0) {
         setThangStats(prev => ({
           ...prev,
@@ -765,12 +792,14 @@ const DashboardKeHoach = () => {
           }
         }));
       }
-    } else {
-      console.error(">>> [DashboardKeHoach API ERROR] getDashboardStats Tháng (TH) thất bại:", resStatsMonthRes.reason);
-    }
+    }).catch(err => {
+      console.error(">>> [DashboardKeHoach API ERROR] getDashboardStats Tháng (TH) thất bại:", err);
+    });
 
-    if (resStatsYearRes.status === 'fulfilled') {
-      const resStatsYear = resStatsYearRes.value;
+    // ── TASK 3: API Thống kê Năm Thành Hình (getDashboardStats Năm) ──
+    const taskThYear = getDashboardStats(fromDateYear, toDateYear).then(resStatsYear => {
+      const t = (performance.now() - startTime).toFixed(0);
+      console.log(`>>> [DashboardKeHoach] ⚡ [${t}ms] API Năm TH hoàn tất -> Cập nhật thẻ Năm Thành Hình ngay!`);
       if (resStatsYear && resStatsYear.tongSoLuongKH > 0) {
         setNamStats(prev => ({
           ...prev,
@@ -781,13 +810,14 @@ const DashboardKeHoach = () => {
           }
         }));
       }
-    } else {
-      console.error(">>> [DashboardKeHoach API ERROR] getDashboardStats Năm (TH) thất bại:", resStatsYearRes.reason);
-    }
+    }).catch(err => {
+      console.error(">>> [DashboardKeHoach API ERROR] getDashboardStats Năm (TH) thất bại:", err);
+    });
 
-    // 3. XỬ LÝ KẾT QUẢ THỐNG KÊ THÁNG & NĂM CỦA CẮT VẢI
-    if (resCvSummaryRes.status === 'fulfilled') {
-      const resCvSummary = resCvSummaryRes.value;
+    // ── TASK 4: API Thống kê Tháng Cắt Vải (getCatVaiSummaryStats Tháng) ──
+    const taskCvMonth = getCatVaiSummaryStats(fromDateMonth, toDateMonth).then(resCvSummary => {
+      const t = (performance.now() - startTime).toFixed(0);
+      console.log(`>>> [DashboardKeHoach] ⚡ [${t}ms] API Tháng CV hoàn tất -> Cập nhật thẻ Tháng Cắt Vải ngay!`);
       if (resCvSummary && resCvSummary.success && resCvSummary.data) {
         const d = resCvSummary.data;
         const kh = Number(d.tongKeHoachHieuLuc || d.tongKeHoachDieuChinh || 0);
@@ -798,12 +828,14 @@ const DashboardKeHoach = () => {
           cv: { actual: tt, plan: kh, pct }
         }));
       }
-    } else {
-      console.error(">>> [DashboardKeHoach API ERROR] getCatVaiSummaryStats Tháng (CV) thất bại:", resCvSummaryRes.reason);
-    }
+    }).catch(err => {
+      console.error(">>> [DashboardKeHoach API ERROR] getCatVaiSummaryStats Tháng (CV) thất bại:", err);
+    });
 
-    if (resCvYearSummaryRes.status === 'fulfilled') {
-      const resCvYearSummary = resCvYearSummaryRes.value;
+    // ── TASK 5: API Thống kê Năm Cắt Vải (getCatVaiSummaryStats Năm) ──
+    const taskCvYear = getCatVaiSummaryStats(fromDateYear, toDateYear).then(resCvYearSummary => {
+      const t = (performance.now() - startTime).toFixed(0);
+      console.log(`>>> [DashboardKeHoach] ⚡ [${t}ms] API Năm CV hoàn tất -> Cập nhật thẻ Năm Cắt Vải ngay!`);
       if (resCvYearSummary && resCvYearSummary.success && resCvYearSummary.data) {
         const d = resCvYearSummary.data;
         const kh = Number(d.tongKeHoachHieuLuc || d.tongKeHoachDieuChinh || 0);
@@ -814,13 +846,14 @@ const DashboardKeHoach = () => {
           cv: { actual: tt, plan: kh, pct }
         }));
       }
-    } else {
-      console.error(">>> [DashboardKeHoach API ERROR] getCatVaiSummaryStats Năm (CV) thất bại:", resCvYearSummaryRes.reason);
-    }
+    }).catch(err => {
+      console.error(">>> [DashboardKeHoach API ERROR] getCatVaiSummaryStats Năm (CV) thất bại:", err);
+    });
 
-    // 4. XỬ LÝ BIỂU ĐỒ 12 THÁNG THÀNH HÌNH
-    if (resTrendRes.status === 'fulfilled') {
-      const resTrend = resTrendRes.value;
+    // ── TASK 6: API Biểu đồ 12 Tháng Thành Hình (getKeHoachTrend) ──
+    const taskTrendTH = getKeHoachTrend(currentYear).then(resTrend => {
+      const t = (performance.now() - startTime).toFixed(0);
+      console.log(`>>> [DashboardKeHoach] ⚡ [${t}ms] API Biểu đồ 12 Tháng TH hoàn tất -> Hiển thị Biểu đồ KHSX Năm TH ngay lập tức!`);
       const thArray = (resTrend && Array.isArray(resTrend.data))
         ? resTrend.data
         : (Array.isArray(resTrend) ? resTrend : []);
@@ -843,13 +876,14 @@ const DashboardKeHoach = () => {
         });
         setChartThYearData(mappedTH);
       }
-    } else {
-      console.error(">>> [DashboardKeHoach API ERROR] getKeHoachTrend thất bại:", resTrendRes.reason);
-    }
+    }).catch(err => {
+      console.error(">>> [DashboardKeHoach API ERROR] getKeHoachTrend thất bại:", err);
+    });
 
-    // 5. XỬ LÝ BIỂU ĐỒ 12 THÁNG CẮT VẢI
-    if (resCvMonthlyRes.status === 'fulfilled') {
-      const resCvMonthly = resCvMonthlyRes.value;
+    // ── TASK 7: API Biểu đồ 12 Tháng Cắt Vải (getCatVaiMonthlyStats) ──
+    const taskMonthlyCV = getCatVaiMonthlyStats(currentYear).then(resCvMonthly => {
+      const t = (performance.now() - startTime).toFixed(0);
+      console.log(`>>> [DashboardKeHoach] ⚡ [${t}ms] API Biểu đồ 12 Tháng CV hoàn tất -> Hiển thị Biểu đồ KHSX Năm CV ngay lập tức!`);
       const cvArray = (resCvMonthly && Array.isArray(resCvMonthly.data))
         ? resCvMonthly.data
         : (Array.isArray(resCvMonthly) ? resCvMonthly : []);
@@ -872,12 +906,23 @@ const DashboardKeHoach = () => {
         });
         setChartCvYearData(mappedCV);
       }
-    } else {
-      console.error(">>> [DashboardKeHoach API ERROR] getCatVaiMonthlyStats thất bại:", resCvMonthlyRes.reason);
-    }
+    }).catch(err => {
+      console.error(">>> [DashboardKeHoach API ERROR] getCatVaiMonthlyStats thất bại:", err);
+    });
+
+    // Đợi tất cả 7 API hoàn thành để tắt cờ isFetching và cập nhật mốc thời gian cuối
+    await Promise.allSettled([
+      taskMachines,
+      taskThMonth,
+      taskThYear,
+      taskCvMonth,
+      taskCvYear,
+      taskTrendTH,
+      taskMonthlyCV
+    ]);
 
     const elapsed = (performance.now() - startTime).toFixed(0);
-    console.log(`>>> [DashboardKeHoach] HOÀN TẤT TẢI TOÀN BỘ TRANG TỔNG QUAN TRONG: ${elapsed}ms`);
+    console.log(`>>> [DashboardKeHoach] ✅ HOÀN TẤT TẤT CẢ 7 API TRANG TỔNG QUAN TRONG: ${elapsed}ms`);
 
     setLastUpdatedTime(dayjs().format('HH:mm:ss'));
     isFetchingRef.current = false;
@@ -1126,8 +1171,8 @@ const DashboardKeHoach = () => {
                 <div className="drc-sub-badge">{caStats.th.pct.toFixed(2)}%</div>
                 <div className="drc-sub-content">
                   <div className="drc-sub-stats">
-                    <div>SX: {Number(caStats.th.actual || 0).toLocaleString('vi-VN')}</div>
                     <div>KH: {Number(caStats.th.plan || 0).toLocaleString('vi-VN')}</div>
+                    <div>SX: {Number(caStats.th.actual || 0).toLocaleString('vi-VN')}</div>
                   </div>
                   <VerticalMiniBarChart actual={caStats.th.actual} plan={caStats.th.plan} pct={caStats.th.pct} />
                 </div>
@@ -1138,8 +1183,8 @@ const DashboardKeHoach = () => {
                 <div className="drc-sub-badge">{caStats.cv.pct.toFixed(2)}%</div>
                 <div className="drc-sub-content">
                   <div className="drc-sub-stats">
-                    <div>SX: {Number(caStats.cv.actual || 0).toLocaleString('vi-VN')}</div>
                     <div>KH: {Number(caStats.cv.plan || 0).toLocaleString('vi-VN')}</div>
+                    <div>SX: {Number(caStats.cv.actual || 0).toLocaleString('vi-VN')}</div>
                   </div>
                   <VerticalMiniBarChart actual={caStats.cv.actual} plan={caStats.cv.plan} pct={caStats.cv.pct} />
                 </div>
@@ -1159,8 +1204,8 @@ const DashboardKeHoach = () => {
                 <div className="drc-sub-badge">{thangStats.th.pct.toFixed(2)}%</div>
                 <div className="drc-sub-content">
                   <div className="drc-sub-stats">
-                    <div>SX: {Number(thangStats.th.actual || 0).toLocaleString('vi-VN')}</div>
                     <div>KH: {Number(thangStats.th.plan || 0).toLocaleString('vi-VN')}</div>
+                    <div>SX: {Number(thangStats.th.actual || 0).toLocaleString('vi-VN')}</div>
                   </div>
                   <VerticalMiniBarChart actual={thangStats.th.actual} plan={thangStats.th.plan} pct={thangStats.th.pct} />
                 </div>
@@ -1171,8 +1216,8 @@ const DashboardKeHoach = () => {
                 <div className="drc-sub-badge">{thangStats.cv.pct.toFixed(2)}%</div>
                 <div className="drc-sub-content">
                   <div className="drc-sub-stats">
-                    <div>SX: {Number(thangStats.cv.actual || 0).toLocaleString('vi-VN')}</div>
                     <div>KH: {Number(thangStats.cv.plan || 0).toLocaleString('vi-VN')}</div>
+                    <div>SX: {Number(thangStats.cv.actual || 0).toLocaleString('vi-VN')}</div>
                   </div>
                   <VerticalMiniBarChart actual={thangStats.cv.actual} plan={thangStats.cv.plan} pct={thangStats.cv.pct} />
                 </div>
@@ -1190,8 +1235,8 @@ const DashboardKeHoach = () => {
                 <div className="drc-sub-badge">{namStats.th.pct.toFixed(2)}%</div>
                 <div className="drc-sub-content">
                   <div className="drc-sub-stats">
-                    <div>SX: {Number(namStats.th.actual || 0).toLocaleString('vi-VN')}</div>
                     <div>KH: {Number(namStats.th.plan || 0).toLocaleString('vi-VN')}</div>
+                    <div>SX: {Number(namStats.th.actual || 0).toLocaleString('vi-VN')}</div>
                   </div>
                   <VerticalMiniBarChart actual={namStats.th.actual} plan={namStats.th.plan} pct={namStats.th.pct} />
                 </div>
@@ -1202,8 +1247,8 @@ const DashboardKeHoach = () => {
                 <div className="drc-sub-badge">{namStats.cv.pct.toFixed(2)}%</div>
                 <div className="drc-sub-content">
                   <div className="drc-sub-stats">
-                    <div>SX: {Number(namStats.cv.actual || 0).toLocaleString('vi-VN')}</div>
                     <div>KH: {Number(namStats.cv.plan || 0).toLocaleString('vi-VN')}</div>
+                    <div>SX: {Number(namStats.cv.actual || 0).toLocaleString('vi-VN')}</div>
                   </div>
                   <VerticalMiniBarChart actual={namStats.cv.actual} plan={namStats.cv.plan} pct={namStats.cv.pct} />
                 </div>
@@ -1217,43 +1262,46 @@ const DashboardKeHoach = () => {
       {/* ── 4. BIỂU ĐỒ THEO DÕI KHSX CÔNG ĐOẠN CẮT VẢI NĂM 2026 ─────────────── */}
       <div className="drc-year-chart-card">
         <div className="drc-year-chart-head">
-          BIỂU ĐỒ THỰC THEO DÕI KẾ HOẠCH SẢN XUẤT - CÔNG ĐOẠN CV NĂM {currentYear}
+          <span>BIỂU ĐỒ THỰC THEO DÕI KẾ HOẠCH SẢN XUẤT - CÔNG ĐOẠN CV NĂM {currentYear}</span>
+          <span className="drc-year-chart-scroll-hint">⟷ Vuốt ngang để xem đủ 12 tháng</span>
         </div>
         <div className="drc-year-chart-body">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={chartCvYearData}
-              margin={{ top: 22, right: 16, left: -10, bottom: 0 }}
-              barGap={3}
-              barCategoryGap="12%"
-              maxBarSize={38}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-              <XAxis dataKey="thang" tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }} tickLine={false} axisLine={{ stroke: '#cbd5e1' }} />
-              <YAxis
-                domain={[0, 130]}
-                ticks={[0, 25, 50, 75, 100]}
-                tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }}
-                tickLine={false}
-                axisLine={{ stroke: '#cbd5e1' }}
-                unit="%"
-              />
-              {/* Tooltip hiển thị đầy đủ Kế hoạch, Sản lượng thực tế và Tỷ lệ % */}
-              <Tooltip content={<CustomYearChartTooltip unit="BTP" />} />
+          <div className="drc-year-chart-canvas">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={chartCvYearData}
+                margin={{ top: 24, right: 18, left: -10, bottom: 0 }}
+                barGap={4}
+                barCategoryGap="14%"
+                maxBarSize={42}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="thang" tick={{ fontSize: 10.5, fill: '#475569', fontWeight: 700 }} tickLine={false} axisLine={{ stroke: '#cbd5e1' }} />
+                <YAxis
+                  domain={[0, 130]}
+                  ticks={[0, 25, 50, 75, 100]}
+                  tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }}
+                  tickLine={false}
+                  axisLine={{ stroke: '#cbd5e1' }}
+                  unit="%"
+                />
+                {/* Tooltip hiển thị đầy đủ Kế hoạch, Sản lượng thực tế và Tỷ lệ % */}
+                <Tooltip content={<CustomYearChartTooltip unit="BTP" />} />
 
-              {/* Cột Kế hoạch: Hiện số SL kế hoạch trên đỉnh (Xanh) và 100% bên trong cột */}
-              <Bar dataKey="KH" name="KẾ HOẠCH" fill="#0070c0" radius={[1, 1, 0, 0]} isAnimationActive={false}>
-                <LabelList content={(props) => renderKhBarLabel(props, chartCvYearData)} />
-              </Bar>
-              {/* Cột Thực tế: Đổi màu theo từng cấp phần trăm + hiện % hoàn thành bên trong cột */}
-              <Bar dataKey="TT" name="THỰC TẾ" radius={[1, 1, 0, 0]} isAnimationActive={false}>
-                {chartCvYearData.map((entry, index) => (
-                  <Cell key={`cell-cv-tt-${index}`} fill={getYearBarColor(entry.pct, entry.slTT)} />
-                ))}
-                <LabelList content={(props) => renderTtBarLabel(props, chartCvYearData)} />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+                {/* Cột Kế hoạch: Hiện số SL kế hoạch trên đỉnh (Xanh) và 100% bên trong cột */}
+                <Bar dataKey="KH" name="KẾ HOẠCH" fill="#0070c0" radius={[2, 2, 0, 0]} isAnimationActive={false}>
+                  <LabelList content={(props) => renderKhBarLabel(props, chartCvYearData)} />
+                </Bar>
+                {/* Cột Thực tế: Đổi màu theo từng cấp phần trăm + hiện % hoàn thành bên trong cột */}
+                <Bar dataKey="TT" name="THỰC TẾ" radius={[2, 2, 0, 0]} isAnimationActive={false}>
+                  {chartCvYearData.map((entry, index) => (
+                    <Cell key={`cell-cv-tt-${index}`} fill={getYearBarColor(entry.pct, entry.slTT)} />
+                  ))}
+                  <LabelList content={(props) => renderTtBarLabel(props, chartCvYearData)} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
         <div className="drc-chart-legend">
           <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -1286,43 +1334,46 @@ const DashboardKeHoach = () => {
       {/* ── 5. BIỂU ĐỒ THEO DÕI KHSX CÔNG ĐOẠN THÀNH HÌNH NĂM 2026 ──────────── */}
       <div className="drc-year-chart-card">
         <div className="drc-year-chart-head">
-          BIỂU ĐỒ THỰC THEO DÕI KẾ HOẠCH SẢN XUẤT - CÔNG ĐOẠN TH NĂM {currentYear}
+          <span>BIỂU ĐỒ THỰC THEO DÕI KẾ HOẠCH SẢN XUẤT - CÔNG ĐOẠN TH NĂM {currentYear}</span>
+          <span className="drc-year-chart-scroll-hint">⟷ Vuốt ngang để xem đủ 12 tháng</span>
         </div>
         <div className="drc-year-chart-body">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={chartThYearData}
-              margin={{ top: 22, right: 16, left: -10, bottom: 0 }}
-              barGap={3}
-              barCategoryGap="12%"
-              maxBarSize={38}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-              <XAxis dataKey="thang" tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }} tickLine={false} axisLine={{ stroke: '#cbd5e1' }} />
-              <YAxis
-                domain={[0, 130]}
-                ticks={[0, 25, 50, 75, 100]}
-                tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }}
-                tickLine={false}
-                axisLine={{ stroke: '#cbd5e1' }}
-                unit="%"
-              />
-              {/* Tooltip hiển thị đầy đủ Kế hoạch, Sản lượng thực tế và Tỷ lệ % */}
-              <Tooltip content={<CustomYearChartTooltip unit="lốp" />} />
+          <div className="drc-year-chart-canvas">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={chartThYearData}
+                margin={{ top: 24, right: 18, left: -10, bottom: 0 }}
+                barGap={4}
+                barCategoryGap="14%"
+                maxBarSize={42}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="thang" tick={{ fontSize: 10.5, fill: '#475569', fontWeight: 700 }} tickLine={false} axisLine={{ stroke: '#cbd5e1' }} />
+                <YAxis
+                  domain={[0, 130]}
+                  ticks={[0, 25, 50, 75, 100]}
+                  tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }}
+                  tickLine={false}
+                  axisLine={{ stroke: '#cbd5e1' }}
+                  unit="%"
+                />
+                {/* Tooltip hiển thị đầy đủ Kế hoạch, Sản lượng thực tế và Tỷ lệ % */}
+                <Tooltip content={<CustomYearChartTooltip unit="lốp" />} />
 
-              {/* Cột Kế hoạch: Hiện số SL kế hoạch trên đỉnh (Xanh) và 100% bên trong cột */}
-              <Bar dataKey="KH" name="KẾ HOẠCH" fill="#0070c0" radius={[1, 1, 0, 0]} isAnimationActive={false}>
-                <LabelList content={(props) => renderKhBarLabel(props, chartThYearData)} />
-              </Bar>
-              {/* Cột Thực tế: Đổi màu theo từng cấp phần trăm + hiện % hoàn thành bên trong cột */}
-              <Bar dataKey="TT" name="THỰC TẾ" radius={[1, 1, 0, 0]} isAnimationActive={false}>
-                {chartThYearData.map((entry, index) => (
-                  <Cell key={`cell-th-tt-${index}`} fill={getYearBarColor(entry.pct, entry.slTT)} />
-                ))}
-                <LabelList content={(props) => renderTtBarLabel(props, chartThYearData)} />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+                {/* Cột Kế hoạch: Hiện số SL kế hoạch trên đỉnh (Xanh) và 100% bên trong cột */}
+                <Bar dataKey="KH" name="KẾ HOẠCH" fill="#0070c0" radius={[2, 2, 0, 0]} isAnimationActive={false}>
+                  <LabelList content={(props) => renderKhBarLabel(props, chartThYearData)} />
+                </Bar>
+                {/* Cột Thực tế: Đổi màu theo từng cấp phần trăm + hiện % hoàn thành bên trong cột */}
+                <Bar dataKey="TT" name="THỰC TẾ" radius={[2, 2, 0, 0]} isAnimationActive={false}>
+                  {chartThYearData.map((entry, index) => (
+                    <Cell key={`cell-th-tt-${index}`} fill={getYearBarColor(entry.pct, entry.slTT)} />
+                  ))}
+                  <LabelList content={(props) => renderTtBarLabel(props, chartThYearData)} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
         <div className="drc-chart-legend">
           <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>

@@ -12,7 +12,7 @@ import {
 import { FaCalendarAlt, FaSearch, FaRedo, FaCogs, FaChartBar } from 'react-icons/fa';
 
 // Import các API chính thức từ Backend
-import { getCatVaiDailyStats, getDailyStatsTheoMay, getCatVaiEquipments } from '../../api/catVaiApi';
+import { getDailyStatsForMonthCatVai, getCatVaiEquipments } from '../../api/catVaiApi';
 import { getTongHopCaNgay, getDanhSachMay } from '../../api/thanhhinhApi';
 import { getWeeklyProgress } from '../../api/kehoachApi';
 
@@ -302,20 +302,20 @@ const css = `
     color: #ffffff;
     font-size: 12.5px;
     font-weight: 900;
-    text-align: center;
-    padding: 6px 12px;
+    text-align: left;
+    padding: 6px 14px;
     letter-spacing: 0.4px;
     text-transform: uppercase;
     border-bottom: 2px solid #0f172a;
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 8px;
+    justify-content: space-between;
+    gap: 12px;
     position: relative;
   }
   .drc-chart-scroll-hint {
-    font-size: 10px;
-    font-weight: 600;
+    font-size: 10.5px;
+    font-weight: 700;
     color: #93c5fd;
     text-transform: none;
     letter-spacing: 0;
@@ -323,14 +323,24 @@ const css = `
     right: 12px;
   }
   @media (max-width: 900px) {
-    .drc-chart-scroll-hint { display: none; }
+    .drc-chart-head {
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 10px;
+    }
+    .drc-chart-scroll-hint {
+      position: static;
+      color: #bfdbfe;
+      font-size: 10px;
+    }
   }
   .drc-chart-body {
     height: 310px;
     padding: 8px 10px 4px 6px;
     position: relative;
   }
-  /* Khung cuộn ngang cố định 15 ngày/khung nhìn, trượt ngang xem trọn tháng */
+  /* Khung cuộn ngang 3-4 ngày/khung nhìn trên điện thoại, trượt ngang xem trọn tháng */
   .drc-daychart-scroll {
     width: 100%;
     height: 100%;
@@ -338,6 +348,7 @@ const css = `
     overflow-y: hidden;
     scrollbar-width: thin;
     scrollbar-color: #0284c7 #f1f5f9;
+    -webkit-overflow-scrolling: touch;
   }
   .drc-daychart-scroll::-webkit-scrollbar {
     height: 7px;
@@ -536,10 +547,13 @@ const KeHoachSanXuatThang = () => {
   const currentYearNow = now.year();
   const currentMonthNow = now.month() + 1; // 1..12
 
-  // States quản lý Bộ lọc
+  // States quản lý Bộ lọc Thời gian chung
   const [selectedYear, setSelectedYear] = useState(currentYearNow);
   const [selectedMonth, setSelectedMonth] = useState(currentMonthNow);
-  const [selectedMachine, setSelectedMachine] = useState(''); // "" = Tất cả các máy, "01".."30" = TH, "ORC-CV-01" = CV
+
+  // States quản lý Bộ lọc Máy tách riêng biệt cho từng công đoạn
+  const [selectedCvMachine, setSelectedCvMachine] = useState(''); // "" = Tất cả máy Cắt vải, "ORC-CV-01"..."ORC-CV-07"
+  const [selectedThMachine, setSelectedThMachine] = useState(''); // "" = Tất cả máy Thành hình, "01"..."30"
 
   // States danh sách thiết bị từ Backend
   const [thMachineList, setThMachineList] = useState([]);
@@ -548,7 +562,8 @@ const KeHoachSanXuatThang = () => {
   // States dữ liệu biểu đồ ngày trong tháng
   const [chartCvDailyData, setChartCvDailyData] = useState([]);
   const [chartThDailyData, setChartThDailyData] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingCv, setIsLoadingCv] = useState(false);
+  const [isLoadingTh, setIsLoadingTh] = useState(false);
   const [lastUpdated, setLastUpdated] = useState('');
 
   // Danh sách các năm lựa chọn
@@ -647,184 +662,166 @@ const KeHoachSanXuatThang = () => {
     fetchMachineLists();
   }, []);
 
-  // 2. Hàm tải dữ liệu theo từng ngày trong tháng đã chọn
-  const loadMonthData = useCallback(async (yearToLoad, monthToLoad, machineToLoad) => {
-    setIsLoading(true);
-    console.log(`>>> [KeHoachSanXuatThang] Bắt đầu tải dữ liệu: Tháng ${monthToLoad}/${yearToLoad}, Máy=${machineToLoad || 'TẤT CẢ'}`);
+  // 2A. Hàm tải dữ liệu theo từng ngày trong tháng của CẮT VẢI độc lập (Sử dụng API 3: getDailyStatsForMonthCatVai)
+  const loadCvMonthData = useCallback(async (yearToLoad, monthToLoad, cvMachineToLoad) => {
+    setIsLoadingCv(true);
+    console.log(`>>> [KeHoachSanXuatThang] [CẮT VẢI] Tải dữ liệu API mới: Tháng ${monthToLoad}/${yearToLoad}, Máy CV=${cvMachineToLoad || 'TẤT CẢ'}`);
 
-    const daysInMonth = new Date(yearToLoad, monthToLoad, 0).getDate(); // 28, 29, 30, 31
-    const mmStr = String(monthToLoad).padStart(2, '0');
+    const daysInMonth = new Date(yearToLoad, monthToLoad, 0).getDate();
 
-    // Khởi tạo mảng rỗng đủ số ngày của tháng
-    const createEmptyDays = () => Array.from({ length: daysInMonth }, (_, i) => {
-      const dNum = i + 1;
-      const dStr = String(dNum).padStart(2, '0');
-      return {
-        ngay: `Ngày ${dStr}`,
-        dayNum: dNum,
+    try {
+      const cvParam = cvMachineToLoad || null;
+      console.log(">>> [KeHoachSanXuatThang] Gọi getDailyStatsForMonthCatVai:", { nam_sx: yearToLoad, thang_sx: monthToLoad, maMay: cvParam });
+      const res = await getDailyStatsForMonthCatVai({ nam_sx: yearToLoad, thang_sx: monthToLoad, maMay: cvParam });
+      console.log(">>> [KeHoachSanXuatThang] Kết quả getDailyStatsForMonthCatVai:", res);
+      const cvDailyRaw = (res && Array.isArray(res.data)) ? res.data : (Array.isArray(res) ? res : []);
+
+      // Map dữ liệu vào các ngày trong tháng
+      const mappedCV = Array.from({ length: daysInMonth }, (_, i) => {
+        const dNum = i + 1;
+        const dStr = String(dNum).padStart(2, '0');
+        const found = cvDailyRaw.find(d => {
+          const rowDay = Number(d.Day ?? d.day ?? d.Ngay_SX ?? d.ngay_sx ?? d.Ngay ?? d.ngay ?? 0);
+          return rowDay === dNum;
+        });
+
+        if (found) {
+          const slKH = Number(found.TongKeHoachDieuChinh ?? found.TongKeHoach ?? found.TongKeHoachHieuLuc ?? found.keHoach ?? found.tongKH ?? found.soLuongKH ?? found.SoLuong_KH_DieuChinh ?? found.SoLuong_KH ?? 0);
+          const slTT = Number(found.TongSanLuong ?? found.tongSanLuong ?? found.TongSanLuongThucTe ?? found.tongSanLuongThucTe ?? found.sanLuongThucTe ?? found.SanLuong ?? found.sanluong ?? found.tongSX ?? found.soLuongSX ?? found.SoLuong_SX ?? 0);
+          const pctVal = found.TyLeHoanThanh != null ? Number(found.TyLeHoanThanh) : (slKH > 0 ? (slTT / slKH) * 100 : 0);
+          if (slKH > 0 || slTT > 0) {
+            const pct = Number(pctVal.toFixed(1));
+            return { ngay: `Ngày ${dStr}`, dayNum: dNum, KH: 100, TT: pct, slKH, slTT, pct };
+          }
+        }
+        return { ngay: `Ngày ${dStr}`, dayNum: dNum, KH: 0, TT: 0, slKH: 0, slTT: 0, pct: 0 };
+      });
+
+      setChartCvDailyData(mappedCV);
+      setLastUpdated(dayjs().format('HH:mm:ss DD/MM/YYYY'));
+    } catch (eCV) {
+      console.error(">>> [KeHoachSanXuatThang] Lỗi gọi API Cắt vải:", eCV);
+      const emptyCV = Array.from({ length: daysInMonth }, (_, i) => ({
+        ngay: `Ngày ${String(i + 1).padStart(2, '0')}`,
+        dayNum: i + 1,
         KH: 0,
         TT: 0,
         slKH: 0,
         slTT: 0,
         pct: 0
-      };
-    });
-
-    try {
-      const isCvMachine = machineToLoad ? machineToLoad.toUpperCase().includes('CV') : false;
-      const isThMachine = machineToLoad ? !isCvMachine : false;
-
-      // ── A. TẢI DỮ LIỆU CẮT VẢI (CV) ──
-      if (machineToLoad && isThMachine) {
-        // Đang chọn máy TH -> Cắt vải không áp dụng, gán rỗng
-        console.log(`>>> [KeHoachSanXuatThang] Chọn máy TH (${machineToLoad}) -> Cắt Vải gán rỗng`);
-        setChartCvDailyData(createEmptyDays());
-      } else {
-        let cvDailyRaw = [];
-        try {
-          if (isCvMachine) {
-            // Có chọn máy Cắt vải cụ thể
-            console.log(">>> [KeHoachSanXuatThang] Gọi getDailyStatsTheoMay:", { yearToLoad, monthToLoad, machineToLoad });
-            const res = await getDailyStatsTheoMay(yearToLoad, monthToLoad, machineToLoad);
-            console.log(">>> [KeHoachSanXuatThang] Kết quả getDailyStatsTheoMay:", res);
-            cvDailyRaw = (res && Array.isArray(res.data)) ? res.data : (Array.isArray(res) ? res : []);
-          } else {
-            // Không chọn máy (tất cả các máy)
-            console.log(">>> [KeHoachSanXuatThang] Gọi getCatVaiDailyStats:", { yearToLoad, monthToLoad });
-            const res = await getCatVaiDailyStats(yearToLoad, monthToLoad);
-            console.log(">>> [KeHoachSanXuatThang] Kết quả getCatVaiDailyStats:", res);
-            cvDailyRaw = (res && Array.isArray(res.data)) ? res.data : (Array.isArray(res) ? res : []);
-          }
-        } catch (eCV) {
-          console.error(">>> [KeHoachSanXuatThang] Lỗi gọi API Cắt vải:", eCV);
-        }
-
-        // Map dữ liệu vào các ngày trong tháng
-        const mappedCV = Array.from({ length: daysInMonth }, (_, i) => {
-          const dNum = i + 1;
-          const dStr = String(dNum).padStart(2, '0');
-          const found = cvDailyRaw.find(d => {
-            const rowDay = Number(d.Ngay_SX ?? d.ngay_sx ?? d.ngay ?? d.Ngay ?? d.day ?? d.Day ?? 0);
-            return rowDay === dNum;
-          });
-
-          if (found) {
-            const slKH = Number(found.TongKeHoachDieuChinh ?? found.TongKeHoach ?? found.TongKeHoachHieuLuc ?? found.keHoach ?? found.tongKH ?? found.soLuongKH ?? found.SoLuong_KH_DieuChinh ?? found.SoLuong_KH ?? 0);
-            const slTT = Number(found.TongSanLuong ?? found.tongSanLuong ?? found.TongSanLuongThucTe ?? found.tongSanLuongThucTe ?? found.sanLuongThucTe ?? found.SanLuong ?? found.sanluong ?? found.tongSX ?? found.soLuongSX ?? found.SoLuong_SX ?? 0);
-            if (slKH > 0 || slTT > 0) {
-              const pct = slKH > 0 ? Number(((slTT / slKH) * 100).toFixed(1)) : 0;
-              return { ngay: `Ngày ${dStr}`, dayNum: dNum, KH: 100, TT: pct, slKH, slTT, pct };
-            }
-          }
-          return { ngay: `Ngày ${dStr}`, dayNum: dNum, KH: 0, TT: 0, slKH: 0, slTT: 0, pct: 0 };
-        });
-
-        setChartCvDailyData(mappedCV);
-      }
-
-      // ── B. TẢI DỮ LIỆU THÀNH HÌNH (TH) ──
-      if (machineToLoad && isCvMachine) {
-        // Đang chọn máy CV -> Thành hình không áp dụng, gán rỗng
-        console.log(`>>> [KeHoachSanXuatThang] Chọn máy CV (${machineToLoad}) -> Thành Hình gán rỗng`);
-        setChartThDailyData(createEmptyDays());
-      } else {
-        let thDailyRaw = [];
-        try {
-          const startShift = Number(`${yearToLoad}${mmStr}011`);
-          const endShift = Number(`${yearToLoad}${mmStr}${String(daysInMonth).padStart(2, '0')}2`);
-          const thParam = isThMachine ? machineToLoad : null;
-
-          console.log(">>> [KeHoachSanXuatThang] Gọi getTongHopCaNgay:", { startShift, endShift, maMay: thParam });
-          const res = await getTongHopCaNgay({ startShift, endShift, maMay: thParam });
-          console.log(">>> [KeHoachSanXuatThang] Kết quả getTongHopCaNgay:", res);
-
-          thDailyRaw = (res && Array.isArray(res.data)) ? res.data : (Array.isArray(res) ? res : []);
-        } catch (eTH) {
-          console.error(">>> [KeHoachSanXuatThang] Lỗi gọi getTongHopCaNgay:", eTH);
-        }
-
-        // Gom các ca của từng ngày lại
-        const dayMapTH = new Map();
-        thDailyRaw.forEach(row => {
-          let dayNum = 0;
-          if (row.yearMonthDay) {
-            dayNum = Number(String(row.yearMonthDay).slice(-2));
-          } else if (row.Ngay_SX || row.ngay_sx) {
-            dayNum = Number(row.Ngay_SX || row.ngay_sx);
-          }
-
-          if (dayNum > 0 && dayNum <= daysInMonth) {
-            if (!dayMapTH.has(dayNum)) {
-              dayMapTH.set(dayNum, { kh: 0, tt: 0 });
-            }
-            const cur = dayMapTH.get(dayNum);
-            const khVal = Number(row.SoLuong_KH_DieuChinh || row.soLuongKHDieuChinh || row.SoLuong_KH || row.soLuongKH || row.tongKH || 0);
-            const ttVal = Number(row.SoLuong_SX || row.soLuongSX || row.sanluongLopSX || row.tongSX || 0);
-            cur.kh += khVal;
-            cur.tt += ttVal;
-          }
-        });
-
-        // Nếu API getTongHopCaNgay rỗng, thử gọi fallback getWeeklyProgress
-        if (dayMapTH.size === 0 && !isThMachine) {
-          try {
-            console.log(">>> [KeHoachSanXuatThang] Thử fallback getWeeklyProgress:", { yearToLoad, monthToLoad });
-            const wpRes = await getWeeklyProgress(yearToLoad, monthToLoad);
-            console.log(">>> [KeHoachSanXuatThang] Kết quả getWeeklyProgress:", wpRes);
-            const wpList = (wpRes && Array.isArray(wpRes.data)) ? wpRes.data : (Array.isArray(wpRes) ? wpRes : []);
-            wpList.forEach(w => {
-              const dNum = Number(w.ngay || w.Ngay_SX || 0);
-              if (dNum > 0 && dNum <= daysInMonth) {
-                dayMapTH.set(dNum, {
-                  kh: Number(w.tongKH || 0),
-                  tt: Number(w.tongSX || 0)
-                });
-              }
-            });
-          } catch (eWP) {
-            console.error(">>> [KeHoachSanXuatThang] Lỗi fallback getWeeklyProgress:", eWP);
-          }
-        }
-
-        // Map vào danh sách các ngày trong tháng
-        const mappedTH = Array.from({ length: daysInMonth }, (_, i) => {
-          const dNum = i + 1;
-          const dStr = String(dNum).padStart(2, '0');
-          const found = dayMapTH.get(dNum);
-
-          if (found && (found.kh > 0 || found.tt > 0)) {
-            const pct = found.kh > 0 ? Number(((found.tt / found.kh) * 100).toFixed(1)) : 0;
-            return { ngay: `Ngày ${dStr}`, dayNum: dNum, KH: 100, TT: pct, slKH: found.kh, slTT: found.tt, pct };
-          }
-          return { ngay: `Ngày ${dStr}`, dayNum: dNum, KH: 0, TT: 0, slKH: 0, slTT: 0, pct: 0 };
-        });
-
-        setChartThDailyData(mappedTH);
-      }
-
-      setLastUpdated(dayjs().format('HH:mm:ss DD/MM/YYYY'));
-    } catch (error) {
-      console.error(">>> [KeHoachSanXuatThang] Lỗi khi tải dữ liệu kế hoạch tháng:", error);
+      }));
+      setChartCvDailyData(emptyCV);
     } finally {
-      setIsLoading(false);
+      setIsLoadingCv(false);
     }
   }, []);
 
-  // 3. Tự động tải dữ liệu khi thay đổi Năm, Tháng hoặc Máy
-  useEffect(() => {
-    loadMonthData(selectedYear, selectedMonth, selectedMachine);
-  }, [selectedYear, selectedMonth, selectedMachine, loadMonthData]);
+  // 2B. Hàm tải dữ liệu theo từng ngày trong tháng của THÀNH HÌNH độc lập
+  const loadThMonthData = useCallback(async (yearToLoad, monthToLoad, thMachineToLoad) => {
+    setIsLoadingTh(true);
+    console.log(`>>> [KeHoachSanXuatThang] [THÀNH HÌNH] Tải dữ liệu: Tháng ${monthToLoad}/${yearToLoad}, Máy TH=${thMachineToLoad || 'TẤT CẢ'}`);
 
-  // Xử lý nút Xem lại / Làm mới
+    const daysInMonth = new Date(yearToLoad, monthToLoad, 0).getDate();
+    const mmStr = String(monthToLoad).padStart(2, '0');
+
+    try {
+      const startShift = Number(`${yearToLoad}${mmStr}011`);
+      const endShift = Number(`${yearToLoad}${mmStr}${String(daysInMonth).padStart(2, '0')}2`);
+      const thParam = thMachineToLoad || null;
+
+      console.log(">>> [KeHoachSanXuatThang] Gọi getTongHopCaNgay:", { startShift, endShift, maMay: thParam });
+      const res = await getTongHopCaNgay({ startShift, endShift, maMay: thParam });
+      console.log(">>> [KeHoachSanXuatThang] Kết quả getTongHopCaNgay:", res);
+
+      const thDailyRaw = (res && Array.isArray(res.data)) ? res.data : (Array.isArray(res) ? res : []);
+
+      // Gom các ca của từng ngày lại
+      const dayMapTH = new Map();
+      thDailyRaw.forEach(row => {
+        let dayNum = 0;
+        if (row.yearMonthDay) {
+          dayNum = Number(String(row.yearMonthDay).slice(-2));
+        } else if (row.Ngay_SX || row.ngay_sx) {
+          dayNum = Number(row.Ngay_SX || row.ngay_sx);
+        }
+
+        if (dayNum > 0 && dayNum <= daysInMonth) {
+          if (!dayMapTH.has(dayNum)) {
+            dayMapTH.set(dayNum, { kh: 0, tt: 0 });
+          }
+          const cur = dayMapTH.get(dayNum);
+          const khVal = Number(row.SoLuong_KH_DieuChinh || row.soLuongKHDieuChinh || row.SoLuong_KH || row.soLuongKH || row.tongKH || 0);
+          const ttVal = Number(row.SoLuong_SX || row.soLuongSX || row.sanluongLopSX || row.tongSX || 0);
+          cur.kh += khVal;
+          cur.tt += ttVal;
+        }
+      });
+
+      // Nếu API getTongHopCaNgay rỗng và xem tất cả máy, thử fallback getWeeklyProgress
+      if (dayMapTH.size === 0 && !thMachineToLoad) {
+        try {
+          console.log(">>> [KeHoachSanXuatThang] Thử fallback getWeeklyProgress:", { yearToLoad, monthToLoad });
+          const wpRes = await getWeeklyProgress(yearToLoad, monthToLoad);
+          console.log(">>> [KeHoachSanXuatThang] Kết quả getWeeklyProgress:", wpRes);
+          const wpList = (wpRes && Array.isArray(wpRes.data)) ? wpRes.data : (Array.isArray(wpRes) ? wpRes : []);
+          wpList.forEach(w => {
+            const dNum = Number(w.ngay || w.Ngay_SX || 0);
+            if (dNum > 0 && dNum <= daysInMonth) {
+              dayMapTH.set(dNum, {
+                kh: Number(w.tongKH || 0),
+                tt: Number(w.tongSX || 0)
+              });
+            }
+          });
+        } catch (eWP) {
+          console.error(">>> [KeHoachSanXuatThang] Lỗi fallback getWeeklyProgress:", eWP);
+        }
+      }
+
+      // Map vào danh sách các ngày trong tháng
+      const mappedTH = Array.from({ length: daysInMonth }, (_, i) => {
+        const dNum = i + 1;
+        const dStr = String(dNum).padStart(2, '0');
+        const found = dayMapTH.get(dNum);
+
+        if (found && (found.kh > 0 || found.tt > 0)) {
+          const pct = found.kh > 0 ? Number(((found.tt / found.kh) * 100).toFixed(1)) : 0;
+          return { ngay: `Ngày ${dStr}`, dayNum: dNum, KH: 100, TT: pct, slKH: found.kh, slTT: found.tt, pct };
+        }
+        return { ngay: `Ngày ${dStr}`, dayNum: dNum, KH: 0, TT: 0, slKH: 0, slTT: 0, pct: 0 };
+      });
+
+      setChartThDailyData(mappedTH);
+      setLastUpdated(dayjs().format('HH:mm:ss DD/MM/YYYY'));
+    } catch (error) {
+      console.error(">>> [KeHoachSanXuatThang] Lỗi khi tải dữ liệu kế hoạch tháng Thành Hình:", error);
+    } finally {
+      setIsLoadingTh(false);
+    }
+  }, []);
+
+  // Tải dữ liệu Cắt Vải khi Năm, Tháng hoặc Máy Cắt Vải thay đổi (KHÔNG ẢNH HƯỞNG THÀNH HÌNH)
+  useEffect(() => {
+    loadCvMonthData(selectedYear, selectedMonth, selectedCvMachine);
+  }, [selectedYear, selectedMonth, selectedCvMachine, loadCvMonthData]);
+
+  // Tải dữ liệu Thành Hình khi Năm, Tháng hoặc Máy Thành Hình thay đổi (KHÔNG ẢNH HƯỞNG CẮT VẢI)
+  useEffect(() => {
+    loadThMonthData(selectedYear, selectedMonth, selectedThMachine);
+  }, [selectedYear, selectedMonth, selectedThMachine, loadThMonthData]);
+
+  // Xử lý nút Xem lại / Làm mới (Tải lại cả 2 công đoạn)
   const handleRefresh = () => {
-    loadMonthData(selectedYear, selectedMonth, selectedMachine);
+    loadCvMonthData(selectedYear, selectedMonth, selectedCvMachine);
+    loadThMonthData(selectedYear, selectedMonth, selectedThMachine);
   };
 
   // Xử lý nút Mặc định / Xóa lọc
   const handleResetFilter = () => {
     setSelectedYear(currentYearNow);
     setSelectedMonth(currentMonthNow);
-    setSelectedMachine('');
+    setSelectedCvMachine('');
+    setSelectedThMachine('');
   };
 
   // 4. Tính toán tổng KPI cả tháng cho Cắt Vải
@@ -851,15 +848,21 @@ const KeHoachSanXuatThang = () => {
     return { totalKH, totalTT, pct };
   }, [chartThDailyData]);
 
-  // Nhãn hiển thị của máy đang chọn (kèm EquipmentName + EquipmentID)
-  const selectedMachineDisplay = useMemo(() => {
-    if (!selectedMachine) return 'Toàn bộ xưởng CV-TH';
-    const foundTH = thMachineList.find(m => m.value === selectedMachine);
-    if (foundTH) return foundTH.label;
-    const foundCV = cvMachineList.find(m => m.value === selectedMachine);
-    if (foundCV) return foundCV.label;
-    return `Máy ${selectedMachine}`;
-  }, [selectedMachine, thMachineList, cvMachineList]);
+  // Nhãn hiển thị của máy CV đang chọn
+  const selectedCvMachineDisplay = useMemo(() => {
+    if (!selectedCvMachine) return 'Tất cả máy Cắt vải';
+    const foundCV = cvMachineList.find(m => m.value === selectedCvMachine);
+    return foundCV ? foundCV.label : `Máy ${selectedCvMachine}`;
+  }, [selectedCvMachine, cvMachineList]);
+
+  // Nhãn hiển thị của máy TH đang chọn
+  const selectedThMachineDisplay = useMemo(() => {
+    if (!selectedThMachine) return 'Tất cả máy Thành hình';
+    const foundTH = thMachineList.find(m => m.value === selectedThMachine);
+    return foundTH ? foundTH.label : `Máy ${selectedThMachine}`;
+  }, [selectedThMachine, thMachineList]);
+
+  const isLoadingTotal = isLoadingCv || isLoadingTh;
 
   return (
     <div className="drc-month-container mes-fade">
@@ -873,11 +876,11 @@ const KeHoachSanXuatThang = () => {
         </div>
         <div className="drc-header-meta">
           <span>Cập nhật lúc: <strong>{lastUpdated || 'Đang tải...'}</strong></span>
-          {isLoading && <span style={{ color: '#0284c7', fontWeight: 800 }}>• Đang xử lý...</span>}
+          {isLoadingTotal && <span style={{ color: '#0284c7', fontWeight: 800 }}>• Đang xử lý...</span>}
         </div>
       </div>
 
-      {/* ── 2. FILTER BAR (CHỌN NĂM, THÁNG & MÁY) ── */}
+      {/* ── 2. FILTER BAR CHUNG (CHỌN NĂM, THÁNG & NÚT ĐIỀU KHIỂN) ── */}
       <div className="drc-filter-bar">
         <div className="drc-filter-group">
           {/* Chọn Năm */}
@@ -908,35 +911,12 @@ const KeHoachSanXuatThang = () => {
             </select>
           </div>
 
-          {/* Chọn Máy */}
-          <div className="drc-field">
-            <span className="drc-label"><FaCogs color="#16a34a" /> Thiết bị / Máy:</span>
-            <select
-              className="drc-select"
-              style={{ minWidth: '240px' }}
-              value={selectedMachine}
-              onChange={(e) => setSelectedMachine(e.target.value)}
-            >
-              <option value="">-- Tất cả các máy --</option>
-              <optgroup label="Công đoạn Thành hình">
-                {thMachineList.map(m => (
-                  <option key={`opt-th-${m.value}`} value={m.value}>{m.label}</option>
-                ))}
-              </optgroup>
-              <optgroup label="Công đoạn Cắt vải (Tên máy & Mã ID)">
-                {cvMachineList.map(m => (
-                  <option key={`opt-cv-${m.value}`} value={m.value}>{m.label}</option>
-                ))}
-              </optgroup>
-            </select>
-          </div>
-
           {/* Nút Xem báo cáo */}
           <button className="drc-btn drc-btn-primary" onClick={handleRefresh}>
             <FaSearch /> Xem báo cáo
           </button>
 
-          {/* Nút Xóa lọc */}
+          {/* Nút Mặc định */}
           <button className="drc-btn drc-btn-secondary" onClick={handleResetFilter}>
             <FaRedo /> Mặc định
           </button>
@@ -944,7 +924,7 @@ const KeHoachSanXuatThang = () => {
 
         {/* Thông tin phạm vi đang lọc */}
         <div style={{ fontSize: '11.5px', fontWeight: '700', color: '#475569' }}>
-          Đang hiển thị: <span style={{ color: '#0369a1' }}>{selectedMachineDisplay}</span> • Tháng {selectedMonth}/{selectedYear}
+          Đang xem: <span style={{ color: '#0284c7' }}>{selectedCvMachineDisplay}</span> & <span style={{ color: '#16a34a' }}>{selectedThMachineDisplay}</span> • Tháng {selectedMonth}/{selectedYear}
         </div>
       </div>
 
@@ -1060,61 +1040,69 @@ const KeHoachSanXuatThang = () => {
       {/* ── 4. BIỂU ĐỒ THEO DÕI KHSX CÔNG ĐOẠN CẮT VẢI THEO NGÀY TRONG THÁNG ── */}
       <div className="drc-chart-card">
         <div className="drc-chart-head">
-          <FaChartBar />
-          <span>BIỂU ĐỒ THEO DÕI KẾ HOẠCH SẢN XUẤT - CÔNG ĐOẠN CV THÁNG {selectedMonth}/{selectedYear} {selectedMachine ? `[${selectedMachineDisplay}]` : '[TẤT CẢ CÁC MÁY]'}</span>
-          <span className="drc-chart-scroll-hint">⟷ Kéo thanh trượt ngang để xem đủ {chartCvDailyData.length} ngày</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <FaChartBar color="#0284c7" />
+            <span style={{ fontWeight: 900 }}>BIỂU ĐỒ KẾ HOẠCH SẢN XUẤT - CÔNG ĐOẠN CẮT VẢI THÁNG {selectedMonth}/{selectedYear}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
+            <select
+              className="drc-select"
+              style={{ height: '26px', minWidth: '180px', borderColor: '#0284c7', fontSize: '11.5px', background: '#f0f9ff' }}
+              value={selectedCvMachine}
+              onChange={(e) => setSelectedCvMachine(e.target.value)}
+            >
+              <option value="">-- Tất cả máy Cắt vải --</option>
+              {cvMachineList.map(m => (
+                <option key={`opt-cv-chart-${m.value}`} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+          </div>
         </div>
         <div className="drc-chart-body">
-          {selectedMachine && !selectedMachine.toUpperCase().includes('CV') ? (
-            <div className="drc-empty-notice">
-              <span>⚠️ Đang chọn <strong>{selectedMachineDisplay}</strong> (thuộc công đoạn Thành hình), không có số liệu Cắt vải.</span>
-            </div>
-          ) : (
-            <div className="drc-daychart-scroll">
-              <div style={{ width: `${chartCvDailyData.length * 115 + 60}px`, minWidth: '100%', height: '100%', position: 'relative' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={chartCvDailyData}
-                    margin={{ top: 26, right: 20, left: -10, bottom: 0 }}
-                    barGap={8}
-                    barSize={32}
-                    maxBarSize={34}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                    <XAxis
-                      dataKey="ngay"
-                      tickFormatter={(val) => val.replace('Ngày ', '')}
-                      tick={{ fontSize: 11, fill: '#334155', fontWeight: 800 }}
-                      tickLine={false}
-                      axisLine={{ stroke: '#cbd5e1' }}
-                      interval={0}
-                    />
-                    <YAxis
-                      domain={[0, 130]}
-                      ticks={[0, 25, 50, 75, 100]}
-                      tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }}
-                      tickLine={false}
-                      axisLine={{ stroke: '#cbd5e1' }}
-                      unit="%"
-                    />
-                    <Tooltip content={<CustomDailyChartTooltip unit="BTP" />} />
+          <div className="drc-daychart-scroll">
+            <div style={{ width: `${chartCvDailyData.length * 115 + 60}px`, minWidth: '100%', height: '100%', position: 'relative' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={chartCvDailyData}
+                  margin={{ top: 26, right: 20, left: -10, bottom: 0 }}
+                  barGap={8}
+                  barSize={32}
+                  maxBarSize={34}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis
+                    dataKey="ngay"
+                    tickFormatter={(val) => val.replace('Ngày ', '')}
+                    tick={{ fontSize: 11, fill: '#334155', fontWeight: 800 }}
+                    tickLine={false}
+                    axisLine={{ stroke: '#cbd5e1' }}
+                    interval={0}
+                  />
+                  <YAxis
+                    domain={[0, 130]}
+                    ticks={[0, 25, 50, 75, 100]}
+                    tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }}
+                    tickLine={false}
+                    axisLine={{ stroke: '#cbd5e1' }}
+                    unit="%"
+                  />
+                  <Tooltip content={<CustomDailyChartTooltip unit="BTP" />} />
 
-                    {/* Cột Kế hoạch */}
-                    <Bar dataKey="KH" name="KẾ HOẠCH" fill="#0070c0" radius={[3, 3, 0, 0]} isAnimationActive={false}>
-                      <LabelList content={(props) => renderKhBarLabel(props, chartCvDailyData)} />
-                    </Bar>
-                    {/* Cột Thực tế */}
-                    <Bar dataKey="TT" name="THỰC TẾ" radius={[3, 3, 0, 0]} isAnimationActive={false}>
-                      {chartCvDailyData.map((entry, index) => (
-                        <Cell key={`cell-cv-daily-${index}`} fill={getDayBarColor(entry.pct, entry.slTT)} />
-                      ))}
-                      <LabelList content={(props) => renderTtBarLabel(props, chartCvDailyData)} />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+                  {/* Cột Kế hoạch */}
+                  <Bar dataKey="KH" name="KẾ HOẠCH" fill="#0070c0" radius={[3, 3, 0, 0]} isAnimationActive={false}>
+                    <LabelList content={(props) => renderKhBarLabel(props, chartCvDailyData)} />
+                  </Bar>
+                  {/* Cột Thực tế */}
+                  <Bar dataKey="TT" name="THỰC TẾ" radius={[3, 3, 0, 0]} isAnimationActive={false}>
+                    {chartCvDailyData.map((entry, index) => (
+                      <Cell key={`cell-cv-daily-${index}`} fill={getDayBarColor(entry.pct, entry.slTT)} />
+                    ))}
+                    <LabelList content={(props) => renderTtBarLabel(props, chartCvDailyData)} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-          )}
+          </div>
         </div>
         <div className="drc-chart-legend">
           <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -1147,61 +1135,69 @@ const KeHoachSanXuatThang = () => {
       {/* ── 5. BIỂU ĐỒ THEO DÕI KHSX CÔNG ĐOẠN THÀNH HÌNH THEO NGÀY TRONG THÁNG ── */}
       <div className="drc-chart-card">
         <div className="drc-chart-head">
-          <FaChartBar />
-          <span>BIỂU ĐỒ THEO DÕI KẾ HOẠCH SẢN XUẤT - CÔNG ĐOẠN TH THÁNG {selectedMonth}/{selectedYear} {selectedMachine ? `[${selectedMachineDisplay}]` : '[TẤT CẢ CÁC MÁY]'}</span>
-          <span className="drc-chart-scroll-hint">⟷ Kéo thanh trượt ngang để xem đủ {chartThDailyData.length} ngày</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <FaChartBar color="#16a34a" />
+            <span style={{ fontWeight: 900 }}>BIỂU ĐỒ KẾ HOẠCH SẢN XUẤT - CÔNG ĐOẠN THÀNH HÌNH THÁNG {selectedMonth}/{selectedYear}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
+            <select
+              className="drc-select"
+              style={{ height: '26px', minWidth: '160px', borderColor: '#16a34a', fontSize: '11.5px', background: '#f0fdf4' }}
+              value={selectedThMachine}
+              onChange={(e) => setSelectedThMachine(e.target.value)}
+            >
+              <option value="">-- Tất cả máy Thành hình --</option>
+              {thMachineList.map(m => (
+                <option key={`opt-th-chart-${m.value}`} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+          </div>
         </div>
         <div className="drc-chart-body">
-          {selectedMachine && selectedMachine.toUpperCase().includes('CV') ? (
-            <div className="drc-empty-notice">
-              <span>⚠️ Đang chọn <strong>{selectedMachineDisplay}</strong> (thuộc công đoạn Cắt vải), không có số liệu Thành hình.</span>
-            </div>
-          ) : (
-            <div className="drc-daychart-scroll">
-              <div style={{ width: `${chartThDailyData.length * 115 + 60}px`, minWidth: '100%', height: '100%', position: 'relative' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={chartThDailyData}
-                    margin={{ top: 26, right: 20, left: -10, bottom: 0 }}
-                    barGap={8}
-                    barSize={32}
-                    maxBarSize={34}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                    <XAxis
-                      dataKey="ngay"
-                      tickFormatter={(val) => val.replace('Ngày ', '')}
-                      tick={{ fontSize: 11, fill: '#334155', fontWeight: 800 }}
-                      tickLine={false}
-                      axisLine={{ stroke: '#cbd5e1' }}
-                      interval={0}
-                    />
-                    <YAxis
-                      domain={[0, 130]}
-                      ticks={[0, 25, 50, 75, 100]}
-                      tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }}
-                      tickLine={false}
-                      axisLine={{ stroke: '#cbd5e1' }}
-                      unit="%"
-                    />
-                    <Tooltip content={<CustomDailyChartTooltip unit="lốp" />} />
+          <div className="drc-daychart-scroll">
+            <div style={{ width: `${chartThDailyData.length * 115 + 60}px`, minWidth: '100%', height: '100%', position: 'relative' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={chartThDailyData}
+                  margin={{ top: 26, right: 20, left: -10, bottom: 0 }}
+                  barGap={8}
+                  barSize={32}
+                  maxBarSize={34}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis
+                    dataKey="ngay"
+                    tickFormatter={(val) => val.replace('Ngày ', '')}
+                    tick={{ fontSize: 11, fill: '#334155', fontWeight: 800 }}
+                    tickLine={false}
+                    axisLine={{ stroke: '#cbd5e1' }}
+                    interval={0}
+                  />
+                  <YAxis
+                    domain={[0, 130]}
+                    ticks={[0, 25, 50, 75, 100]}
+                    tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }}
+                    tickLine={false}
+                    axisLine={{ stroke: '#cbd5e1' }}
+                    unit="%"
+                  />
+                  <Tooltip content={<CustomDailyChartTooltip unit="lốp" />} />
 
-                    {/* Cột Kế hoạch */}
-                    <Bar dataKey="KH" name="KẾ HOẠCH" fill="#0070c0" radius={[3, 3, 0, 0]} isAnimationActive={false}>
-                      <LabelList content={(props) => renderKhBarLabel(props, chartThDailyData)} />
-                    </Bar>
-                    {/* Cột Thực tế */}
-                    <Bar dataKey="TT" name="THỰC TẾ" radius={[3, 3, 0, 0]} isAnimationActive={false}>
-                      {chartThDailyData.map((entry, index) => (
-                        <Cell key={`cell-th-daily-${index}`} fill={getDayBarColor(entry.pct, entry.slTT)} />
-                      ))}
-                      <LabelList content={(props) => renderTtBarLabel(props, chartThDailyData)} />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+                  {/* Cột Kế hoạch */}
+                  <Bar dataKey="KH" name="KẾ HOẠCH" fill="#0070c0" radius={[3, 3, 0, 0]} isAnimationActive={false}>
+                    <LabelList content={(props) => renderKhBarLabel(props, chartThDailyData)} />
+                  </Bar>
+                  {/* Cột Thực tế */}
+                  <Bar dataKey="TT" name="THỰC TẾ" radius={[3, 3, 0, 0]} isAnimationActive={false}>
+                    {chartThDailyData.map((entry, index) => (
+                      <Cell key={`cell-th-daily-${index}`} fill={getDayBarColor(entry.pct, entry.slTT)} />
+                    ))}
+                    <LabelList content={(props) => renderTtBarLabel(props, chartThDailyData)} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-          )}
+          </div>
         </div>
         <div className="drc-chart-legend">
           <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>

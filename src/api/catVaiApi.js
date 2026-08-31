@@ -279,5 +279,81 @@ export const getBtpTheoMay = async (maMay, namThangNgayCaNhapKho) => {
   }
 };
 
+// Helper chuẩn hóa mã máy Cắt Vải sang dạng 2 chữ số '01', '02', '03'... (Ví dụ: 'ORC-CV-01' -> '01', 'CV-02' -> '02', '1' -> '01')
+export const normalizeCatVaiMachineCode = (maMay) => {
+  if (!maMay) return null;
+  const str = String(maMay).trim();
+  if (!str) return null;
+  const match = str.match(/\d+/);
+  if (match) {
+    return match[0].padStart(2, '0');
+  }
+  return str;
+};
+
+// 19. API 1: Lấy sản lượng 5 năm kể từ năm được chọn cho Cắt Vải (GET /api/catvai/production-5-years)
+export const getProductionQuantityFor5YearsCatVai = async ({ selectedYear, maMay = null }) => {
+  try {
+    const normMaMay = normalizeCatVaiMachineCode(maMay);
+    console.log(`[catVaiApi] getProductionQuantityFor5YearsCatVai: selectedYear=${selectedYear}, maMay=${normMaMay} (gốc: ${maMay})`);
+    const params = { selectedYear };
+    if (normMaMay) params.maMay = normMaMay;
+    const res = await api.get("/api/catvai/production-5-years", { params });
+    console.log("[catVaiApi] getProductionQuantityFor5YearsCatVai response:", res.data);
+    return res.data;
+  } catch (error) {
+    console.error("[catVaiApi] getProductionQuantityFor5YearsCatVai lỗi:", error);
+    throw error.response?.data || { message: "Không thể lấy sản lượng cắt vải 5 năm" };
+  }
+};
+
+// 20. API 2: Lấy kế hoạch điều chỉnh, sản lượng và tỷ lệ hoàn thành các tháng trong năm (GET /api/catvai/monthly-stats-for-year)
+export const getMonthlyStatsForYearCatVai = async ({ nam_sx, maMay = null }) => {
+  try {
+    const normMaMay = normalizeCatVaiMachineCode(maMay);
+    console.log(`[catVaiApi] getMonthlyStatsForYearCatVai: nam_sx=${nam_sx}, maMay=${normMaMay} (gốc: ${maMay})`);
+    const params = { nam_sx };
+    if (normMaMay) params.maMay = normMaMay;
+    const res = await api.get("/api/catvai/monthly-stats-for-year", { params });
+    console.log("[catVaiApi] getMonthlyStatsForYearCatVai response:", res.data);
+    return res.data;
+  } catch (error) {
+    console.error("[catVaiApi] getMonthlyStatsForYearCatVai lỗi:", error);
+    throw error.response?.data || { message: "Không thể lấy thống kê cắt vải các tháng trong năm" };
+  }
+};
+
+// 21. API 3: Lấy kế hoạch điều chỉnh, sản lượng và tỷ lệ hoàn thành các ngày trong tháng (GET /api/catvai/daily-stats-for-month)
+export const getDailyStatsForMonthCatVai = async ({ nam_sx, thang_sx, maMay = null }) => {
+  try {
+    const normMaMay = normalizeCatVaiMachineCode(maMay);
+    console.log(`[catVaiApi] getDailyStatsForMonthCatVai: nam_sx=${nam_sx}, thang_sx=${thang_sx}, maMay=${normMaMay} (gốc: ${maMay})`);
+    const params = { nam_sx, thang_sx };
+    if (normMaMay) params.maMay = normMaMay;
+    const res = await api.get("/api/catvai/daily-stats-for-month", { params });
+    console.log("[catVaiApi] getDailyStatsForMonthCatVai response:", res.data);
+    return res.data;
+  } catch (error) {
+    console.error("[catVaiApi] getDailyStatsForMonthCatVai lỗi:", error);
+    throw error.response?.data || { message: "Không thể lấy thống kê cắt vải các ngày trong tháng" };
+  }
+};
+
+// 22. API 4: Lấy kế hoạch điều chỉnh, sản lượng và tỷ lệ hoàn thành các ca trong tháng (GET /api/catvai/shift-stats-for-month)
+export const getShiftStatsForMonthCatVai = async ({ nam_sx, thang_sx, maMay = null }) => {
+  try {
+    const normMaMay = normalizeCatVaiMachineCode(maMay);
+    console.log(`[catVaiApi] getShiftStatsForMonthCatVai: nam_sx=${nam_sx}, thang_sx=${thang_sx}, maMay=${normMaMay} (gốc: ${maMay})`);
+    const params = { nam_sx, thang_sx };
+    if (normMaMay) params.maMay = normMaMay;
+    const res = await api.get("/api/catvai/shift-stats-for-month", { params });
+    console.log("[catVaiApi] getShiftStatsForMonthCatVai response:", res.data);
+    return res.data;
+  } catch (error) {
+    console.error("[catVaiApi] getShiftStatsForMonthCatVai lỗi:", error);
+    throw error.response?.data || { message: "Không thể lấy thống kê cắt vải theo ca trong tháng" };
+  }
+};
+
 
 

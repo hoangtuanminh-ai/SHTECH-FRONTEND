@@ -7,7 +7,7 @@ import {
 } from 'recharts';
 import { FaCalendarAlt, FaSearch, FaRedo, FaCogs, FaChartBar } from 'react-icons/fa';
 import { getKeHoachTrend } from '../../api/kehoachApi';
-import { getCatVaiMonthlyStats, getCatVaiEquipments } from '../../api/catVaiApi';
+import { getMonthlyStatsForYearCatVai, getCatVaiEquipments } from '../../api/catVaiApi';
 import { getMachinesWithStats, getDanhSachMay } from '../../api/thanhhinhApi';
 
 /* ─── STYLESHEET CHUẨN MES / INDUSTRIAL CHO TRANG KẾ HOẠCH NĂM ─────────────── */
@@ -279,20 +279,65 @@ const css = `
     color: #ffffff;
     font-size: 12.5px;
     font-weight: 900;
-    text-align: center;
-    padding: 6px 12px;
+    text-align: left;
+    padding: 6px 14px;
     letter-spacing: 0.4px;
     text-transform: uppercase;
     border-bottom: 2px solid #0f172a;
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 8px;
+    justify-content: space-between;
+    gap: 12px;
+    position: relative;
+  }
+  .drc-chart-scroll-hint {
+    font-size: 10px;
+    font-weight: 700;
+    color: #93c5fd;
+    text-transform: none;
+    letter-spacing: 0;
+    position: absolute;
+    right: 12px;
+    display: none;
+  }
+  @media (max-width: 768px) {
+    .drc-chart-scroll-hint { display: inline-block; }
   }
   .drc-chart-body {
-    height: 250px;
+    height: 260px;
     padding: 8px 10px 4px 6px;
     position: relative;
+  }
+  .drc-year-chart-scroll {
+    width: 100%;
+    height: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #0284c7 #f1f5f9;
+    -webkit-overflow-scrolling: touch;
+  }
+  .drc-year-chart-scroll::-webkit-scrollbar {
+    height: 6px;
+  }
+  .drc-year-chart-scroll::-webkit-scrollbar-track {
+    background: #f1f5f9;
+  }
+  .drc-year-chart-scroll::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 3px;
+  }
+  .drc-year-chart-canvas {
+    width: 100%;
+    min-width: 100%;
+    height: 100%;
+    position: relative;
+  }
+  @media (max-width: 768px) {
+    .drc-year-chart-canvas {
+      width: 1080px; /* 12 tháng x 90px = 1080px -> Màn hình điện thoại 360px hiển thị rõ đúng 3-4 tháng */
+      min-width: 1080px;
+    }
   }
   .drc-chart-legend {
     background: #f8fafc;
@@ -455,9 +500,12 @@ const CustomYearChartTooltip = ({ active, payload, label, unit = 'lốp' }) => {
 const KeHoachSanXuatNam = () => {
   const currentYearNow = dayjs().year();
 
-  // State bộ lọc
+  // State bộ lọc Năm chung
   const [selectedYear, setSelectedYear] = useState(currentYearNow);
-  const [selectedMachine, setSelectedMachine] = useState(''); // '' = Tất cả các máy
+
+  // State bộ lọc Máy tách riêng biệt cho từng công đoạn
+  const [selectedCvMachine, setSelectedCvMachine] = useState(''); // '' = Tất cả máy Cắt Vải
+  const [selectedThMachine, setSelectedThMachine] = useState(''); // '' = Tất cả máy Thành Hình
 
   // State danh sách máy
   const [thMachineList, setThMachineList] = useState([]);
@@ -466,7 +514,8 @@ const KeHoachSanXuatNam = () => {
   // State dữ liệu biểu đồ
   const [chartCvYearData, setChartCvYearData] = useState(EMPTY_12_MONTHS);
   const [chartThYearData, setChartThYearData] = useState(EMPTY_12_MONTHS);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingCv, setIsLoadingCv] = useState(false);
+  const [isLoadingTh, setIsLoadingTh] = useState(false);
   const [lastUpdated, setLastUpdated] = useState('');
 
   // Danh sách các năm lựa chọn (từ 5 năm trước đến 2 năm sau)
@@ -562,7 +611,7 @@ const KeHoachSanXuatNam = () => {
         setCvMachineList(cvItems);
 
         console.log(">>> [KeHoachSanXuatNam] Danh sách máy TH từ API:", thItems);
-        console.log(">>> [KeHoachSanXuatNam] Danh sách máy CV từ API (có EquipmentName + EquipmentID):", cvItems);
+        console.log(">>> [KeHoachSanXuatNam] Danh sách máy CV từ API:", cvItems);
       } catch (err) {
         console.error(">>> [KeHoachSanXuatNam] Lỗi tải danh sách máy:", err);
       }
@@ -571,105 +620,103 @@ const KeHoachSanXuatNam = () => {
     fetchMachineLists();
   }, []);
 
-  // 2. Hàm tải dữ liệu báo cáo 12 tháng theo Năm và Máy đã chọn
-  const loadYearData = useCallback(async (yearToLoad, machineToLoad) => {
-    setIsLoading(true);
-    console.log(`>>> [KeHoachSanXuatNam] Bắt đầu tải dữ liệu: Năm=${yearToLoad}, Máy=${machineToLoad || 'TẤT CẢ'}`);
+  // 2A. Hàm tải dữ liệu báo cáo 12 tháng CẮT VẢI độc lập (Sử dụng API 2: getMonthlyStatsForYearCatVai)
+  const loadCvYearData = useCallback(async (yearToLoad, cvMachineToLoad) => {
+    setIsLoadingCv(true);
+    console.log(`>>> [KeHoachSanXuatNam] [CẮT VẢI] Tải dữ liệu API mới: Năm=${yearToLoad}, Máy CV=${cvMachineToLoad || 'TẤT CẢ'}`);
 
     try {
-      // Phân biệt công đoạn của máy đã chọn:
-      // Máy CV là máy có chứa chữ CV (ví dụ ORC-CV-01). Máy TH là mã máy 2 chữ số (01, 02, 03...)
-      const isCvMachine = machineToLoad ? machineToLoad.toUpperCase().includes('CV') : false;
-      const isThMachine = machineToLoad ? !isCvMachine : false;
+      const cvParamMachine = cvMachineToLoad || null;
+      const resCV = await getMonthlyStatsForYearCatVai({ nam_sx: yearToLoad, maMay: cvParamMachine });
+      console.log(">>> [KeHoachSanXuatNam] Kết quả getMonthlyStatsForYearCatVai:", resCV);
 
-      // ── A. Tải dữ liệu CẮT VẢI ──
-      if (machineToLoad && isThMachine) {
-        // Người dùng chọn máy TH (ví dụ 01, 02) -> Cắt vải không áp dụng, gán rỗng
-        console.log(`>>> [KeHoachSanXuatNam] Đang chọn máy TH (${machineToLoad}) -> Cắt Vải gán rỗng`);
+      const cvArray = (resCV && Array.isArray(resCV.data)) ? resCV.data : (Array.isArray(resCV) ? resCV : []);
+      if (cvArray.length > 0) {
+        const mappedCV = Array.from({ length: 12 }, (_, i) => {
+          const mNum = i + 1;
+          const found = cvArray.find(d => Number(d.Month ?? d.month ?? d.Thang_SX ?? d.thang_sx ?? d.Thang ?? d.thang ?? 0) === mNum);
+          if (found) {
+            const slKH = Number(found.TongKeHoachDieuChinh ?? found.TongKeHoach ?? found.TongKeHoachHieuLuc ?? found.keHoach ?? found.tongKH ?? found.soLuongKH ?? found.SoLuong_KH_DieuChinh ?? found.SoLuong_KH ?? 0);
+            const slTT = Number(found.TongSanLuong ?? found.tongSanLuong ?? found.TongSanLuongThucTe ?? found.tongSanLuongThucTe ?? found.sanLuongThucTe ?? found.SanLuong ?? found.sanluong ?? found.tongSX ?? found.soLuongSX ?? found.SoLuong_SX ?? 0);
+            const pctVal = found.TyLeHoanThanh != null ? Number(found.TyLeHoanThanh) : (slKH > 0 ? (slTT / slKH) * 100 : 0);
+            if (slKH > 0 || slTT > 0) {
+              const pct = Number(pctVal.toFixed(1));
+              return { thang: `Tháng ${mNum}`, KH: 100, TT: pct, slKH, slTT, pct };
+            }
+          }
+          return { thang: `Tháng ${mNum}`, KH: 0, TT: 0, slKH: 0, slTT: 0, pct: 0 };
+        });
+        setChartCvYearData(mappedCV);
+      } else {
         setChartCvYearData(EMPTY_12_MONTHS);
-      } else {
-        const cvParamMachine = isCvMachine ? machineToLoad : null;
-        console.log(">>> [KeHoachSanXuatNam] Gọi getCatVaiMonthlyStats với:", { yearToLoad, cvParamMachine });
-        const resCV = await getCatVaiMonthlyStats(yearToLoad, cvParamMachine);
-        console.log(">>> [KeHoachSanXuatNam] Kết quả getCatVaiMonthlyStats:", resCV);
-
-        const cvArray = (resCV && Array.isArray(resCV.data)) ? resCV.data : (Array.isArray(resCV) ? resCV : []);
-        if (cvArray.length > 0) {
-          const mappedCV = Array.from({ length: 12 }, (_, i) => {
-            const mNum = i + 1;
-            const found = cvArray.find(d => Number(d.Thang_SX ?? d.thang_sx ?? d.thang ?? d.Thang ?? 0) === mNum);
-            if (found) {
-              const slKH = Number(found.TongKeHoachDieuChinh ?? found.TongKeHoach ?? found.TongKeHoachHieuLuc ?? found.keHoach ?? found.tongKH ?? found.soLuongKH ?? found.SoLuong_KH_DieuChinh ?? found.SoLuong_KH ?? 0);
-              const slTT = Number(found.TongSanLuong ?? found.tongSanLuong ?? found.TongSanLuongThucTe ?? found.tongSanLuongThucTe ?? found.sanLuongThucTe ?? found.SanLuong ?? found.sanluong ?? found.tongSX ?? found.soLuongSX ?? found.SoLuong_SX ?? 0);
-              if (slKH > 0 || slTT > 0) {
-                const pct = slKH > 0 ? Number(((slTT / slKH) * 100).toFixed(1)) : 0;
-                return { thang: `Tháng ${mNum}`, KH: 100, TT: pct, slKH, slTT, pct };
-              }
-            }
-            return { thang: `Tháng ${mNum}`, KH: 0, TT: 0, slKH: 0, slTT: 0, pct: 0 };
-          });
-          setChartCvYearData(mappedCV);
-        } else {
-          setChartCvYearData(EMPTY_12_MONTHS);
-        }
       }
-
-      // ── B. Tải dữ liệu THÀNH HÌNH ──
-      if (machineToLoad && isCvMachine) {
-        // Người dùng chọn máy CV -> Thành hình không áp dụng, gán rỗng
-        console.log(`>>> [KeHoachSanXuatNam] Đang chọn máy CV (${machineToLoad}) -> Thành Hình gán rỗng`);
-        setChartThYearData(EMPTY_12_MONTHS);
-      } else {
-        // Gửi trực tiếp mã máy 01, 02, 03... lên API
-        const thParamMachine = isThMachine ? machineToLoad : null;
-        console.log(">>> [KeHoachSanXuatNam] Gọi getKeHoachTrend với:", { yearToLoad, thParamMachine });
-        const resTH = await getKeHoachTrend(yearToLoad, thParamMachine);
-        console.log(">>> [KeHoachSanXuatNam] Kết quả getKeHoachTrend:", resTH);
-
-        const thArray = (resTH && Array.isArray(resTH.data)) ? resTH.data : (Array.isArray(resTH) ? resTH : []);
-        if (thArray.length > 0) {
-          const mappedTH = Array.from({ length: 12 }, (_, i) => {
-            const mNum = i + 1;
-            const found = thArray.find(d => Number(d.thang || d.thang_sx || d.Thang || d.Thang_SX || 0) === mNum);
-            if (found) {
-              const slKH = Number(found.tongKH || found.keHoach || found.TongKeHoach || 0);
-              const slTT = Number(found.tongSX || found.sanLuongThucTe || found.TongSanLuong || 0);
-              if (slKH > 0 || slTT > 0) {
-                const pct = slKH > 0 ? Number(((slTT / slKH) * 100).toFixed(1)) : 0;
-                return { thang: `Tháng ${mNum}`, KH: 100, TT: pct, slKH, slTT, pct };
-              }
-            }
-            return { thang: `Tháng ${mNum}`, KH: 0, TT: 0, slKH: 0, slTT: 0, pct: 0 };
-          });
-          setChartThYearData(mappedTH);
-        } else {
-          setChartThYearData(EMPTY_12_MONTHS);
-        }
-      }
-
       setLastUpdated(dayjs().format('HH:mm:ss DD/MM/YYYY'));
     } catch (error) {
-      console.error(">>> [KeHoachSanXuatNam] Lỗi khi tải dữ liệu kế hoạch năm:", error);
+      console.error(">>> [KeHoachSanXuatNam] Lỗi khi tải dữ liệu kế hoạch năm Cắt Vải:", error);
+      setChartCvYearData(EMPTY_12_MONTHS);
     } finally {
-      setIsLoading(false);
+      setIsLoadingCv(false);
     }
   }, []);
 
-  // Tải dữ liệu ban đầu và khi thay đổi bộ lọc
-  useEffect(() => {
-    loadYearData(selectedYear, selectedMachine);
-  }, [selectedYear, selectedMachine, loadYearData]);
+  // 2B. Hàm tải dữ liệu báo cáo 12 tháng THÀNH HÌNH độc lập
+  const loadThYearData = useCallback(async (yearToLoad, thMachineToLoad) => {
+    setIsLoadingTh(true);
+    console.log(`>>> [KeHoachSanXuatNam] [THÀNH HÌNH] Tải dữ liệu: Năm=${yearToLoad}, Máy TH=${thMachineToLoad || 'TẤT CẢ'}`);
 
-  // Xử lý khi nhấn nút Làm mới
+    try {
+      const thParamMachine = thMachineToLoad || null;
+      const resTH = await getKeHoachTrend(yearToLoad, thParamMachine);
+      console.log(">>> [KeHoachSanXuatNam] Kết quả getKeHoachTrend:", resTH);
+
+      const thArray = (resTH && Array.isArray(resTH.data)) ? resTH.data : (Array.isArray(resTH) ? resTH : []);
+      if (thArray.length > 0) {
+        const mappedTH = Array.from({ length: 12 }, (_, i) => {
+          const mNum = i + 1;
+          const found = thArray.find(d => Number(d.thang || d.thang_sx || d.Thang || d.Thang_SX || 0) === mNum);
+          if (found) {
+            const slKH = Number(found.tongKH || found.keHoach || found.TongKeHoach || 0);
+            const slTT = Number(found.tongSX || found.sanLuongThucTe || found.TongSanLuong || 0);
+            if (slKH > 0 || slTT > 0) {
+              const pct = slKH > 0 ? Number(((slTT / slKH) * 100).toFixed(1)) : 0;
+              return { thang: `Tháng ${mNum}`, KH: 100, TT: pct, slKH, slTT, pct };
+            }
+          }
+          return { thang: `Tháng ${mNum}`, KH: 0, TT: 0, slKH: 0, slTT: 0, pct: 0 };
+        });
+        setChartThYearData(mappedTH);
+      } else {
+        setChartThYearData(EMPTY_12_MONTHS);
+      }
+      setLastUpdated(dayjs().format('HH:mm:ss DD/MM/YYYY'));
+    } catch (error) {
+      console.error(">>> [KeHoachSanXuatNam] Lỗi khi tải dữ liệu kế hoạch năm Thành Hình:", error);
+    } finally {
+      setIsLoadingTh(false);
+    }
+  }, []);
+
+  // Tải dữ liệu Cắt Vải khi Năm hoặc Máy Cắt Vải thay đổi (KHÔNG ẢNH HƯỞNG THÀNH HÌNH)
+  useEffect(() => {
+    loadCvYearData(selectedYear, selectedCvMachine);
+  }, [selectedYear, selectedCvMachine, loadCvYearData]);
+
+  // Tải dữ liệu Thành Hình khi Năm hoặc Máy Thành Hình thay đổi (KHÔNG ẢNH HƯỞNG CẮT VẢI)
+  useEffect(() => {
+    loadThYearData(selectedYear, selectedThMachine);
+  }, [selectedYear, selectedThMachine, loadThYearData]);
+
+  // Xử lý khi nhấn nút Làm mới (Tải lại cả 2 công đoạn)
   const handleRefresh = () => {
-    loadYearData(selectedYear, selectedMachine);
+    loadCvYearData(selectedYear, selectedCvMachine);
+    loadThYearData(selectedYear, selectedThMachine);
   };
 
   // Xử lý khi nhấn nút Xóa lọc
   const handleResetFilter = () => {
     setSelectedYear(currentYearNow);
-    setSelectedMachine('');
-    loadYearData(currentYearNow, '');
+    setSelectedCvMachine('');
+    setSelectedThMachine('');
   };
 
   // 4. Tính toán tổng KPI cả năm cho Cắt Vải
@@ -696,15 +743,21 @@ const KeHoachSanXuatNam = () => {
     return { totalKH, totalTT, pct };
   }, [chartThYearData]);
 
-  // Nhãn hiển thị của máy đang chọn (kèm EquipmentName + EquipmentID)
-  const selectedMachineDisplay = useMemo(() => {
-    if (!selectedMachine) return 'Toàn bộ xưởng CV-TH';
-    const foundTH = thMachineList.find(m => m.value === selectedMachine);
-    if (foundTH) return foundTH.label;
-    const foundCV = cvMachineList.find(m => m.value === selectedMachine);
-    if (foundCV) return foundCV.label;
-    return `Máy ${selectedMachine}`;
-  }, [selectedMachine, thMachineList, cvMachineList]);
+  // Nhãn hiển thị của máy CV đang chọn
+  const selectedCvMachineDisplay = useMemo(() => {
+    if (!selectedCvMachine) return 'Tất cả máy Cắt vải';
+    const foundCV = cvMachineList.find(m => m.value === selectedCvMachine);
+    return foundCV ? foundCV.label : `Máy ${selectedCvMachine}`;
+  }, [selectedCvMachine, cvMachineList]);
+
+  // Nhãn hiển thị của máy TH đang chọn
+  const selectedThMachineDisplay = useMemo(() => {
+    if (!selectedThMachine) return 'Tất cả máy Thành hình';
+    const foundTH = thMachineList.find(m => m.value === selectedThMachine);
+    return foundTH ? foundTH.label : `Máy ${selectedThMachine}`;
+  }, [selectedThMachine, thMachineList]);
+
+  const isLoadingTotal = isLoadingCv || isLoadingTh;
 
   return (
     <div className="drc-year-container mes-fade">
@@ -719,7 +772,7 @@ const KeHoachSanXuatNam = () => {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11.5px', color: '#64748b' }}>
-          {isLoading ? (
+          {isLoadingTotal ? (
             <span style={{ color: '#0284c7', fontWeight: 'bold' }}>⏳ Đang tải dữ liệu...</span>
           ) : (
             <span>Cập nhật lần cuối: <strong>{lastUpdated || dayjs().format('HH:mm:ss')}</strong></span>
@@ -727,12 +780,12 @@ const KeHoachSanXuatNam = () => {
         </div>
       </div>
 
-      {/* ── 2. FILTER BAR (CHỌN NĂM & CHỌN MÁY) ── */}
+      {/* ── 2. FILTER BAR CHUNG (CHỌN NĂM & NÚT ĐIỀU KHIỂN) ── */}
       <div className="drc-filter-bar">
         <div className="drc-filter-group">
           {/* Chọn Năm */}
           <div className="drc-field">
-            <span className="drc-label"><FaCalendarAlt color="#0284c7" /> Năm:</span>
+            <span className="drc-label"><FaCalendarAlt color="#0284c7" /> Năm sản xuất:</span>
             <select
               className="drc-select"
               value={selectedYear}
@@ -744,35 +797,12 @@ const KeHoachSanXuatNam = () => {
             </select>
           </div>
 
-          {/* Chọn Máy */}
-          <div className="drc-field">
-            <span className="drc-label"><FaCogs color="#16a34a" /> Thiết bị / Máy:</span>
-            <select
-              className="drc-select"
-              style={{ minWidth: '240px' }}
-              value={selectedMachine}
-              onChange={(e) => setSelectedMachine(e.target.value)}
-            >
-              <option value="">-- Tất cả các máy --</option>
-              <optgroup label="Công đoạn Thành hình">
-                {thMachineList.map(m => (
-                  <option key={`opt-th-${m.value}`} value={m.value}>{m.label}</option>
-                ))}
-              </optgroup>
-              <optgroup label="Công đoạn Cắt vải (Tên máy & Mã ID)">
-                {cvMachineList.map(m => (
-                  <option key={`opt-cv-${m.value}`} value={m.value}>{m.label}</option>
-                ))}
-              </optgroup>
-            </select>
-          </div>
-
           {/* Nút Xem báo cáo */}
           <button className="drc-btn drc-btn-primary" onClick={handleRefresh}>
             <FaSearch /> Xem báo cáo
           </button>
 
-          {/* Nút Xóa lọc */}
+          {/* Nút Mặc định */}
           <button className="drc-btn drc-btn-secondary" onClick={handleResetFilter}>
             <FaRedo /> Mặc định
           </button>
@@ -780,7 +810,7 @@ const KeHoachSanXuatNam = () => {
 
         {/* Thông tin phạm vi đang lọc */}
         <div style={{ fontSize: '11.5px', fontWeight: '700', color: '#475569' }}>
-          Đang hiển thị: <span style={{ color: '#0369a1' }}>{selectedMachineDisplay}</span> • Năm {selectedYear}
+          Đang xem: <span style={{ color: '#0284c7' }}>{selectedCvMachineDisplay}</span> & <span style={{ color: '#16a34a' }}>{selectedThMachineDisplay}</span> • Năm {selectedYear}
         </div>
       </div>
 
@@ -896,49 +926,62 @@ const KeHoachSanXuatNam = () => {
       {/* ── 4. BIỂU ĐỒ THEO DÕI KHSX CÔNG ĐOẠN CẮT VẢI ── */}
       <div className="drc-chart-card">
         <div className="drc-chart-head">
-          <FaChartBar />
-          BIỂU ĐỒ THEO DÕI KẾ HOẠCH SẢN XUẤT - CÔNG ĐOẠN CV NĂM {selectedYear} {selectedMachine ? `[${selectedMachineDisplay}]` : '[TẤT CẢ CÁC MÁY]'}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <FaChartBar color="#0284c7" />
+            <span style={{ fontWeight: 900 }}>BIỂU ĐỒ KẾ HOẠCH SẢN XUẤT - CÔNG ĐOẠN CẮT VẢI NĂM {selectedYear}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
+            <select
+              className="drc-select"
+              style={{ height: '26px', minWidth: '180px', borderColor: '#0284c7', fontSize: '11.5px', background: '#f0f9ff' }}
+              value={selectedCvMachine}
+              onChange={(e) => setSelectedCvMachine(e.target.value)}
+            >
+              <option value="">-- Tất cả máy Cắt vải --</option>
+              {cvMachineList.map(m => (
+                <option key={`opt-cv-chart-${m.value}`} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+          </div>
         </div>
         <div className="drc-chart-body">
-          {selectedMachine && !selectedMachine.toUpperCase().includes('CV') ? (
-            <div className="drc-empty-notice">
-              <span>⚠️ Đang chọn <strong>{selectedMachineDisplay}</strong> (thuộc công đoạn Thành hình), không có số liệu Cắt vải.</span>
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={chartCvYearData}
-                margin={{ top: 22, right: 16, left: -10, bottom: 0 }}
-                barGap={3}
-                barCategoryGap="12%"
-                maxBarSize={38}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                <XAxis dataKey="thang" tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }} tickLine={false} axisLine={{ stroke: '#cbd5e1' }} />
-                <YAxis
-                  domain={[0, 130]}
-                  ticks={[0, 25, 50, 75, 100]}
-                  tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }}
-                  tickLine={false}
-                  axisLine={{ stroke: '#cbd5e1' }}
-                  unit="%"
-                />
-                <Tooltip content={<CustomYearChartTooltip unit="BTP" />} />
+          <div className="drc-year-chart-scroll">
+            <div className="drc-year-chart-canvas">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={chartCvYearData}
+                  margin={{ top: 24, right: 18, left: -10, bottom: 0 }}
+                  barGap={4}
+                  barCategoryGap="14%"
+                  maxBarSize={42}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis dataKey="thang" tick={{ fontSize: 10.5, fill: '#475569', fontWeight: 700 }} tickLine={false} axisLine={{ stroke: '#cbd5e1' }} />
+                  <YAxis
+                    domain={[0, 130]}
+                    ticks={[0, 25, 50, 75, 100]}
+                    tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }}
+                    tickLine={false}
+                    axisLine={{ stroke: '#cbd5e1' }}
+                    unit="%"
+                  />
+                  <Tooltip content={<CustomYearChartTooltip unit="BTP" />} />
 
-                {/* Cột Kế hoạch */}
-                <Bar dataKey="KH" name="KẾ HOẠCH" fill="#0070c0" radius={[1, 1, 0, 0]} isAnimationActive={false}>
-                  <LabelList content={(props) => renderKhBarLabel(props, chartCvYearData)} />
-                </Bar>
-                {/* Cột Thực tế */}
-                <Bar dataKey="TT" name="THỰC TẾ" radius={[1, 1, 0, 0]} isAnimationActive={false}>
-                  {chartCvYearData.map((entry, index) => (
-                    <Cell key={`cell-cv-tt-${index}`} fill={getYearBarColor(entry.pct, entry.slTT)} />
-                  ))}
-                  <LabelList content={(props) => renderTtBarLabel(props, chartCvYearData)} />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          )}
+                  {/* Cột Kế hoạch */}
+                  <Bar dataKey="KH" name="KẾ HOẠCH" fill="#0070c0" radius={[2, 2, 0, 0]} isAnimationActive={false}>
+                    <LabelList content={(props) => renderKhBarLabel(props, chartCvYearData)} />
+                  </Bar>
+                  {/* Cột Thực tế */}
+                  <Bar dataKey="TT" name="THỰC TẾ" radius={[2, 2, 0, 0]} isAnimationActive={false}>
+                    {chartCvYearData.map((entry, index) => (
+                      <Cell key={`cell-cv-tt-${index}`} fill={getYearBarColor(entry.pct, entry.slTT)} />
+                    ))}
+                    <LabelList content={(props) => renderTtBarLabel(props, chartCvYearData)} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
         <div className="drc-chart-legend">
           <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -971,49 +1014,62 @@ const KeHoachSanXuatNam = () => {
       {/* ── 5. BIỂU ĐỒ THEO DÕI KHSX CÔNG ĐOẠN THÀNH HÌNH ── */}
       <div className="drc-chart-card">
         <div className="drc-chart-head">
-          <FaChartBar />
-          BIỂU ĐỒ THEO DÕI KẾ HOẠCH SẢN XUẤT - CÔNG ĐOẠN TH NĂM {selectedYear} {selectedMachine ? `[${selectedMachineDisplay}]` : '[TẤT CẢ CÁC MÁY]'}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <FaChartBar color="#16a34a" />
+            <span style={{ fontWeight: 900 }}>BIỂU ĐỒ KẾ HOẠCH SẢN XUẤT - CÔNG ĐOẠN THÀNH HÌNH NĂM {selectedYear}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
+            <select
+              className="drc-select"
+              style={{ height: '26px', minWidth: '160px', borderColor: '#16a34a', fontSize: '11.5px', background: '#f0fdf4' }}
+              value={selectedThMachine}
+              onChange={(e) => setSelectedThMachine(e.target.value)}
+            >
+              <option value="">-- Tất cả máy Thành hình --</option>
+              {thMachineList.map(m => (
+                <option key={`opt-th-chart-${m.value}`} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+          </div>
         </div>
         <div className="drc-chart-body">
-          {selectedMachine && selectedMachine.toUpperCase().includes('CV') ? (
-            <div className="drc-empty-notice">
-              <span>⚠️ Đang chọn <strong>{selectedMachineDisplay}</strong> (thuộc công đoạn Cắt vải), không có số liệu Thành hình.</span>
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={chartThYearData}
-                margin={{ top: 22, right: 16, left: -10, bottom: 0 }}
-                barGap={3}
-                barCategoryGap="12%"
-                maxBarSize={38}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                <XAxis dataKey="thang" tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }} tickLine={false} axisLine={{ stroke: '#cbd5e1' }} />
-                <YAxis
-                  domain={[0, 130]}
-                  ticks={[0, 25, 50, 75, 100]}
-                  tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }}
-                  tickLine={false}
-                  axisLine={{ stroke: '#cbd5e1' }}
-                  unit="%"
-                />
-                <Tooltip content={<CustomYearChartTooltip unit="lốp" />} />
+          <div className="drc-year-chart-scroll">
+            <div className="drc-year-chart-canvas">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={chartThYearData}
+                  margin={{ top: 24, right: 18, left: -10, bottom: 0 }}
+                  barGap={4}
+                  barCategoryGap="14%"
+                  maxBarSize={42}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis dataKey="thang" tick={{ fontSize: 10.5, fill: '#475569', fontWeight: 700 }} tickLine={false} axisLine={{ stroke: '#cbd5e1' }} />
+                  <YAxis
+                    domain={[0, 130]}
+                    ticks={[0, 25, 50, 75, 100]}
+                    tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }}
+                    tickLine={false}
+                    axisLine={{ stroke: '#cbd5e1' }}
+                    unit="%"
+                  />
+                  <Tooltip content={<CustomYearChartTooltip unit="lốp" />} />
 
-                {/* Cột Kế hoạch */}
-                <Bar dataKey="KH" name="KẾ HOẠCH" fill="#0070c0" radius={[1, 1, 0, 0]} isAnimationActive={false}>
-                  <LabelList content={(props) => renderKhBarLabel(props, chartThYearData)} />
-                </Bar>
-                {/* Cột Thực tế */}
-                <Bar dataKey="TT" name="THỰC TẾ" radius={[1, 1, 0, 0]} isAnimationActive={false}>
-                  {chartThYearData.map((entry, index) => (
-                    <Cell key={`cell-th-tt-${index}`} fill={getYearBarColor(entry.pct, entry.slTT)} />
-                  ))}
-                  <LabelList content={(props) => renderTtBarLabel(props, chartThYearData)} />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          )}
+                  {/* Cột Kế hoạch */}
+                  <Bar dataKey="KH" name="KẾ HOẠCH" fill="#0070c0" radius={[2, 2, 0, 0]} isAnimationActive={false}>
+                    <LabelList content={(props) => renderKhBarLabel(props, chartThYearData)} />
+                  </Bar>
+                  {/* Cột Thực tế */}
+                  <Bar dataKey="TT" name="THỰC TẾ" radius={[2, 2, 0, 0]} isAnimationActive={false}>
+                    {chartThYearData.map((entry, index) => (
+                      <Cell key={`cell-th-tt-${index}`} fill={getYearBarColor(entry.pct, entry.slTT)} />
+                    ))}
+                    <LabelList content={(props) => renderTtBarLabel(props, chartThYearData)} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
         <div className="drc-chart-legend">
           <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>

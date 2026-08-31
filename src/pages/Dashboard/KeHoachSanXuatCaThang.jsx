@@ -13,7 +13,7 @@ import { FaCalendarAlt, FaSearch, FaRedo, FaCogs, FaChartBar } from 'react-icons
 
 // Import API chính thức
 import { getTongHopCaNgay, getDanhSachMay } from '../../api/thanhhinhApi';
-import { getCatVaiEquipments } from '../../api/catVaiApi';
+import { getShiftStatsForMonthCatVai, getCatVaiEquipments } from '../../api/catVaiApi';
 import {
   SHIFT_ORDER,
   getDaysInMonth,
@@ -307,20 +307,20 @@ const css = `
     color: #ffffff;
     font-size: 12.5px;
     font-weight: 900;
-    text-align: center;
-    padding: 6px 12px;
+    text-align: left;
+    padding: 6px 14px;
     letter-spacing: 0.4px;
     text-transform: uppercase;
     border-bottom: 2px solid #0f172a;
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 8px;
+    justify-content: space-between;
+    gap: 12px;
     position: relative;
   }
   .drc-chart-scroll-hint {
-    font-size: 10px;
-    font-weight: 600;
+    font-size: 10.5px;
+    font-weight: 700;
     color: #93c5fd;
     text-transform: none;
     letter-spacing: 0;
@@ -328,7 +328,17 @@ const css = `
     right: 12px;
   }
   @media (max-width: 900px) {
-    .drc-chart-scroll-hint { display: none; }
+    .drc-chart-head {
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 10px;
+    }
+    .drc-chart-scroll-hint {
+      position: static;
+      color: #bfdbfe;
+      font-size: 10px;
+    }
   }
 
   .drc-chart-body {
@@ -337,7 +347,7 @@ const css = `
     position: relative;
   }
 
-  /* Khung cuộn ngang cố định 15 ngày/khung nhìn, trượt ngang xem trọn tháng */
+  /* Khung cuộn ngang 3 ngày (9 cột ca)/khung nhìn trên điện thoại, trượt ngang xem trọn tháng */
   .drc-daychart-scroll {
     width: 100%;
     height: 100%;
@@ -345,6 +355,7 @@ const css = `
     overflow-y: hidden;
     scrollbar-width: thin;
     scrollbar-color: #0284c7 #f1f5f9;
+    -webkit-overflow-scrolling: touch;
   }
   .drc-daychart-scroll::-webkit-scrollbar {
     height: 7px;
@@ -501,10 +512,13 @@ const KeHoachSanXuatCaThang = () => {
   const currentYearNow = now.year();
   const currentMonthNow = now.month() + 1; // 1..12
 
-  // States quản lý Bộ lọc
+  // States quản lý Bộ lọc Thời gian chung
   const [selectedYear, setSelectedYear] = useState(currentYearNow);
   const [selectedMonth, setSelectedMonth] = useState(currentMonthNow);
-  const [selectedMachine, setSelectedMachine] = useState(''); // "" = Tất cả máy, "01".."30" = TH, "ORC-CV-01" = CV
+
+  // States quản lý Bộ lọc Máy tách riêng biệt cho từng công đoạn
+  const [selectedCvMachine, setSelectedCvMachine] = useState(''); // "" = Tất cả máy Cắt vải, "ORC-CV-01"..."ORC-CV-07"
+  const [selectedThMachine, setSelectedThMachine] = useState(''); // "" = Tất cả máy Thành hình, "01"..."30"
 
   // States danh sách thiết bị
   const [thMachineList, setThMachineList] = useState([]);
@@ -513,7 +527,8 @@ const KeHoachSanXuatCaThang = () => {
   // States dữ liệu biểu đồ 3 ca của 2 công đoạn
   const [chartCvShiftData, setChartCvShiftData] = useState([]);
   const [chartThShiftData, setChartThShiftData] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingCv, setIsLoadingCv] = useState(false);
+  const [isLoadingTh, setIsLoadingTh] = useState(false);
   const [lastUpdated, setLastUpdated] = useState('');
 
   // Danh sách các năm lựa chọn
@@ -609,10 +624,39 @@ const KeHoachSanXuatCaThang = () => {
     fetchMachineLists();
   }, []);
 
-  // 2. Hàm tải dữ liệu từng ca trong ngày của tháng
-  const loadShiftMonthData = useCallback(async (yearToLoad, monthToLoad, machineToLoad) => {
-    setIsLoading(true);
-    console.log(`>>> [KeHoachSanXuatCaThang] Tải dữ liệu: Tháng ${monthToLoad}/${yearToLoad}, Máy=${machineToLoad || 'TẤT CẢ'}`);
+  // 2A. Hàm tải dữ liệu từng ca trong ngày của tháng cho CẮT VẢI độc lập (Sử dụng API 4: getShiftStatsForMonthCatVai)
+  const loadCvShiftMonthData = useCallback(async (yearToLoad, monthToLoad, cvMachineToLoad) => {
+    setIsLoadingCv(true);
+    console.log(`>>> [KeHoachSanXuatCaThang] [CẮT VẢI] Tải dữ liệu API mới: Tháng ${monthToLoad}/${yearToLoad}, Máy CV=${cvMachineToLoad || 'TẤT CẢ'}`);
+
+    const mmStr = String(monthToLoad).padStart(2, '0');
+    const monthKey = `${yearToLoad}-${mmStr}`;
+
+    try {
+      const cvParam = cvMachineToLoad || null;
+      console.log(">>> [KeHoachSanXuatCaThang] Gọi getShiftStatsForMonthCatVai:", { nam_sx: yearToLoad, thang_sx: monthToLoad, maMay: cvParam });
+      try {
+        const resCV = await getShiftStatsForMonthCatVai({ nam_sx: yearToLoad, thang_sx: monthToLoad, maMay: cvParam });
+        const rawCV = (resCV && Array.isArray(resCV.data)) ? resCV.data : (Array.isArray(resCV) ? resCV : []);
+        console.log(`>>> [KeHoachSanXuatCaThang] Dữ liệu ca Cắt Vải (${rawCV.length} bản ghi):`, rawCV);
+        const chartDataCV = buildTongHopCaNgayChartData(rawCV, monthKey);
+        setChartCvShiftData(chartDataCV);
+      } catch (eCV) {
+        console.error(">>> [KeHoachSanXuatCaThang] Lỗi tải dữ liệu Cắt Vải:", eCV);
+        setChartCvShiftData(buildTongHopCaNgayChartData([], monthKey));
+      }
+      setLastUpdated(dayjs().format('HH:mm:ss DD/MM/YYYY'));
+    } catch (error) {
+      console.error(">>> [KeHoachSanXuatCaThang] Lỗi khi tải dữ liệu ca tháng Cắt Vải:", error);
+    } finally {
+      setIsLoadingCv(false);
+    }
+  }, []);
+
+  // 2B. Hàm tải dữ liệu từng ca trong ngày của tháng cho THÀNH HÌNH độc lập
+  const loadThShiftMonthData = useCallback(async (yearToLoad, monthToLoad, thMachineToLoad) => {
+    setIsLoadingTh(true);
+    console.log(`>>> [KeHoachSanXuatCaThang] [THÀNH HÌNH] Tải dữ liệu: Tháng ${monthToLoad}/${yearToLoad}, Máy TH=${thMachineToLoad || 'TẤT CẢ'}`);
 
     const daysInMonth = getDaysInMonth(yearToLoad, monthToLoad);
     const mmStr = String(monthToLoad).padStart(2, '0');
@@ -621,79 +665,63 @@ const KeHoachSanXuatCaThang = () => {
     const endShift = Number(`${yearToLoad}${mmStr}${String(daysInMonth).padStart(2, '0')}2`);
 
     try {
-      const isCvMachine = machineToLoad ? machineToLoad.toUpperCase().includes('CV') : false;
-      const isThMachine = machineToLoad ? !isCvMachine : false;
-
-      // ── A. TẢI DỮ LIỆU CẮT VẢI (CV) ──
-      if (machineToLoad && isThMachine) {
-        setChartCvShiftData([]);
-      } else {
-        const cvParam = isCvMachine ? machineToLoad : null;
-        console.log(">>> [KeHoachSanXuatCaThang] Gọi getTongHopCaNgay Cắt Vải:", { startShift, endShift, maMay: cvParam });
-        try {
-          const resCV = await getTongHopCaNgay({ startShift, endShift, maMay: cvParam });
-          const rawCV = (resCV && Array.isArray(resCV.data)) ? resCV.data : (Array.isArray(resCV) ? resCV : []);
-          console.log(`>>> [KeHoachSanXuatCaThang] Dữ liệu ca Cắt Vải (${rawCV.length} bản ghi):`, rawCV);
-          const chartDataCV = buildTongHopCaNgayChartData(rawCV, monthKey);
-          setChartCvShiftData(chartDataCV);
-        } catch (eCV) {
-          console.error(">>> [KeHoachSanXuatCaThang] Lỗi tải dữ liệu Cắt Vải:", eCV);
-          setChartCvShiftData(buildTongHopCaNgayChartData([], monthKey));
-        }
+      const thParam = thMachineToLoad || null;
+      console.log(">>> [KeHoachSanXuatCaThang] Gọi getTongHopCaNgay Thành Hình:", { startShift, endShift, maMay: thParam });
+      try {
+        const resTH = await getTongHopCaNgay({ startShift, endShift, maMay: thParam });
+        const rawTH = (resTH && Array.isArray(resTH.data)) ? resTH.data : (Array.isArray(resTH) ? resTH : []);
+        console.log(`>>> [KeHoachSanXuatCaThang] Dữ liệu ca Thành Hình (${rawTH.length} bản ghi):`, rawTH);
+        const chartDataTH = buildTongHopCaNgayChartData(rawTH, monthKey);
+        setChartThShiftData(chartDataTH);
+      } catch (eTH) {
+        console.error(">>> [KeHoachSanXuatCaThang] Lỗi tải dữ liệu Thành Hình:", eTH);
+        setChartThShiftData(buildTongHopCaNgayChartData([], monthKey));
       }
-
-      // ── B. TẢI DỮ LIỆU THÀNH HÌNH (TH) ──
-      if (machineToLoad && isCvMachine) {
-        setChartThShiftData([]);
-      } else {
-        const thParam = isThMachine ? machineToLoad : null;
-        console.log(">>> [KeHoachSanXuatCaThang] Gọi getTongHopCaNgay Thành Hình:", { startShift, endShift, maMay: thParam });
-        try {
-          const resTH = await getTongHopCaNgay({ startShift, endShift, maMay: thParam });
-          const rawTH = (resTH && Array.isArray(resTH.data)) ? resTH.data : (Array.isArray(resTH) ? resTH : []);
-          console.log(`>>> [KeHoachSanXuatCaThang] Dữ liệu ca Thành Hình (${rawTH.length} bản ghi):`, rawTH);
-          const chartDataTH = buildTongHopCaNgayChartData(rawTH, monthKey);
-          setChartThShiftData(chartDataTH);
-        } catch (eTH) {
-          console.error(">>> [KeHoachSanXuatCaThang] Lỗi tải dữ liệu Thành Hình:", eTH);
-          setChartThShiftData(buildTongHopCaNgayChartData([], monthKey));
-        }
-      }
-
       setLastUpdated(dayjs().format('HH:mm:ss DD/MM/YYYY'));
     } catch (error) {
-      console.error(">>> [KeHoachSanXuatCaThang] Lỗi khi tải dữ liệu ca tháng:", error);
+      console.error(">>> [KeHoachSanXuatCaThang] Lỗi khi tải dữ liệu ca tháng Thành Hình:", error);
     } finally {
-      setIsLoading(false);
+      setIsLoadingTh(false);
     }
   }, []);
 
-  // 3. Tự động tải dữ liệu khi thay đổi Năm, Tháng hoặc Máy
+  // Tải dữ liệu Cắt Vải khi Năm, Tháng hoặc Máy Cắt Vải thay đổi (KHÔNG ẢNH HƯỞNG THÀNH HÌNH)
   useEffect(() => {
-    loadShiftMonthData(selectedYear, selectedMonth, selectedMachine);
-  }, [selectedYear, selectedMonth, selectedMachine, loadShiftMonthData]);
+    loadCvShiftMonthData(selectedYear, selectedMonth, selectedCvMachine);
+  }, [selectedYear, selectedMonth, selectedCvMachine, loadCvShiftMonthData]);
 
-  // Xử lý nút Xem lại / Làm mới
+  // Tải dữ liệu Thành Hình khi Năm, Tháng hoặc Máy Thành Hình thay đổi (KHÔNG ẢNH HƯỞNG CẮT VẢI)
+  useEffect(() => {
+    loadThShiftMonthData(selectedYear, selectedMonth, selectedThMachine);
+  }, [selectedYear, selectedMonth, selectedThMachine, loadThShiftMonthData]);
+
+  // Xử lý nút Xem lại / Làm mới (Tải lại cả 2 công đoạn)
   const handleRefresh = () => {
-    loadShiftMonthData(selectedYear, selectedMonth, selectedMachine);
+    loadCvShiftMonthData(selectedYear, selectedMonth, selectedCvMachine);
+    loadThShiftMonthData(selectedYear, selectedMonth, selectedThMachine);
   };
 
   // Xử lý nút Mặc định
   const handleResetFilter = () => {
     setSelectedYear(currentYearNow);
     setSelectedMonth(currentMonthNow);
-    setSelectedMachine('');
+    setSelectedCvMachine('');
+    setSelectedThMachine('');
   };
 
-  // Nhãn hiển thị của máy đang chọn
-  const selectedMachineDisplay = useMemo(() => {
-    if (!selectedMachine) return 'Toàn bộ xưởng CV-TH';
-    const foundTH = thMachineList.find(m => m.value === selectedMachine);
-    if (foundTH) return foundTH.label;
-    const foundCV = cvMachineList.find(m => m.value === selectedMachine);
-    if (foundCV) return foundCV.label;
-    return `Máy ${selectedMachine}`;
-  }, [selectedMachine, thMachineList, cvMachineList]);
+  // Nhãn hiển thị của máy CV đang chọn
+  const selectedCvMachineDisplay = useMemo(() => {
+    if (!selectedCvMachine) return 'Tất cả máy Cắt vải';
+    const foundCV = cvMachineList.find(m => m.value === selectedCvMachine);
+    return foundCV ? foundCV.label : `Máy ${selectedCvMachine}`;
+  }, [selectedCvMachine, cvMachineList]);
+
+  // Nhãn hiển thị của máy TH đang chọn
+  const selectedThMachineDisplay = useMemo(() => {
+    if (!selectedThMachine) return 'Tất cả máy Thành hình';
+    const foundTH = thMachineList.find(m => m.value === selectedThMachine);
+    return foundTH ? foundTH.label : `Máy ${selectedThMachine}`;
+  }, [selectedThMachine, thMachineList]);
 
   // Tính tổng Kế hoạch, Sản lượng và % Tiến độ Tháng của Cắt vải (CV)
   const cvTotals = useMemo(() => {
@@ -722,6 +750,7 @@ const KeHoachSanXuatCaThang = () => {
   // Chiều rộng canvas cuộn ngang (125px cho mỗi ngày chứa 3 cột ca rộng rãi)
   const daysCount = getDaysInMonth(selectedYear, selectedMonth);
   const canvasWidth = daysCount * 125 + 60;
+  const isLoadingTotal = isLoadingCv || isLoadingTh;
 
   return (
     <div className="drc-shift-month-container mes-fade">
@@ -735,11 +764,11 @@ const KeHoachSanXuatCaThang = () => {
         </div>
         <div className="drc-header-meta">
           <span>Cập nhật lúc: <strong>{lastUpdated || 'Đang tải...'}</strong></span>
-          {isLoading && <span style={{ color: '#0284c7', fontWeight: 800 }}>• Đang xử lý...</span>}
+          {isLoadingTotal && <span style={{ color: '#0284c7', fontWeight: 800 }}>• Đang xử lý...</span>}
         </div>
       </div>
 
-      {/* ── 2. FILTER BAR (CHỌN NĂM, THÁNG & MÁY) ── */}
+      {/* ── 2. FILTER BAR CHUNG (CHỌN NĂM, THÁNG & NÚT ĐIỀU KHIỂN) ── */}
       <div className="drc-filter-bar">
         <div className="drc-filter-group">
           {/* Chọn Năm */}
@@ -770,35 +799,12 @@ const KeHoachSanXuatCaThang = () => {
             </select>
           </div>
 
-          {/* Chọn Máy */}
-          <div className="drc-field">
-            <span className="drc-label"><FaCogs color="#16a34a" /> Thiết bị / Máy:</span>
-            <select
-              className="drc-select"
-              style={{ minWidth: '240px' }}
-              value={selectedMachine}
-              onChange={(e) => setSelectedMachine(e.target.value)}
-            >
-              <option value="">-- Tất cả các máy --</option>
-              <optgroup label="Công đoạn Thành hình">
-                {thMachineList.map(m => (
-                  <option key={`opt-th-${m.value}`} value={m.value}>{m.label}</option>
-                ))}
-              </optgroup>
-              <optgroup label="Công đoạn Cắt vải (Tên máy & Mã ID)">
-                {cvMachineList.map(m => (
-                  <option key={`opt-cv-${m.value}`} value={m.value}>{m.label}</option>
-                ))}
-              </optgroup>
-            </select>
-          </div>
-
           {/* Nút Xem báo cáo */}
           <button className="drc-btn drc-btn-primary" onClick={handleRefresh}>
             <FaSearch /> Xem báo cáo
           </button>
 
-          {/* Nút Xóa lọc */}
+          {/* Nút Mặc định */}
           <button className="drc-btn drc-btn-secondary" onClick={handleResetFilter}>
             <FaRedo /> Mặc định
           </button>
@@ -806,7 +812,7 @@ const KeHoachSanXuatCaThang = () => {
 
         {/* Thông tin phạm vi đang lọc */}
         <div style={{ fontSize: '11.5px', fontWeight: '700', color: '#475569' }}>
-          Đang hiển thị: <span style={{ color: '#0369a1' }}>{selectedMachineDisplay}</span> • Tháng {selectedMonth}/{selectedYear}
+          Đang xem: <span style={{ color: '#0284c7' }}>{selectedCvMachineDisplay}</span> & <span style={{ color: '#16a34a' }}>{selectedThMachineDisplay}</span> • Tháng {selectedMonth}/{selectedYear}
         </div>
       </div>
 
@@ -919,19 +925,29 @@ const KeHoachSanXuatCaThang = () => {
         </div>
       </div>
 
-      {/* ── 3. BIỂU ĐỒ THỰC HIỆN KH THEO CA - CÔNG ĐOẠN CẮT VẢI ── */}
+      {/* ── 4. BIỂU ĐỒ THỰC HIỆN KH THEO CA - CÔNG ĐOẠN CẮT VẢI ── */}
       <div className="drc-chart-card">
         <div className="drc-chart-head">
-          <FaChartBar />
-          <span>CÔNG ĐOẠN CẮT VẢI (CV) - THỰC HIỆN KH THEO CA THÁNG {selectedMonth}/{selectedYear} {selectedMachine ? `[${selectedMachineDisplay}]` : '[TẤT CẢ CÁC MÁY]'}</span>
-          <span className="drc-chart-scroll-hint">⟷ Kéo thanh trượt ngang để xem đủ {daysCount} ngày</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <FaChartBar color="#0284c7" />
+            <span style={{ fontWeight: 900 }}>CÔNG ĐOẠN CẮT VẢI (CV) - THỰC HIỆN KH THEO CA THÁNG {selectedMonth}/{selectedYear}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
+            <select
+              className="drc-select"
+              style={{ height: '26px', minWidth: '180px', borderColor: '#0284c7', fontSize: '11.5px', background: '#f0f9ff' }}
+              value={selectedCvMachine}
+              onChange={(e) => setSelectedCvMachine(e.target.value)}
+            >
+              <option value="">-- Tất cả máy Cắt vải --</option>
+              {cvMachineList.map(m => (
+                <option key={`opt-cv-chart-${m.value}`} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+          </div>
         </div>
         <div className="drc-chart-body">
-          {selectedMachine && !selectedMachine.toUpperCase().includes('CV') ? (
-            <div className="drc-empty-notice">
-              <span>⚠️ Đang chọn <strong>{selectedMachineDisplay}</strong> (thuộc công đoạn Thành hình), không có số liệu Cắt vải.</span>
-            </div>
-          ) : chartCvShiftData.length === 0 ? (
+          {chartCvShiftData.length === 0 ? (
             <div className="drc-empty-notice">
               <span>Chưa có dữ liệu kế hoạch theo ca cho tháng {selectedMonth}/{selectedYear}</span>
             </div>
@@ -1018,19 +1034,29 @@ const KeHoachSanXuatCaThang = () => {
         </div>
       </div>
 
-      {/* ── 4. BIỂU ĐỒ THỰC HIỆN KH THEO CA - CÔNG ĐOẠN THÀNH HÌNH ── */}
+      {/* ── 5. BIỂU ĐỒ THỰC HIỆN KH THEO CA - CÔNG ĐOẠN THÀNH HÌNH ── */}
       <div className="drc-chart-card">
         <div className="drc-chart-head">
-          <FaChartBar />
-          <span>CÔNG ĐOẠN THÀNH HÌNH (TH) - THỰC HIỆN KH THEO CA THÁNG {selectedMonth}/{selectedYear} {selectedMachine ? `[${selectedMachineDisplay}]` : '[TẤT CẢ CÁC MÁY]'}</span>
-          <span className="drc-chart-scroll-hint">⟷ Kéo thanh trượt ngang để xem đủ {daysCount} ngày</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <FaChartBar color="#16a34a" />
+            <span style={{ fontWeight: 900 }}>CÔNG ĐOẠN THÀNH HÌNH (TH) - THỰC HIỆN KH THEO CA THÁNG {selectedMonth}/{selectedYear}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
+            <select
+              className="drc-select"
+              style={{ height: '26px', minWidth: '160px', borderColor: '#16a34a', fontSize: '11.5px', background: '#f0fdf4' }}
+              value={selectedThMachine}
+              onChange={(e) => setSelectedThMachine(e.target.value)}
+            >
+              <option value="">-- Tất cả máy Thành hình --</option>
+              {thMachineList.map(m => (
+                <option key={`opt-th-chart-${m.value}`} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+          </div>
         </div>
         <div className="drc-chart-body">
-          {selectedMachine && selectedMachine.toUpperCase().includes('CV') ? (
-            <div className="drc-empty-notice">
-              <span>⚠️ Đang chọn <strong>{selectedMachineDisplay}</strong> (thuộc công đoạn Cắt vải), không có số liệu Thành hình.</span>
-            </div>
-          ) : chartThShiftData.length === 0 ? (
+          {chartThShiftData.length === 0 ? (
             <div className="drc-empty-notice">
               <span>Chưa có dữ liệu kế hoạch theo ca cho tháng {selectedMonth}/{selectedYear}</span>
             </div>

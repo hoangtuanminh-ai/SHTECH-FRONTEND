@@ -12,7 +12,7 @@ import {
 import { FaCalendarAlt, FaSearch, FaRedo, FaCogs, FaChartBar, FaIndustry, FaTable } from 'react-icons/fa';
 
 // Import API chính thức
-import { getCatVaiMonthlyStats, getCatVaiEquipments } from '../../api/catVaiApi';
+import { getProductionQuantityFor5YearsCatVai, getCatVaiEquipments } from '../../api/catVaiApi';
 import { getDanhSachMay, getProductionQuantityFor5Years } from '../../api/thanhhinhApi';
 
 /* ─── STYLESHEET CHUẨN MES / INDUSTRIAL CHO BIỂU ĐỒ TỔNG SẢN XUẤT 5 NĂM ───────── */
@@ -245,10 +245,9 @@ const css = `
   .drc-chart-head.th-head {
     background: linear-gradient(180deg, #16a34a 0%, #15803d 100%);
   }
-
   .drc-chart-body {
-    height: 330px;
-    padding: 14px 16px 8px 8px;
+    height: 320px;
+    padding: 12px 10px 6px 4px;
     position: relative;
   }
 
@@ -334,17 +333,17 @@ const Custom5YearTooltip = ({ active, payload, label, unit = 'lốp' }) => {
 };
 
 /* ─── Render nhãn số lượng trên đỉnh cột 5 năm ────────────────────────────── */
-const render5YearBarLabel = (props) => {
+const render5YearBarLabel = (props, isMobile = false) => {
   const { x, y, width, value } = props;
   if (!value || Number(value) <= 0) return null;
 
   return (
     <text
       x={x + width / 2}
-      y={y - 8}
+      y={y - (isMobile ? 6 : 8)}
       fill="#0f172a"
       textAnchor="middle"
-      fontSize={12}
+      fontSize={isMobile ? 10.5 : 12}
       fontWeight="900"
     >
       {Number(value).toLocaleString('vi-VN')}
@@ -354,6 +353,14 @@ const render5YearBarLabel = (props) => {
 
 const SanXuat5Nam = () => {
   console.log(">>> [SanXuat5Nam] Render trang Tổng Sản Xuất 5 Năm (1 Biểu Đồ 5 Cột)");
+
+  // Nhận diện màn hình Mobile vs Desktop
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Thời gian mặc định
   const now = dayjs();
@@ -491,48 +498,56 @@ const SanXuat5Nam = () => {
       const isThMachine = machineToLoad ? !isCvMachine : false;
 
       // ── A. TẢI TỔNG SẢN LƯỢNG 5 NĂM CẮT VẢI (CV) ──
+      // Sử dụng API mới GET /api/catvai/production-5-years (Chỉ 1 request duy nhất)
       if (machineToLoad && isThMachine) {
         setCv5YearList([]);
       } else {
         const cvParam = isCvMachine ? machineToLoad : null;
-        const cvKeyPrefix = `CV_${cvParam || 'ALL'}`;
+        const cvKey = `CV_${cvParam || 'ALL'}_${baseYear}`;
 
-        const cvPromises = years.map(async (y) => {
-          const cacheKey = `${cvKeyPrefix}_${y}`;
-          if (!forceRefresh && cacheCvRef.current.has(cacheKey)) {
-            console.log(`>>> [SanXuat5Nam Cache Hit] CV Năm ${y} từ bộ nhớ đệm:`, cacheCvRef.current.get(cacheKey));
-            return cacheCvRef.current.get(cacheKey);
-          }
-
+        if (!forceRefresh && cacheCvRef.current.has(cvKey)) {
+          const cachedData = cacheCvRef.current.get(cvKey);
+          console.log(`>>> [SanXuat5Nam Cache Hit] CV 5 năm (${baseYear}) từ bộ nhớ đệm:`, cachedData);
+          setCv5YearList(cachedData);
+        } else {
           const t0 = performance.now();
           try {
-            const res = await getCatVaiMonthlyStats(y, cvParam);
-            const cvArray = (res && Array.isArray(res.data)) ? res.data : (Array.isArray(res) ? res : []);
-            const totalYear = cvArray.reduce((sum, item) => {
-              const val = Number(
+            console.log(`>>> [SanXuat5Nam] Gọi API mới getProductionQuantityFor5YearsCatVai: selectedYear=${baseYear}, maMay=${cvParam}`);
+            const resCV = await getProductionQuantityFor5YearsCatVai({
+              selectedYear: baseYear,
+              maMay: cvParam
+            });
+
+            const rawListCV = (resCV && Array.isArray(resCV.data)) ? resCV.data : (Array.isArray(resCV) ? resCV : []);
+
+            const dataByYearCV = new Map();
+            rawListCV.forEach(item => {
+              const y = Number(item.Year ?? item.year ?? item.Nam_SX ?? item.nam_sx ?? item.Nam ?? item.nam ?? 0);
+              const qty = Number(
+                item.TotalQuantity ?? item.totalQuantity ??
                 item.TongSanLuong ?? item.tongSanLuong ??
-                item.TongSanLuongThucTe ?? item.tongSanLuongThucTe ??
-                item.sanLuongThucTe ?? item.SanLuong ??
-                item.sanluong ?? item.tongSX ?? item.soLuongSX ??
-                item.SoLuong_SX ?? 0
+                item.sanLuong ?? item.tongSX ?? item.SoLuong ?? 0
               );
-              return sum + val;
-            }, 0);
+              if (y > 0) {
+                dataByYearCV.set(y, qty);
+              }
+            });
 
-            const resultItem = { nam: `Năm ${y}`, year: y, sanLuong: totalYear };
-            cacheCvRef.current.set(cacheKey, resultItem);
+            const parsedCv5List = years.map(y => ({
+              nam: `Năm ${y}`,
+              year: y,
+              sanLuong: dataByYearCV.get(y) || 0
+            }));
+
+            cacheCvRef.current.set(cvKey, parsedCv5List);
             const t1 = performance.now();
-            console.log(`>>> [SanXuat5Nam API Perf] CV Năm ${y} hoàn tất trong ${(t1 - t0).toFixed(0)}ms: ${totalYear.toLocaleString('vi-VN')} m`);
-            return resultItem;
-          } catch (err) {
-            console.error(`>>> [SanXuat5Nam API Error] Lỗi tải Cắt vải năm ${y}:`, err);
-            return { nam: `Năm ${y}`, year: y, sanLuong: 0 };
+            console.log(`>>> [SanXuat5Nam API Perf] CV 5 năm (${baseYear}) hoàn tất trong ${(t1 - t0).toFixed(0)}ms:`, parsedCv5List);
+            setCv5YearList(parsedCv5List);
+          } catch (errCV) {
+            console.error(">>> [SanXuat5Nam API Error] Lỗi tải Cắt vải 5 năm:", errCV);
+            setCv5YearList(years.map(y => ({ nam: `Năm ${y}`, year: y, sanLuong: 0 })));
           }
-        });
-
-        const parsedCv5List = await Promise.all(cvPromises);
-        console.log(">>> [SanXuat5Nam] Kết quả tổng 5 năm Cắt Vải:", parsedCv5List);
-        setCv5YearList(parsedCv5List);
+        }
       }
 
       // ── B. TẢI TỔNG SẢN LƯỢNG 5 NĂM THÀNH HÌNH (TH) ──
@@ -731,23 +746,28 @@ const SanXuat5Nam = () => {
             </div>
           ) : (
             <>
-              {/* 1 Biểu đồ duy nhất chứa 5 cột của 5 năm */}
+              {/* 1 Biểu đồ duy nhất chứa 5 cột của 5 năm (Desktop cột to 48px, Mobile vừa vặn 32px) */}
               <div className="drc-chart-body">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={cv5YearList}
-                    margin={{ top: 26, right: 30, left: 10, bottom: 6 }}
-                    barSize={48}
+                    margin={isMobile ? { top: 24, right: 12, left: -14, bottom: 4 } : { top: 26, right: 30, left: 10, bottom: 6 }}
+                    barSize={isMobile ? 32 : 48}
+                    maxBarSize={isMobile ? 36 : 52}
+                    barCategoryGap={isMobile ? '20%' : '10%'}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                     <XAxis
                       dataKey="nam"
-                      tick={{ fontSize: 12, fill: '#1e293b', fontWeight: 800 }}
+                      interval={0}
+                      tickFormatter={isMobile ? (v) => String(v).replace('Năm ', '') : undefined}
+                      tick={{ fontSize: isMobile ? 11 : 12, fill: '#1e293b', fontWeight: 800 }}
                       tickLine={false}
                       axisLine={{ stroke: '#cbd5e1' }}
                     />
                     <YAxis
-                      tick={{ fontSize: 11, fill: '#64748b', fontWeight: 600 }}
+                      width={isMobile ? 40 : 52}
+                      tick={{ fontSize: isMobile ? 9.5 : 11, fill: '#64748b', fontWeight: 600 }}
                       tickLine={false}
                       axisLine={{ stroke: '#cbd5e1' }}
                       tickFormatter={(v) => (v >= 1000000 ? `${(v / 1000000).toFixed(1)}M` : (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v))}
@@ -767,7 +787,7 @@ const SanXuat5Nam = () => {
                           fill={entry.sanLuong > 0 ? '#0284c7' : '#cbd5e1'}
                         />
                       ))}
-                      <LabelList content={render5YearBarLabel} />
+                      <LabelList content={(props) => render5YearBarLabel(props, isMobile)} />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -826,23 +846,28 @@ const SanXuat5Nam = () => {
             </div>
           ) : (
             <>
-              {/* 1 Biểu đồ duy nhất chứa 5 cột của 5 năm */}
+              {/* 1 Biểu đồ duy nhất chứa 5 cột của 5 năm (Desktop cột to 48px, Mobile vừa vặn 32px) */}
               <div className="drc-chart-body">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={th5YearList}
-                    margin={{ top: 26, right: 30, left: 10, bottom: 6 }}
-                    barSize={48}
+                    margin={isMobile ? { top: 24, right: 12, left: -14, bottom: 4 } : { top: 26, right: 30, left: 10, bottom: 6 }}
+                    barSize={isMobile ? 32 : 48}
+                    maxBarSize={isMobile ? 36 : 52}
+                    barCategoryGap={isMobile ? '20%' : '10%'}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                     <XAxis
                       dataKey="nam"
-                      tick={{ fontSize: 12, fill: '#1e293b', fontWeight: 800 }}
+                      interval={0}
+                      tickFormatter={isMobile ? (v) => String(v).replace('Năm ', '') : undefined}
+                      tick={{ fontSize: isMobile ? 11 : 12, fill: '#1e293b', fontWeight: 800 }}
                       tickLine={false}
                       axisLine={{ stroke: '#cbd5e1' }}
                     />
                     <YAxis
-                      tick={{ fontSize: 11, fill: '#64748b', fontWeight: 600 }}
+                      width={isMobile ? 40 : 52}
+                      tick={{ fontSize: isMobile ? 9.5 : 11, fill: '#64748b', fontWeight: 600 }}
                       tickLine={false}
                       axisLine={{ stroke: '#cbd5e1' }}
                       tickFormatter={(v) => (v >= 1000000 ? `${(v / 1000000).toFixed(1)}M` : (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v))}
@@ -862,7 +887,7 @@ const SanXuat5Nam = () => {
                           fill={entry.sanLuong > 0 ? '#16a34a' : '#cbd5e1'}
                         />
                       ))}
-                      <LabelList content={render5YearBarLabel} />
+                      <LabelList content={(props) => render5YearBarLabel(props, isMobile)} />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>

@@ -1251,11 +1251,21 @@ const MayThanhHinhList = () => {
                     const isCatVai = id.toUpperCase().includes('-CV-') || id.toUpperCase().includes('CV') || id.toUpperCase().includes('ORCV');
                     const reqFromDate = getShiftStartISO(tuCa, fromDate);
                     const reqToDate = getShiftEndISO(denCa, toDate);
-                    console.log(`>>> [MayThanhHinhList] Click mở máy: ${id}, Loại máy: ${isCatVai ? 'Cắt vải' : 'Thành hình'} | ISO Range: ${reqFromDate} -> ${reqToDate}`);
+                    console.log(`>>> [MayThanhHinhList] Click mở máy: ${id}, Loại máy: ${isCatVai ? 'Cắt vải' : 'Thành hình'} | ISO Range: ${reqFromDate} -> ${reqToDate} | MaQuyCach: '${may.MaQuyCach || may.QCSX || ''}'`);
+                    const navState = {
+                      machine: may,
+                      maQuyCach: may.MaQuyCach || may.QCSX || '',
+                      tenMay: may.TenMay || '',
+                      trangThai: may.TrangThai,
+                      tuCa,
+                      denCa,
+                      fromDate,
+                      toDate
+                    };
                     if (isCatVai) {
-                      navigate(`/dashboard/may-cat-vai/${id}?fromDate=${reqFromDate}&toDate=${reqToDate}`);
+                      navigate(`/dashboard/may-cat-vai/${id}?fromDate=${reqFromDate}&toDate=${reqToDate}`, { state: navState });
                     } else {
-                      navigate(`/dashboard/may-thanh-hinh/${id}?fromDate=${reqFromDate}&toDate=${reqToDate}`);
+                      navigate(`/dashboard/may-thanh-hinh/${id}?fromDate=${reqFromDate}&toDate=${reqToDate}`, { state: navState });
                     }
                   }}
                 />

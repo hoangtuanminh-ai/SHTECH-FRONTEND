@@ -76,8 +76,26 @@ export const buildTongHopCaNgayChartData = (records, monthKey = null) => {
   const list = Array.isArray(records) ? records : [];
   const byDay = new Map();
 
+  // Xác định trước Năm và Tháng từ monthKey (nếu có) để tạo key ymd khi API trả về Day số nguyên
+  let defaultYear = null;
+  let defaultMonth = null;
+  if (monthKey) {
+    const clean = String(monthKey).replace(/-/g, '');
+    if (clean.length >= 6) {
+      defaultYear = Number(clean.slice(0, 4));
+      defaultMonth = Number(clean.slice(4, 6));
+    }
+  }
+
   list.forEach(item => {
-    const ymd = Number(item.yearMonthDay);
+    // 1. Tính toán YearMonthDay (hỗ trợ cả ymd dạng 20260801 lẫn Day dạng số nguyên 1..31)
+    let ymd = Number(item.yearMonthDay);
+    if (!ymd) {
+      const dNum = Number(item.Day ?? item.day ?? item.Ngay_SX ?? item.ngay_sx ?? 0);
+      if (dNum > 0 && defaultYear && defaultMonth) {
+        ymd = Number(`${defaultYear}${String(defaultMonth).padStart(2, '0')}${String(dNum).padStart(2, '0')}`);
+      }
+    }
     if (!ymd) return;
 
     if (!byDay.has(ymd)) {
@@ -88,38 +106,43 @@ export const buildTongHopCaNgayChartData = (records, monthKey = null) => {
     }
     const row = byDay.get(ymd);
 
-    // caSX từ API là số ca hiển thị ('1','2','3'); mã ca trong yearMonthDayShift mới là '0' cho ca 3.
-    // Ưu tiên lấy chữ số cuối của yearMonthDayShift vì đó là nguồn chuẩn nhất.
+    // 2. Xác định mã Ca (code: '1' -> Ca 1, '2' -> Ca 2, '0' -> Ca 3)
     let code = null;
     if (item.yearMonthDayShift !== undefined && item.yearMonthDayShift !== null) {
       code = String(item.yearMonthDayShift).slice(-1);
+    } else if (item.Shift !== undefined && item.Shift !== null) {
+      const raw = String(item.Shift).trim();
+      code = (raw === '3' || raw === '0') ? '0' : raw;
+    } else if (item.shift !== undefined && item.shift !== null) {
+      const raw = String(item.shift).trim();
+      code = (raw === '3' || raw === '0') ? '0' : raw;
     } else if (item.caSX !== undefined && item.caSX !== null) {
       const raw = String(item.caSX).trim();
-      code = raw === '3' ? '0' : raw;
+      code = (raw === '3' || raw === '0') ? '0' : raw;
     }
 
     const shift = SHIFT_ORDER.find(s => s.code === code);
     if (!shift) return;
 
-    // Kế hoạch dùng số ĐÃ ĐIỀU CHỈNH, vì đó là kế hoạch thực tế máy phải chạy.
-    // Nếu không có thì lùi về kế hoạch gốc.
+    // 3. Lấy số lượng Kế hoạch, Sản lượng và Tỷ lệ hoàn thành
     const keHoach = Number(
-      item.soLuongKHDieuChinh != null ? item.soLuongKHDieuChinh : item.soLuongKH
+      item.TongKeHoachDieuChinh ?? item.soLuongKHDieuChinh ?? item.soLuongKH ?? item.TongKeHoach ?? 0
     ) || 0;
-    const keHoachGoc = Number(item.soLuongKH) || 0;
-    const sanLuong = Number(item.soLuongSX) || 0;
+    const keHoachGoc = Number(item.soLuongKH ?? item.TongKeHoachGoc ?? keHoach) || 0;
+    const sanLuong = Number(item.TongSanLuong ?? item.soLuongSX ?? item.sanLuong ?? 0) || 0;
 
-    // Ưu tiên tỷ lệ backend đã tính; nếu thiếu thì tự tính lại từ SX/KH
-    const tyLe = item.tyLeThucHien != null
-      ? Number(item.tyLeThucHien) || 0
-      : (keHoach > 0 ? (sanLuong / keHoach) * 100 : 0);
+    const tyLe = item.TyLeHoanThanh != null
+      ? Number(item.TyLeHoanThanh) || 0
+      : (item.tyLeThucHien != null
+        ? Number(item.tyLeThucHien) || 0
+        : (keHoach > 0 ? (sanLuong / keHoach) * 100 : 0));
 
     const k = shift.dataKey;
     row[`${k}_tyLe`] = tyLe;
     row[`${k}_sanLuong`] = sanLuong;
     row[`${k}_keHoach`] = keHoach;
     row[`${k}_keHoachGoc`] = keHoachGoc;
-    row[`${k}_soLuongThieu`] = Number(item.soLuongThieu) || 0;
+    row[`${k}_soLuongThieu`] = Number(item.soLuongThieu ?? (keHoach > sanLuong ? keHoach - sanLuong : 0)) || 0;
     row[`${k}_coDuLieu`] = true;
   });
 
