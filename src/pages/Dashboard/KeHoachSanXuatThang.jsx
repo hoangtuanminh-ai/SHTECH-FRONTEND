@@ -516,10 +516,13 @@ const CustomDailyChartTooltip = ({ active, payload, label, unit = 'lốp' }) => 
     const pctNum = Number(itemData.pct || 0);
     const color = getDayBarColor(pctNum, itemData.slTT);
 
+    // Ghi log console kiểm tra dữ liệu khi người dùng di chuột vào cột theo quy tắc dự án
+    console.log(`>>> [KeHoachSanXuatThang Tooltip] Hover cột ngày ${label} (${unit}): KH=${itemData.slKH}, TT=${itemData.slTT}, Đạt=${pctNum.toFixed(2)}%`);
+
     return (
       <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '8px 12px', boxShadow: '0 2px 8px rgba(0,0,0,0.12)', minWidth: '170px' }}>
         <div style={{ fontWeight: 800, fontSize: '12px', color: '#1e3a8a', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px', marginBottom: '6px' }}>
-          📅 {label}
+          {label}
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', marginBottom: '3px' }}>
           <span style={{ color: '#0070c0', fontWeight: 700 }}>• Kế hoạch:</span>

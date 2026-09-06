@@ -54,23 +54,25 @@ export const getDashboardStats = async (params = {}) => {
     throw error.response?.data || { message: "Lỗi tải thông số dashboard" };
   }
 };
-// Lấy tổng sản lượng 5 năm của công đoạn Thành hình (Mới)
-// URL: GET /api/thanhhinh/machine/production-5-years?selectedYear=2026&maMay=01
+// Lấy tổng sản lượng của công đoạn Thành hình trong 10 năm liên tiếp (Cập nhật từ 5 năm lên 10 năm)
+// URL: GET /api/thanhhinh/machine/production-5-years?selectedYear=2017&maMay=01
 export const getProductionQuantityFor5Years = async ({ selectedYear, maMay }) => {
   try {
     const params = { selectedYear };
     if (maMay) {
       params.maMay = maMay;
     }
-    console.log(">>> [thanhhinhApi] getProductionQuantityFor5Years gọi API:", params);
+    console.log(">>> [thanhhinhApi] getProductionQuantityFor5Years (lấy 10 năm) gọi API:", params);
     const res = await api.get(`${BASE_PATH}/production-5-years`, { params });
-    console.log(">>> [thanhhinhApi] getProductionQuantityFor5Years kết quả:", res.data);
+    console.log(">>> [thanhhinhApi] getProductionQuantityFor5Years kết quả nhận được:", res.data);
     return res.data;
   } catch (error) {
-    console.error("[getProductionQuantityFor5Years] Lỗi:", error);
-    throw error.response?.data || { message: "Lỗi tải sản lượng 5 năm Thành hình" };
+    console.error("[getProductionQuantityFor5Years] Lỗi khi tải sản lượng 10 năm Thành hình:", error);
+    throw error.response?.data || { message: "Lỗi tải sản lượng 10 năm Thành hình" };
   }
 };
+// Alias hỗ trợ gọi theo tên 10 năm
+export const getProductionQuantityFor10Years = getProductionQuantityFor5Years;
 
 // Lấy báo cáo KHSX
 export const getBaoCaoKHSX = async (idKehoach = '%', storeId = '%') => {

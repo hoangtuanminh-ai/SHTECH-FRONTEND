@@ -12,7 +12,9 @@ import { toast } from 'react-toastify';
 // không phải bấm chuyển trang. Giá trị đủ lớn để chứa hết 24h dữ liệu.
 const PAGE_SIZE = 5000;
 
-const HOURS_BACK = 24;
+// Khoảng thời gian mặc định của popup lịch sử thông số hoạt động: 12 GIỜ GẦN NHẤT
+// tính từ thời điểm mở popup (thay vì 24 giờ như trước đây).
+const HOURS_BACK = 12;
 
 const toLocalDateTimeInput = (d) => {
   const year = d.getFullYear();
@@ -23,7 +25,7 @@ const toLocalDateTimeInput = (d) => {
   return `${year}-${month}-${day}T${hour}:${minute}`;
 };
 
-// Trả về { from, to } dạng 'YYYY-MM-DDTHH:mm' cho 24 giờ gần nhất
+// Trả về { from, to } dạng 'YYYY-MM-DDTHH:mm' cho 12 giờ gần nhất
 const getDefaultRange = () => {
   const now = new Date();
   const from = new Date(now.getTime() - HOURS_BACK * 60 * 60 * 1000);
@@ -89,7 +91,7 @@ const RealTimeORCVHistory = ({ equipmentId, onClose }) => {
   const [totalElements, setTotalElements] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  // Bộ lọc ngày giờ - mặc định 24 giờ gần nhất kể từ thời điểm mở popup
+  // Bộ lọc ngày giờ - mặc định 12 giờ gần nhất kể từ thời điểm mở popup
   const [defaultRange] = useState(() => getDefaultRange());
   const [fromDate, setFromDate] = useState(defaultRange.from);
   const [toDate, setToDate] = useState(defaultRange.to);

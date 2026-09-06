@@ -124,8 +124,8 @@ const AppContent = () => {
             <Route path="ke-hoach-san-xuat-nam" element={<ProtectedRoute><KeHoachSanXuatNam /></ProtectedRoute>} />
             <Route path="ke-hoach-san-xuat-thang" element={<ProtectedRoute><KeHoachSanXuatThang /></ProtectedRoute>} />
             <Route path="ke-hoach-san-xuat-ca-thang" element={<ProtectedRoute><KeHoachSanXuatCaThang /></ProtectedRoute>} />
-            <Route path="san-xuat-thang-nam" element={<ProtectedRoute><SanXuatThangNam /></ProtectedRoute>} />
             <Route path="san-xuat-5-nam" element={<ProtectedRoute><SanXuat5Nam /></ProtectedRoute>} />
+            <Route path="san-xuat-10-nam" element={<ProtectedRoute><SanXuat5Nam /></ProtectedRoute>} />
             <Route path="trang-thai-may-ngay" element={<ProtectedRoute><TrangThaiMayNgay /></ProtectedRoute>} />
             <Route path="trang-thai-may-thang" element={<ProtectedRoute><TrangThaiMayThang /></ProtectedRoute>} />
             <Route path="trang-thai-may-nam" element={<ProtectedRoute><TrangThaiMayNam /></ProtectedRoute>} />

@@ -291,21 +291,22 @@ export const normalizeCatVaiMachineCode = (maMay) => {
   return str;
 };
 
-// 19. API 1: Lấy sản lượng 5 năm kể từ năm được chọn cho Cắt Vải (GET /api/catvai/production-5-years)
+// 19. API 1: Lấy sản lượng của công đoạn Cắt Vải (chu kỳ nhiều năm / 10 năm) (GET /api/catvai/production-5-years)
 export const getProductionQuantityFor5YearsCatVai = async ({ selectedYear, maMay = null }) => {
   try {
     const normMaMay = normalizeCatVaiMachineCode(maMay);
-    console.log(`[catVaiApi] getProductionQuantityFor5YearsCatVai: selectedYear=${selectedYear}, maMay=${normMaMay} (gốc: ${maMay})`);
+    console.log(`[catVaiApi] getProductionQuantityFor5YearsCatVai (10 năm): selectedYear=${selectedYear}, maMay=${normMaMay} (gốc: ${maMay})`);
     const params = { selectedYear };
     if (normMaMay) params.maMay = normMaMay;
     const res = await api.get("/api/catvai/production-5-years", { params });
-    console.log("[catVaiApi] getProductionQuantityFor5YearsCatVai response:", res.data);
+    console.log("[catVaiApi] getProductionQuantityFor5YearsCatVai kết quả:", res.data);
     return res.data;
   } catch (error) {
     console.error("[catVaiApi] getProductionQuantityFor5YearsCatVai lỗi:", error);
-    throw error.response?.data || { message: "Không thể lấy sản lượng cắt vải 5 năm" };
+    throw error.response?.data || { message: "Không thể lấy sản lượng cắt vải" };
   }
 };
+export const getProductionQuantityFor10YearsCatVai = getProductionQuantityFor5YearsCatVai;
 
 // 20. API 2: Lấy kế hoạch điều chỉnh, sản lượng và tỷ lệ hoàn thành các tháng trong năm (GET /api/catvai/monthly-stats-for-year)
 export const getMonthlyStatsForYearCatVai = async ({ nam_sx, maMay = null }) => {

@@ -356,7 +356,7 @@ function Navbar() {
               <NavLink to="/dashboard/ke-hoach-san-xuat-thang" label="KẾ HOẠCH - SẢN XUẤT THÁNG" icon={FaCalendarAlt} isActive={active('/dashboard/ke-hoach-san-xuat-thang')} />
               <NavLink to="/dashboard/ke-hoach-san-xuat-ca-thang" label="KẾ HOẠCH - SẢN XUẤT CA , THÁNG" icon={FaCalendarAlt} isActive={active('/dashboard/ke-hoach-san-xuat-ca-thang')} />
               {/* <NavLink to="/dashboard/san-xuat-thang-nam" label="SẢN XUẤT THÁNG /NĂM" icon={FaChartBar} isActive={active('/dashboard/san-xuat-thang-nam')} /> */}
-              <NavLink to="/dashboard/san-xuat-5-nam" label="SẢN XUẤT 5 NĂM" icon={FaChartBar} isActive={active('/dashboard/san-xuat-5-nam')} />
+              <NavLink to="/dashboard/san-xuat-5-nam" label="SẢN XUẤT 10 NĂM" icon={FaChartBar} isActive={active('/dashboard/san-xuat-5-nam') || active('/dashboard/san-xuat-10-nam')} />
               <NavLink to="/dashboard/trang-thai-may-ngay" label="TRẠNG THÁI MÁY - NGÀY" icon={FaHistory} isActive={active('/dashboard/trang-thai-may-ngay')} />
               <NavLink to="/dashboard/trang-thai-may-thang" label="TRẠNG THÁI MÁY - THÁNG" icon={FaHistory} isActive={active('/dashboard/trang-thai-may-thang')} />
               <NavLink to="/dashboard/trang-thai-may-nam" label="TRẠNG THÁI MÁY - NĂM" icon={FaHistory} isActive={active('/dashboard/trang-thai-may-nam')} />

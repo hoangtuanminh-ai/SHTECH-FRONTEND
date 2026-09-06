@@ -541,7 +541,7 @@ const renderTtBarLabel = (props, data) => {
   );
 };
 
-/* ─── Custom Tooltip cho Biểu đồ Năm (Hiển thị chi tiết cả SL và %) ──────── */
+/* ─── Custom Tooltip cho Biểu đồ Năm (Loại bỏ các icon/emoji khi di chuột vào cột để giao diện chuyên nghiệp chuẩn MES DRC) ─── */
 const CustomYearChartTooltip = ({ active, payload, label, unit = 'lốp' }) => {
   if (active && payload && payload.length) {
     const itemData = payload[0].payload;
@@ -561,6 +561,9 @@ const CustomYearChartTooltip = ({ active, payload, label, unit = 'lốp' }) => {
     const pct = itemData.pct !== undefined ? Number(itemData.pct) : (slKH > 0 ? Number(((slTT / slKH) * 100).toFixed(2)) : 0);
     const pctColor = getYearBarColor(pct, slTT);
 
+    // Ghi log console kiểm tra dữ liệu khi người dùng di chuột vào cột theo quy tắc dự án
+    console.log(`>>> [DashboardKeHoach Tooltip] Hover cột ${label} (${unit}): KH=${slKH}, TT=${slTT}, Đạt=${pct.toFixed(2)}%`);
+
     return (
       <div style={{
         background: '#ffffff',
@@ -575,16 +578,25 @@ const CustomYearChartTooltip = ({ active, payload, label, unit = 'lốp' }) => {
         <div style={{ fontWeight: '900', color: '#1a3a5c', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px', marginBottom: '6px' }}>
           {label}
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', color: '#0070c0' }}>
-          <span>📋 <strong>Kế hoạch (KH):</strong></span>
+        {/* Kế hoạch (KH) - hiển thị ô màu vuông nhỏ chuẩn công nghiệp, không dùng icon emoji */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', color: '#0070c0' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ width: 8, height: 8, borderRadius: '2px', background: '#0070c0', display: 'inline-block' }}></span>
+            <strong>Kế hoạch (KH):</strong>
+          </span>
           <span style={{ fontWeight: 'bold' }}>{slKH.toLocaleString('vi-VN')} {unit}</span>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', color: pctColor }}>
-          <span>🏭 <strong>Thực tế (SX):</strong></span>
+        {/* Thực tế (SX) - hiển thị ô màu vuông nhỏ theo trạng thái hoàn thành, không dùng icon emoji */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', color: pctColor }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ width: 8, height: 8, borderRadius: '2px', background: pctColor, display: 'inline-block' }}></span>
+            <strong>Thực tế (SX):</strong>
+          </span>
           <span style={{ fontWeight: 'bold' }}>{slTT.toLocaleString('vi-VN')} {unit}</span>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '4px', borderTop: '1px dashed #cbd5e1', fontWeight: '900' }}>
-          <span>📊 Tỷ lệ hoàn thành:</span>
+        {/* Tỷ lệ hoàn thành */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '4px', borderTop: '1px dashed #cbd5e1', fontWeight: '900' }}>
+          <span style={{ color: '#475569' }}>Tỷ lệ hoàn thành:</span>
           <span style={{ color: pctColor }}>{pct.toFixed(2)}%</span>
         </div>
       </div>
