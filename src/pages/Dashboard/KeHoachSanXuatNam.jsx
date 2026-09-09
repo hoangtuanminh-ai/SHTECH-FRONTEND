@@ -1,11 +1,12 @@
 // src/pages/Dashboard/KeHoachSanXuatNam.jsx
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import dayjs from 'dayjs';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, LabelList, Cell
 } from 'recharts';
-import { FaCalendarAlt, FaSearch, FaRedo, FaCogs, FaChartBar } from 'react-icons/fa';
+import { FaCalendarAlt, FaSearch, FaRedo, FaSyncAlt, FaCogs, FaChartBar, FaFilePdf } from 'react-icons/fa';
+import { exportDashboardToPDF } from '../../utils/exportPdfHelper';
 import { getKeHoachTrend } from '../../api/kehoachApi';
 import { getMonthlyStatsForYearCatVai, getCatVaiEquipments } from '../../api/catVaiApi';
 import { getMachinesWithStats, getDanhSachMay } from '../../api/thanhhinhApi';
@@ -290,6 +291,12 @@ const css = `
     gap: 12px;
     position: relative;
   }
+  .drc-chart-head.cv-head {
+    background: linear-gradient(180deg, #0284c7 0%, #0369a1 100%);
+  }
+  .drc-chart-head.th-head {
+    background: linear-gradient(180deg, #16a34a 0%, #15803d 100%);
+  }
   .drc-chart-scroll-hint {
     font-size: 10px;
     font-weight: 700;
@@ -529,6 +536,10 @@ const KeHoachSanXuatNam = () => {
   const [isLoadingCv, setIsLoadingCv] = useState(false);
   const [isLoadingTh, setIsLoadingTh] = useState(false);
   const [lastUpdated, setLastUpdated] = useState('');
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
+
+  // Ref container phục vụ xuất báo cáo PDF trực quan toàn bộ trang
+  const containerRef = useRef(null);
 
   // Danh sách các năm lựa chọn (từ 5 năm trước đến 2 năm sau)
   const yearOptions = useMemo(() => {
@@ -718,8 +729,9 @@ const KeHoachSanXuatNam = () => {
     loadThYearData(selectedYear, selectedThMachine);
   }, [selectedYear, selectedThMachine, loadThYearData]);
 
-  // Xử lý khi nhấn nút Làm mới (Tải lại cả 2 công đoạn)
+  // Xử lý khi nhấn nút Refresh (Tải lại cả 2 công đoạn)
   const handleRefresh = () => {
+    console.log(">>> [KeHoachSanXuatNam] Click Refresh báo cáo kế hoạch năm:", { selectedYear, selectedCvMachine, selectedThMachine });
     loadCvYearData(selectedYear, selectedCvMachine);
     loadThYearData(selectedYear, selectedThMachine);
   };
@@ -729,6 +741,25 @@ const KeHoachSanXuatNam = () => {
     setSelectedYear(currentYearNow);
     setSelectedCvMachine('');
     setSelectedThMachine('');
+  };
+
+  // Xử lý xuất báo cáo PDF cho Kế hoạch Sản xuất Năm
+  const handleExportPDF = async () => {
+    console.log(">>> [KeHoachSanXuatNam] Bắt đầu xuất PDF Kế hoạch sản xuất năm...", { selectedYear, selectedCvMachine, selectedThMachine });
+    setIsExportingPDF(true);
+    try {
+      await exportDashboardToPDF({
+        element: containerRef.current,
+        title: `BÁO CÁO KẾ HOẠCH & SẢN XUẤT NĂM ${selectedYear}`,
+        fileName: `Bao_Cao_Ke_Hoach_San_Xuat_Nam_${selectedYear}`,
+        filterInfo: `Năm: ${selectedYear} | Máy Cắt Vải: ${selectedCvMachine ? `Máy ${selectedCvMachine}` : 'Tất cả'} | Máy Thành Hình: ${selectedThMachine ? `Máy ${selectedThMachine}` : 'Tất cả'}`
+      });
+      console.log(">>> [KeHoachSanXuatNam] Xuất PDF hoàn tất.");
+    } catch (err) {
+      console.error(">>> [KeHoachSanXuatNam] Lỗi xuất PDF:", err);
+    } finally {
+      setIsExportingPDF(false);
+    }
   };
 
   // 4. Tính toán tổng KPI cả năm cho Cắt Vải
@@ -772,7 +803,7 @@ const KeHoachSanXuatNam = () => {
   const isLoadingTotal = isLoadingCv || isLoadingTh;
 
   return (
-    <div className="drc-year-container mes-fade">
+    <div ref={containerRef} className="drc-year-container mes-fade">
       <style>{css}</style>
 
       {/* ── 1. HEADER TITLE PANEL ── */}
@@ -809,14 +840,34 @@ const KeHoachSanXuatNam = () => {
             </select>
           </div>
 
-          {/* Nút Xem báo cáo */}
+          {/* Nút Refresh */}
           <button className="drc-btn drc-btn-primary" onClick={handleRefresh}>
-            <FaSearch /> Xem báo cáo
+            <FaSyncAlt /> Refresh
           </button>
 
           {/* Nút Mặc định */}
           <button className="drc-btn drc-btn-secondary" onClick={handleResetFilter}>
             <FaRedo /> Mặc định
+          </button>
+
+          {/* Nút Xuất Báo Cáo PDF */}
+          <button
+            className="drc-btn"
+            onClick={handleExportPDF}
+            disabled={isExportingPDF}
+            title="Xuất báo cáo PDF trực quan toàn bộ dashboard Kế hoạch năm"
+            style={{
+              background: '#dc2626',
+              borderColor: '#b91c1c',
+              color: '#ffffff',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontWeight: '700',
+              cursor: isExportingPDF ? 'not-allowed' : 'pointer'
+            }}
+          >
+            <FaFilePdf /> {isExportingPDF ? 'Đang xuất...' : 'XUẤT BÁO CÁO (PDF)'}
           </button>
         </div>
 
@@ -935,11 +986,11 @@ const KeHoachSanXuatNam = () => {
         </div>
       </div>
 
-      {/* ── 4. BIỂU ĐỒ THEO DÕI KHSX CÔNG ĐOẠN CẮT VẢI ── */}
+      {/* ── 4. BIỂU ĐỒ THEO DÕI KHSX CÔNG ĐOẠN CẮT VẢI (XANH DƯƠNG) ── */}
       <div className="drc-chart-card">
-        <div className="drc-chart-head">
+        <div className="drc-chart-head cv-head">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <FaChartBar color="#0284c7" />
+            <FaChartBar color="#ffffff" />
             <span style={{ fontWeight: 900 }}>BIỂU ĐỒ KẾ HOẠCH SẢN XUẤT - CÔNG ĐOẠN CẮT VẢI NĂM {selectedYear}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
@@ -1023,11 +1074,11 @@ const KeHoachSanXuatNam = () => {
         </div>
       </div>
 
-      {/* ── 5. BIỂU ĐỒ THEO DÕI KHSX CÔNG ĐOẠN THÀNH HÌNH ── */}
+      {/* ── 5. BIỂU ĐỒ THEO DÕI KHSX CÔNG ĐOẠN THÀNH HÌNH (XANH LÁ CÂY) ── */}
       <div className="drc-chart-card">
-        <div className="drc-chart-head">
+        <div className="drc-chart-head th-head">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <FaChartBar color="#16a34a" />
+            <FaChartBar color="#ffffff" />
             <span style={{ fontWeight: 900 }}>BIỂU ĐỒ KẾ HOẠCH SẢN XUẤT - CÔNG ĐOẠN THÀNH HÌNH NĂM {selectedYear}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>

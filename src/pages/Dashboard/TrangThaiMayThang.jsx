@@ -4,15 +4,16 @@
 // Cắt vải: 3 máy (ORC-CV-01 -> ORC-CV-03)
 // Thành hình: 15 máy (ORC-TH-01 -> ORC-TH-17 trừ 04, 13)
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import dayjs from 'dayjs';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer
 } from 'recharts';
 import {
-  FaCalendarAlt, FaSearch, FaRedo,
-  FaIndustry, FaLayerGroup, FaThLarge
+  FaCalendarAlt, FaSearch, FaRedo, FaSyncAlt,
+  FaIndustry, FaLayerGroup, FaThLarge, FaFilePdf
 } from 'react-icons/fa';
+import { exportDashboardToPDF } from '../../utils/exportPdfHelper';
 
 // Import API chính thức
 import { getMachineStatusTimesByMonth } from '../../api/thanhhinhApi';
@@ -531,6 +532,10 @@ const TrangThaiMayThang = () => {
   const [machinesData, setMachinesData] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState('');
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
+
+  // Ref container để xuất báo cáo PDF
+  const containerRef = useRef(null);
 
   // 1. Danh sách 18 MÁY CHUẨN XÁC: 3 máy Cắt Vải (01, 02, 03) + 15 máy Thành Hình (01..17 trừ 04, 13)
   const full18Machines = useMemo(() => {
@@ -635,8 +640,9 @@ const TrangThaiMayThang = () => {
     loadAll18MachinesMonthData(selectedYear, selectedMonth);
   }, [selectedYear, selectedMonth, loadAll18MachinesMonthData]);
 
-  // Nút Xem báo cáo
+  // Nút Refresh (Tìm kiếm và tải lại báo cáo SCADA tháng)
   const handleRefresh = () => {
+    console.log(">>> [TrangThaiMayThang] Click Refresh báo cáo SCADA tháng:", { selectedYear, selectedMonth });
     loadAll18MachinesMonthData(selectedYear, selectedMonth);
   };
 
@@ -646,8 +652,27 @@ const TrangThaiMayThang = () => {
     setSelectedMonth(currentMonth);
   };
 
+  // Xử lý xuất báo cáo PDF cho Trạng Thái Máy Tháng
+  const handleExportPDF = async () => {
+    console.log(">>> [TrangThaiMayThang] Bắt đầu xuất PDF Trạng thái máy theo tháng...", { selectedYear, selectedMonth, activeTab });
+    setIsExportingPDF(true);
+    try {
+      await exportDashboardToPDF({
+        element: containerRef.current,
+        title: `BÁO CÁO TRẠNG THÁI HOẠT ĐỘNG SCADA THIẾT BỊ THÁNG ${selectedMonth}/${selectedYear}`,
+        fileName: `Bao_Cao_Trang_Thai_May_Thang_${selectedMonth}_${selectedYear}`,
+        filterInfo: `Tháng: ${selectedMonth}/${selectedYear} | Bộ lọc: ${activeTab === 'ALL' ? 'Toàn bộ 18 máy' : activeTab === 'CV' ? '3 máy Cắt Vải' : '15 máy Thành Hình'}`
+      });
+      console.log(">>> [TrangThaiMayThang] Xuất PDF hoàn tất.");
+    } catch (err) {
+      console.error(">>> [TrangThaiMayThang] Lỗi xuất PDF:", err);
+    } finally {
+      setIsExportingPDF(false);
+    }
+  };
+
   return (
-    <div className="drc-scada-container mes-fade">
+    <div ref={containerRef} className="drc-scada-container mes-fade">
       <style>{css}</style>
 
       {/* ── 1. HEADER PANEL ── */}
@@ -693,14 +718,34 @@ const TrangThaiMayThang = () => {
             </select>
           </div>
 
-          {/* Nút Xem báo cáo */}
+          {/* Nút Refresh */}
           <button className="drc-btn drc-btn-primary" onClick={handleRefresh}>
-            <FaSearch /> Xem báo cáo
+            <FaSyncAlt /> Refresh
           </button>
 
           {/* Nút Tháng này */}
           <button className="drc-btn drc-btn-secondary" onClick={handleResetMonth}>
             <FaRedo /> Tháng này
+          </button>
+
+          {/* Nút Xuất Báo Cáo PDF */}
+          <button
+            className="drc-btn"
+            onClick={handleExportPDF}
+            disabled={isExportingPDF}
+            title="Xuất báo cáo PDF trực quan toàn bộ trạng thái máy theo tháng"
+            style={{
+              background: '#dc2626',
+              borderColor: '#b91c1c',
+              color: '#ffffff',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontWeight: '700',
+              cursor: isExportingPDF ? 'not-allowed' : 'pointer'
+            }}
+          >
+            <FaFilePdf /> {isExportingPDF ? 'Đang xuất...' : 'XUẤT BÁO CÁO (PDF)'}
           </button>
         </div>
 

@@ -30,6 +30,7 @@ import SettingTH02History from './SettingTH02History';
 import SettingTH09History from './SettingTH09History';
 import SettingTH05History from './SettingTH05History';
 import ThanhHinhChangeHistory from '../../components/change/ThanhHinhChangeHistory';
+import { exportCombinedMachineParametersToExcel } from '../../utils/exportExcelHelper';
 import { getCurrentShift, isCurrentShiftSelected } from '../../utils/shiftPolling';
 import {
   SHIFT_ORDER,
@@ -1937,11 +1938,109 @@ const MayThanhHinhDashboard = () => {
     }
   }, [activeTab, equipmentId, realTimePage, realTimeSize, realTimeRefreshInterval, barcodeFilter, selectedRealTimeId, selectedDate, selectedCa]);
 
+  // Hàm xuất Báo Cáo Tổng Hợp gồm CẢ 2: Thông Số Hoạt Động & Thông Số Cài Đặt của máy
+  const handleExportCombinedParameters = () => {
+    console.log(`>>> [MayThanhHinhDashboard] Người dùng bấm XUẤT BÁO CÁO EXCEL (CẢ 2 THÔNG SỐ) - Máy: ${equipmentId}`);
+    const realTimeRecord = realTimeData && realTimeData.length > 0 ? realTimeData[0] : null;
+    const settingRecord = settingData && settingData.length > 0 ? settingData[0] : null;
+
+    if (!realTimeRecord && !settingRecord) {
+      toast.warn("Chưa có dữ liệu thông số hoạt động hoặc cài đặt để xuất!");
+      return;
+    }
+
+    let rtFields;
+    let stFields;
+    if (isTH05Group) {
+      rtFields = realTimeTH05Fields;
+      stFields = settingTH05Fields;
+    } else {
+      const getMachineNumber = (id) => {
+        if (!id) return 0;
+        const match = id.match(/\d+/);
+        return match ? parseInt(match[0], 10) : 0;
+      };
+      const isTH09Plus = getMachineNumber(equipmentId) >= 9;
+      rtFields = isTH09Plus ? realTimeTH09Fields : realTimeTH02Fields;
+      stFields = isTH09Plus ? settingTH09Fields : settingTH02Fields;
+    }
+
+    const rtFieldsToRender = isTH05Group && realTimeRecord
+      ? rtFields.filter(f => f.key in realTimeRecord)
+      : rtFields;
+
+    const stFieldsToRender = isTH05Group && settingRecord
+      ? stFields.filter(f => f.key in settingRecord)
+      : stFields;
+
+    const timeStamp = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
+
+    exportCombinedMachineParametersToExcel({
+      equipmentId,
+      realTimeRecord,
+      realTimeFields: rtFieldsToRender,
+      settingRecord,
+      settingFields: stFieldsToRender,
+      fileName: `BaoCao_TongHop_ThongSo_${equipmentId}_${timeStamp}`,
+      title: `BÁO CÁO TỔNG HỢP THÔNG SỐ HOẠT ĐỘNG VÀ CÀI ĐẶT — MÁY ${equipmentId}`
+    });
+  };
+
   const renderChartDataTab = () => {
     return (
       <div className="mes-fade" style={{ display: 'flex', flexDirection: 'column', gap: '8px', minHeight: 'calc(100vh - 120px)', height: 'auto', overflowY: 'auto' }}>
-        {/* Bộ lọc chung */}
 
+        {/* THANH CÔNG CỤ XUẤT BÁO CÁO TỔNG HỢP CẢ 2 THÔNG SỐ CỦA MÁY */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          background: '#ffffff',
+          borderRadius: '4px',
+          border: '1px solid #cbd5e1',
+          padding: '6px 12px',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+          flexShrink: 0
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '11.5px', fontWeight: 'bold', color: '#1e3a5c', textTransform: 'uppercase' }}>
+              Báo Cáo Thông Số Máy #{equipmentId}
+            </span>
+            <span style={{ fontSize: '10.5px', color: '#64748b' }}>
+              (Xuất 1 file báo cáo tổng hợp bao gồm cả Thông số hoạt động và Cài đặt)
+            </span>
+          </div>
+
+          <button
+            onClick={handleExportCombinedParameters}
+            disabled={(realTimeData.length === 0 && settingData.length === 0)}
+            style={{
+              background: '#15803d',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '3px',
+              padding: '4px 14px',
+              fontSize: '11px',
+              fontWeight: 'bold',
+              cursor: (realTimeData.length === 0 && settingData.length === 0) ? 'not-allowed' : 'pointer',
+              opacity: (realTimeData.length === 0 && settingData.length === 0) ? 0.6 : 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+            }}
+            title="Xuất 1 file báo cáo Excel tổng hợp chứa cả Thông số hoạt động và Thông số cài đặt"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            XUẤT BÁO CÁO EXCEL
+          </button>
+        </div>
 
         {/* Phân vùng RealTime */}
         <div style={{ background: '#ffffff', borderRadius: '4px', border: '1px solid #cbd5e1', padding: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>

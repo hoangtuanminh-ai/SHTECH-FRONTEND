@@ -6,7 +6,9 @@ import { toast } from 'react-toastify';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import HistorySynthesis from './HistorySynthesis';
 import ThanhHinhChangeHistory from '../../components/change/ThanhHinhChangeHistory';
-import CatVaiChangeHistory from '../../components/change/CatVaiChangeHistory';
+import { FaFilePdf } from 'react-icons/fa';
+import { exportDashboardToPDF } from '../../utils/exportPdfHelper';
+import dayjs from 'dayjs';
 import { getCurrentShift, isCurrentShiftInRange } from '../../utils/shiftPolling';
 
 /* ─── MÃ VÀ MÀU SẮC TRẠNG THÁI MÁY (Theo bảng quy ước ảnh 2) ────────────────── */
@@ -1026,8 +1028,30 @@ const MayThanhHinhList = () => {
   const catVaiPlan = catVaiList.reduce((sum, m) => sum + (m.keHoach || 0), 0);
   const catVaiPct = catVaiPlan > 0 ? (catVaiActual / catVaiPlan) * 100 : 0;
 
+  const contentRef = React.useRef(null);
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
+
+  const handleExportPDF = async () => {
+    console.log(">>> [MayThanhHinhList] Người dùng bấm Xuất Báo Cáo PDF Trạng Thái Thiết Bị");
+    setIsExportingPDF(true);
+    await exportDashboardToPDF({
+      element: contentRef.current,
+      fileName: `BaoCao_TrangThai_ThietBi_18May`,
+      title: 'BÁO CÁO TRẠNG THÁI THIẾT BỊ VÀ TIẾN ĐỘ SẢN XUẤT 18 MÁY THÀNH HÌNH & CẮT VẢI',
+      subTitle: `Từ ${tuCa} (${dayjs(fromDate).format('DD/MM/YYYY')}) đến ${denCa} (${dayjs(toDate).format('DD/MM/YYYY')})`,
+      orientation: 'landscape',
+      metadata: {
+        'Tổng số máy': `${total} máy`,
+        'Đang chạy': `${running} (${calcPct(running)}%)`,
+        'Sản lượng TH': `${thanhHinhActual.toLocaleString('vi-VN')} / ${thanhHinhPlan.toLocaleString('vi-VN')} (${thanhHinhPct.toFixed(1)}%)`,
+        'Sản lượng CV': `${catVaiActual.toLocaleString('vi-VN')} / ${catVaiPlan.toLocaleString('vi-VN')} (${catVaiPct.toFixed(1)}%)`
+      }
+    });
+    setIsExportingPDF(false);
+  };
+
   return (
-    <div className="mes-container">
+    <div ref={contentRef} className="mes-container">
       <style>{css}</style>
 
       {/* ── 1. HEADER TAB NAVIGATION ─────────────────────────────────────────── */}
@@ -1100,6 +1124,32 @@ const MayThanhHinhList = () => {
             </div>
             <button className="mes-filter-btn" onClick={() => fetchMayData()}>
               Hiển Thị
+            </button>
+
+            {/* Nút Xuất Báo Cáo PDF */}
+            <button
+              onClick={handleExportPDF}
+              disabled={isExportingPDF}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: '#dc2626',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '3px',
+                padding: '0 12px',
+                fontSize: '11px',
+                fontWeight: 'bold',
+                cursor: isExportingPDF ? 'not-allowed' : 'pointer',
+                opacity: isExportingPDF ? 0.7 : 1,
+                boxShadow: '0 1px 2px rgba(220, 38, 38, 0.25)',
+                height: '24px'
+              }}
+              title="Xuất bản in báo cáo PDF hiện trạng thiết bị và sản lượng 18 máy"
+            >
+              <FaFilePdf size={12} />
+              <span>{isExportingPDF ? 'ĐANG TẠO PDF...' : 'XUẤT BÁO CÁO (PDF)'}</span>
             </button>
 
             {/* Điều chỉnh thời gian tự động gọi API ngầm */}

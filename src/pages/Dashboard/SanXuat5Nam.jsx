@@ -16,7 +16,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, LabelList, Cell
 } from 'recharts';
-import { FaCalendarAlt, FaSearch, FaRedo, FaChartBar } from 'react-icons/fa';
+import { FaCalendarAlt, FaSearch, FaRedo, FaSyncAlt, FaChartBar, FaFilePdf } from 'react-icons/fa';
+import { exportDashboardToPDF } from '../../utils/exportPdfHelper';
 
 // Import API chính thức từ Backend
 import { getProductionQuantityFor5YearsCatVai, getCatVaiEquipments } from '../../api/catVaiApi';
@@ -438,6 +439,10 @@ const SanXuat5Nam = () => {
   const [isLoadingCv, setIsLoadingCv] = useState(false);
   const [isLoadingTh, setIsLoadingTh] = useState(false);
   const [lastUpdated, setLastUpdated] = useState('');
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
+
+  // Ref container phục vụ xuất báo cáo PDF
+  const containerRef = useRef(null);
 
   // Danh sách các năm lựa chọn mốc
   const yearOptions = useMemo(() => {
@@ -682,8 +687,9 @@ const SanXuat5Nam = () => {
     loadTh10YearData(selectedYear, selectedThMachine);
   }, [selectedYear, selectedThMachine, loadTh10YearData]);
 
-  // Xử lý nút Xem báo cáo (Làm mới cả 2 công đoạn từ database)
+  // Xử lý nút Refresh (Làm mới cả 2 công đoạn từ database)
   const handleRefresh = () => {
+    console.log(">>> [SanXuat5Nam] Click Refresh báo cáo 10 năm:", { selectedYear, selectedCvMachine, selectedThMachine });
     loadCv10YearData(selectedYear, selectedCvMachine, true);
     loadTh10YearData(selectedYear, selectedThMachine, true);
   };
@@ -693,6 +699,25 @@ const SanXuat5Nam = () => {
     setSelectedYear(currentYearNow);
     setSelectedCvMachine('');
     setSelectedThMachine('');
+  };
+
+  // Xử lý xuất báo cáo PDF cho Sản Xuất 10 Năm
+  const handleExportPDF = async () => {
+    console.log(">>> [SanXuat5Nam] Bắt đầu xuất PDF Sản xuất 10 năm...", { selectedYear, selectedCvMachine, selectedThMachine });
+    setIsExportingPDF(true);
+    try {
+      await exportDashboardToPDF({
+        element: containerRef.current,
+        title: `BÁO CÁO TỔNG HỢP SẢN XUẤT 10 NĂM LIÊN TIẾP (${target10Years[0]} - ${target10Years[9]})`,
+        fileName: `Bao_Cao_San_Xuat_10_Nam_${target10Years[0]}_${target10Years[9]}`,
+        filterInfo: `Chu kỳ: ${target10Years[0]} - ${target10Years[9]} | Máy Cắt Vải: ${selectedCvMachine ? `Máy ${selectedCvMachine}` : 'Tất cả'} | Máy Thành Hình: ${selectedThMachine ? `Máy ${selectedThMachine}` : 'Tất cả'}`
+      });
+      console.log(">>> [SanXuat5Nam] Xuất PDF hoàn tất.");
+    } catch (err) {
+      console.error(">>> [SanXuat5Nam] Lỗi xuất PDF:", err);
+    } finally {
+      setIsExportingPDF(false);
+    }
   };
 
   // Tên máy hiển thị trên tiêu đề từng card
@@ -718,7 +743,7 @@ const SanXuat5Nam = () => {
   }, [th10YearList]);
 
   return (
-    <div className="drc-10year-container mes-fade">
+    <div ref={containerRef} className="drc-10year-container mes-fade">
       <style>{css}</style>
 
       {/* ── 1. HEADER PANEL ── */}
@@ -750,14 +775,34 @@ const SanXuat5Nam = () => {
             </select>
           </div>
 
-          {/* Nút Xem báo cáo */}
+          {/* Nút Refresh */}
           <button className="drc-btn drc-btn-primary" onClick={handleRefresh}>
-            <FaSearch /> Xem báo cáo
+            <FaSyncAlt /> Refresh
           </button>
 
           {/* Nút Xóa lọc / Mặc định */}
           <button className="drc-btn drc-btn-secondary" onClick={handleResetFilter}>
             <FaRedo /> Mặc định
+          </button>
+
+          {/* Nút Xuất Báo Cáo PDF */}
+          <button
+            className="drc-btn"
+            onClick={handleExportPDF}
+            disabled={isExportingPDF}
+            title="Xuất báo cáo PDF trực quan toàn bộ dashboard Sản xuất 10 năm"
+            style={{
+              background: '#dc2626',
+              borderColor: '#b91c1c',
+              color: '#ffffff',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontWeight: '700',
+              cursor: isExportingPDF ? 'not-allowed' : 'pointer'
+            }}
+          >
+            <FaFilePdf /> {isExportingPDF ? 'Đang xuất...' : 'XUẤT BÁO CÁO (PDF)'}
           </button>
         </div>
 

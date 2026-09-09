@@ -10,6 +10,7 @@ import {
   getChartSettingORCVHistory
 } from '../../api/thanhhinhApi';
 import { toast } from 'react-toastify';
+import { exportTableToExcel } from '../../utils/exportExcelHelper';
 
 // Danh sách trường dữ liệu Setting của máy cắt vải (ORCV / CV)
 const settingORCVFields = [
@@ -642,6 +643,29 @@ const HistorySynthesis = ({ mayList = [], type = 'realtime' }) => {
     fetchHistory(0, s);
   };
 
+  // Hàm xử lý xuất dữ liệu bảng lịch sử tổng hợp ra file Excel
+  const handleExportExcel = () => {
+    console.log(`>>> [HistorySynthesis] Người dùng bấm Xuất Excel - Máy: ${maMay}, Loại: ${type}, Số bản ghi: ${historyList.length}`);
+    const timeStamp = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
+    const typeLabel = type === 'realtime' ? 'HoatDong' : 'CaiDat';
+    const typeTitle = type === 'realtime' ? 'THÔNG SỐ HOẠT ĐỘNG (REALTIME)' : 'THÔNG SỐ CÀI ĐẶT (SETTING)';
+    exportTableToExcel({
+      data: historyList,
+      columns: cols,
+      fileName: `LichSu_TongHop_${typeLabel}_${maMay || 'ALL'}_${timeStamp}`,
+      sheetName: `TongHop_${typeLabel}`,
+      title: `LỊCH SỬ TỔNG HỢP ${typeTitle} — MÁY ${maMay}`,
+      metadata: {
+        'Mã máy': maMay,
+        'Loại thông số': typeTitle,
+        'Từ ngày': fromDate ? fromDate.replace('T', ' ') : 'Mặc định (100 mới nhất)',
+        'Đến ngày': toDate ? toDate.replace('T', ' ') : 'Hiện tại',
+        'Tổng số bản ghi': historyList.length,
+        'Thời gian xuất': new Date().toLocaleString('vi-VN')
+      }
+    });
+  };
+
   // Tự động load khi thay đổi mã máy hoặc kiểu lịch sử
   useEffect(() => {
     if (maMay) {
@@ -832,6 +856,35 @@ const HistorySynthesis = ({ mayList = [], type = 'realtime' }) => {
               ✕ XÓA LỌC
             </button>
           )}
+          <button 
+            onClick={handleExportExcel} 
+            disabled={loading || historyList.length === 0}
+            style={{ 
+              height: '26px', 
+              padding: '0 12px', 
+              fontSize: '11px', 
+              background: '#15803d', 
+              color: '#fff', 
+              border: 'none', 
+              borderRadius: '3px', 
+              fontWeight: 'bold', 
+              cursor: (loading || historyList.length === 0) ? 'not-allowed' : 'pointer',
+              opacity: (loading || historyList.length === 0) ? 0.6 : 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}
+            title="Xuất bảng dữ liệu lịch sử tổng hợp ra file Excel"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            XUẤT EXCEL
+          </button>
         </div>
 
         {/* ── DATA TABLE (Vùng bảng có thanh cuộn dọc & ngang riêng) ────────── */}

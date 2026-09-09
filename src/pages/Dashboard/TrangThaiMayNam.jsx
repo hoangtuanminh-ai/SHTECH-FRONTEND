@@ -4,15 +4,16 @@
 // Cắt vải: 3 máy (ORC-CV-01 -> ORC-CV-03)
 // Thành hình: 15 máy (ORC-TH-01 -> ORC-TH-17 trừ 04, 13)
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import dayjs from 'dayjs';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer
 } from 'recharts';
 import {
-  FaCalendarAlt, FaSearch, FaRedo,
-  FaIndustry, FaLayerGroup, FaThLarge
+  FaCalendarAlt, FaSearch, FaRedo, FaSyncAlt,
+  FaIndustry, FaLayerGroup, FaThLarge, FaFilePdf
 } from 'react-icons/fa';
+import { exportDashboardToPDF } from '../../utils/exportPdfHelper';
 
 // Import API chính thức
 import { getMachineStatusTimesByYear } from '../../api/thanhhinhApi';
@@ -532,6 +533,10 @@ const TrangThaiMayNam = () => {
   const [machinesData, setMachinesData] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState('');
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
+
+  // Ref container để xuất báo cáo PDF
+  const containerRef = useRef(null);
 
   // 1. Danh sách 18 MÁY CHUẨN XÁC: 3 máy Cắt Vải (01, 02, 03) + 15 máy Thành Hình (01..17 trừ 04, 13)
   const full18Machines = useMemo(() => {
@@ -636,8 +641,9 @@ const TrangThaiMayNam = () => {
     loadAll18MachinesYearData(selectedYear);
   }, [selectedYear, loadAll18MachinesYearData]);
 
-  // Nút Xem báo cáo
+  // Nút Refresh (Tìm kiếm và tải lại báo cáo SCADA năm)
   const handleRefresh = () => {
+    console.log(">>> [TrangThaiMayNam] Click Refresh báo cáo SCADA năm:", { selectedYear });
     loadAll18MachinesYearData(selectedYear);
   };
 
@@ -646,8 +652,27 @@ const TrangThaiMayNam = () => {
     setSelectedYear(currentYear);
   };
 
+  // Xử lý xuất báo cáo PDF cho Trạng Thái Máy Năm
+  const handleExportPDF = async () => {
+    console.log(">>> [TrangThaiMayNam] Bắt đầu xuất PDF Trạng thái máy theo năm...", { selectedYear, activeTab });
+    setIsExportingPDF(true);
+    try {
+      await exportDashboardToPDF({
+        element: containerRef.current,
+        title: `BÁO CÁO TRẠNG THÁI HOẠT ĐỘNG SCADA THIẾT BỊ NĂM ${selectedYear}`,
+        fileName: `Bao_Cao_Trang_Thai_May_Nam_${selectedYear}`,
+        filterInfo: `Năm: ${selectedYear} | Bộ lọc: ${activeTab === 'ALL' ? 'Toàn bộ 18 máy' : activeTab === 'CV' ? '3 máy Cắt Vải' : '15 máy Thành Hình'}`
+      });
+      console.log(">>> [TrangThaiMayNam] Xuất PDF hoàn tất.");
+    } catch (err) {
+      console.error(">>> [TrangThaiMayNam] Lỗi xuất PDF:", err);
+    } finally {
+      setIsExportingPDF(false);
+    }
+  };
+
   return (
-    <div className="drc-scada-container mes-fade">
+    <div ref={containerRef} className="drc-scada-container mes-fade">
       <style>{css}</style>
 
       {/* ── 1. HEADER PANEL ── */}
@@ -679,14 +704,34 @@ const TrangThaiMayNam = () => {
             </select>
           </div>
 
-          {/* Nút Xem báo cáo */}
+          {/* Nút Refresh */}
           <button className="drc-btn drc-btn-primary" onClick={handleRefresh}>
-            <FaSearch /> Xem báo cáo
+            <FaSyncAlt /> Refresh
           </button>
 
           {/* Nút Năm nay */}
           <button className="drc-btn drc-btn-secondary" onClick={handleResetYear}>
             <FaRedo /> Năm nay
+          </button>
+
+          {/* Nút Xuất Báo Cáo PDF */}
+          <button
+            className="drc-btn"
+            onClick={handleExportPDF}
+            disabled={isExportingPDF}
+            title="Xuất báo cáo PDF trực quan toàn bộ trạng thái máy theo năm"
+            style={{
+              background: '#dc2626',
+              borderColor: '#b91c1c',
+              color: '#ffffff',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontWeight: '700',
+              cursor: isExportingPDF ? 'not-allowed' : 'pointer'
+            }}
+          >
+            <FaFilePdf /> {isExportingPDF ? 'Đang xuất...' : 'XUẤT BÁO CÁO (PDF)'}
           </button>
         </div>
 

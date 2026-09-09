@@ -21,6 +21,7 @@ import RealTimeORCVHistory from './RealTimeORCVHistory';
 import RecipeORCVHistory from './RecipeORCVHistory';
 import SettingORCVHistory from './SettingORCVHistory';
 import CatVaiChangeHistory from '../../components/change/CatVaiChangeHistory';
+import { exportKeyValueListToExcel, exportCombinedMachineParametersToExcel } from '../../utils/exportExcelHelper';
 import { getCurrentShift, isCurrentShiftSelected } from '../../utils/shiftPolling';
 import {
   SHIFT_ORDER,
@@ -2795,6 +2796,102 @@ const MayCatVaiDashboard = () => {
     );
   };
 
+  // State theo dõi tiến trình xuất báo cáo tổng hợp
+  const [isExportingCombined, setIsExportingCombined] = useState(false);
+
+  // Hàm xuất BÁO CÁO TỔNG HỢP CẢ 3: Hoạt động (Realtime), Công thức (Recipe) và Cài đặt (Setting) vào 1 file Excel duy nhất
+  const handleExportCombinedParameters = async () => {
+    console.log(`>>> [MayCatVaiDashboard] Người dùng bấm XUẤT BÁO CÁO EXCEL TỔNG HỢP - Máy: ${equipmentId}`);
+    setIsExportingCombined(true);
+    toast.info("Đang tổng hợp thông số Hoạt động, Công thức và Cài đặt của máy...");
+    try {
+      const params = { maMay: equipmentId };
+      const [rtData, rcData, stData] = await Promise.all([
+        getChartRealTimeORCV(params).catch(err => {
+          console.error(">>> [MayCatVaiDashboard] Lỗi tải Realtime:", err);
+          return [];
+        }),
+        getChartRecipeORCV(params).catch(err => {
+          console.error(">>> [MayCatVaiDashboard] Lỗi tải Recipe:", err);
+          return [];
+        }),
+        getChartSettingORCV(params).catch(err => {
+          console.error(">>> [MayCatVaiDashboard] Lỗi tải Setting:", err);
+          return [];
+        })
+      ]);
+
+      const matchEquipment = (item) => item?.maMay && item.maMay.trim().toUpperCase() === equipmentId.trim().toUpperCase();
+      const realTimeRecord = Array.isArray(rtData) ? rtData.find(matchEquipment) || rtData[0] : null;
+      const recipeRecord = Array.isArray(rcData) ? rcData.find(matchEquipment) || rcData[0] : null;
+      const settingRecord = Array.isArray(stData) ? stData.find(matchEquipment) || stData[0] : null;
+
+      console.log(">>> [MayCatVaiDashboard] Kết quả lấy dữ liệu tổng hợp:", {
+        hasRealTime: !!realTimeRecord,
+        hasRecipe: !!recipeRecord,
+        hasSetting: !!settingRecord
+      });
+
+      if (!realTimeRecord && !recipeRecord && !settingRecord) {
+        toast.warn("Chưa có dữ liệu thông số nào của máy cắt vải để xuất!");
+        return;
+      }
+
+      const timeStamp = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
+
+      exportCombinedMachineParametersToExcel({
+        equipmentId,
+        realTimeRecord,
+        realTimeFields: flatRealtimeFields,
+        settingRecord,
+        settingFields: flatSettingFields,
+        recipeRecord,
+        recipeFields: currentRecipeConfig,
+        fileName: `BaoCao_TongHop_ThongSo_${equipmentId}_${timeStamp}`,
+        title: `BÁO CÁO TỔNG HỢP THÔNG SỐ HOẠT ĐỘNG, CÔNG THỨC & CÀI ĐẶT — MÁY ${equipmentId}`
+      });
+    } catch (err) {
+      console.error(">>> [MayCatVaiDashboard] Lỗi khi xuất báo cáo tổng hợp:", err);
+      toast.error("Có lỗi xảy ra khi tổng hợp dữ liệu xuất Excel!");
+    } finally {
+      setIsExportingCombined(false);
+    }
+  };
+
+  // Hàm xử lý xuất Excel cho thông số hiện tại theo từng tab con (RealTime / Recipe / Setting)
+  const handleExportCurrentTabParameters = () => {
+    console.log(`>>> [MayCatVaiDashboard] Người dùng bấm Xuất Excel thông số hiện tại tab: ${chartTab}, máy: ${equipmentId}`);
+    if (!latestRecord) {
+      toast.warn("Chưa có dữ liệu thông số để xuất!");
+      return;
+    }
+    let fields = [];
+    let tabName = '';
+    let tabTitle = '';
+    if (chartTab === 'realtime') {
+      fields = flatRealtimeFields;
+      tabName = 'RealTime';
+      tabTitle = 'THÔNG SỐ HOẠT ĐỘNG (REALTIME)';
+    } else if (chartTab === 'recipe') {
+      fields = currentRecipeConfig;
+      tabName = 'Recipe';
+      tabTitle = 'THÔNG SỐ CÔNG THỨC (RECIPE)';
+    } else {
+      fields = flatSettingFields;
+      tabName = 'Setting';
+      tabTitle = 'THÔNG SỐ CÀI ĐẶT (SETTING)';
+    }
+    const timeStamp = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
+    exportKeyValueListToExcel({
+      dataRecord: latestRecord,
+      fields,
+      fileName: `ThongSo_HienTai_${tabName}_${equipmentId}_${timeStamp}`,
+      sheetName: `${tabName}_HienTai`,
+      title: `${tabTitle} HIỆN TẠI — MÁY ${equipmentId}`,
+      equipmentId
+    });
+  };
+
   // RENDER TAB 2: Thông số hoạt động và cài đặt máy (Module cũ)
   const renderChartDataTab = () => {
     return (
@@ -2878,6 +2975,37 @@ const MayCatVaiDashboard = () => {
                 }}
               >
                 LÀM MỚI DỮ LIỆU
+              </button>
+
+              <button
+                onClick={handleExportCombinedParameters}
+                disabled={isExportingCombined}
+                style={{
+                  height: '28px',
+                  padding: '0 14px',
+                  fontSize: '11px',
+                  background: '#15803d',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '3px',
+                  fontWeight: 'bold',
+                  cursor: isExportingCombined ? 'not-allowed' : 'pointer',
+                  opacity: isExportingCombined ? 0.7 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                }}
+                title="Xuất 1 file Excel báo cáo tổng hợp chứa cả Thông số hoạt động, Công thức và Cài đặt của máy"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                {isExportingCombined ? 'ĐANG TỔNG HỢP...' : 'XUẤT BÁO CÁO EXCEL (TỔNG HỢP)'}
               </button>
             </div>
 

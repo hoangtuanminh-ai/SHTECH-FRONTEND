@@ -1,5 +1,4 @@
 # BÁO CÁO NHẬT KÝ LÀM VIỆC TRONG NGÀY
-**Dự án:** Hệ thống Giám sát & Quản trị Sản xuất MES DRC  
 **Người thực hiện:** Hoàng Tuấn Minh  
 **Vị trí:** Fullstack Developer  
 **Thời gian thực hiện:** Chủ Nhật, ngày 06/09/2026  

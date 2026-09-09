@@ -14,7 +14,8 @@ import dayjs from 'dayjs';
 import { getMachinesWithStats, getDrcMachineImageRaw, getViewOrcThMachineImageApi } from '../../api/thanhhinhApi';
 import { getKeHoachTrend } from '../../api/kehoachApi';
 import { getCatVaiMonthlyStats, getCatVaiSummaryStats } from '../../api/catVaiApi';
-import { getDashboardStats } from '../../api/dashboardApi';
+import { FaFilePdf } from 'react-icons/fa';
+import { exportDashboardToPDF } from '../../utils/exportPdfHelper';
 import { getCurrentShift } from '../../utils/shiftPolling';
 
 /* ─── MES DESKTOP STYLE (ĐỒNG BỘ DRC SYSTEM) ──────────────────────────────── */
@@ -982,8 +983,30 @@ const DashboardKeHoach = () => {
     );
   };
 
+  // Ref vùng nội dung Dashboard để chụp PDF
+  const dashboardRef = useRef(null);
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
+
+  // Hàm xuất PDF Báo cáo Tổng quan Dashboard
+  const handleExportPDF = async () => {
+    console.log(">>> [DashboardKeHoach] Bắt đầu xuất PDF Báo Cáo Tổng Quan Nhà Xưởng");
+    setIsExportingPDF(true);
+    await exportDashboardToPDF({
+      element: dashboardRef.current,
+      fileName: `BaoCao_TongQuan_MES_DRC`,
+      title: 'BÁO CÁO GIÁM SÁT TIẾN ĐỘ & HIỆN TRẠNG SẢN XUẤT XƯỞNG CV-TH',
+      subTitle: `Ca: ${currentShiftInfo.shiftLabel} (${currentShiftInfo.timeRange}) • Ngày: ${dayjs(currentShiftInfo.dateStr).format('DD/MM/YYYY')}`,
+      orientation: 'landscape',
+      metadata: {
+        'Năm theo dõi': currentYear,
+        'Thời gian ghi nhận': dayjs().format('DD/MM/YYYY HH:mm:ss')
+      }
+    });
+    setIsExportingPDF(false);
+  };
+
   return (
-    <div className="drc-dash mes-fade">
+    <div ref={dashboardRef} className="drc-dash mes-fade">
       <style>{css}</style>
 
       {/* ── 1. HEADER TIÊU ĐỀ KÈM HIỂN THỊ CA, GIỜ, NGÀY VÀ POLLING REALTIME ── */}
@@ -996,8 +1019,34 @@ const DashboardKeHoach = () => {
           </span>
         </div>
 
-        {/* Khối hiển thị Ca, Giờ, Ngày & Trạng thái Polling Realtime */}
+        {/* Khối hiển thị Ca, Giờ, Ngày & Trạng thái Polling Realtime + Nút Xuất PDF */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Nút Xuất Báo Cáo PDF */}
+          <button
+            onClick={handleExportPDF}
+            disabled={isExportingPDF}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: '#dc2626',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '3px',
+              padding: '4px 12px',
+              fontSize: '11px',
+              fontWeight: 'bold',
+              cursor: isExportingPDF ? 'not-allowed' : 'pointer',
+              opacity: isExportingPDF ? 0.7 : 1,
+              boxShadow: '0 1px 2px rgba(220, 38, 38, 0.25)',
+              transition: 'all 0.15s ease'
+            }}
+            title="Xuất bản in báo cáo PDF chất lượng cao cho trang Tổng quan"
+          >
+            <FaFilePdf size={12} />
+            <span>{isExportingPDF ? 'ĐANG TẠO PDF...' : 'XUẤT BÁO CÁO (PDF)'}</span>
+          </button>
+
           {/* Badge Ca hiện tại */}
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: '5px',

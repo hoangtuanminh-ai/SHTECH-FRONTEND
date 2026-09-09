@@ -3,13 +3,14 @@
 // Biểu đồ 3 cột/ngày (Ca 1 -> Ca 2 -> Ca 3) chuẩn hóa từ MayThanhHinhDashboard & MayCatVaiDashboard
 // Hỗ trợ chọn Năm, Tháng và Danh sách Thiết bị / Máy thực tế từ API Backend
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import dayjs from 'dayjs';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, LabelList, Cell
 } from 'recharts';
-import { FaCalendarAlt, FaSearch, FaRedo, FaCogs, FaChartBar } from 'react-icons/fa';
+import { FaCalendarAlt, FaSearch, FaRedo, FaSyncAlt, FaCogs, FaChartBar, FaFilePdf } from 'react-icons/fa';
+import { exportDashboardToPDF } from '../../utils/exportPdfHelper';
 
 // Import API chính thức
 import { getTongHopCaNgay, getDanhSachMay } from '../../api/thanhhinhApi';
@@ -318,6 +319,12 @@ const css = `
     gap: 12px;
     position: relative;
   }
+  .drc-chart-head.cv-head {
+    background: linear-gradient(180deg, #0284c7 0%, #0369a1 100%);
+  }
+  .drc-chart-head.th-head {
+    background: linear-gradient(180deg, #16a34a 0%, #15803d 100%);
+  }
   .drc-chart-scroll-hint {
     font-size: 10.5px;
     font-weight: 700;
@@ -530,6 +537,10 @@ const KeHoachSanXuatCaThang = () => {
   const [isLoadingCv, setIsLoadingCv] = useState(false);
   const [isLoadingTh, setIsLoadingTh] = useState(false);
   const [lastUpdated, setLastUpdated] = useState('');
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
+
+  // Ref container để xuất báo cáo PDF
+  const containerRef = useRef(null);
 
   // Danh sách các năm lựa chọn
   const yearOptions = useMemo(() => {
@@ -695,8 +706,9 @@ const KeHoachSanXuatCaThang = () => {
     loadThShiftMonthData(selectedYear, selectedMonth, selectedThMachine);
   }, [selectedYear, selectedMonth, selectedThMachine, loadThShiftMonthData]);
 
-  // Xử lý nút Xem lại / Làm mới (Tải lại cả 2 công đoạn)
+  // Xử lý nút Refresh (Tải lại cả 2 công đoạn)
   const handleRefresh = () => {
+    console.log(">>> [KeHoachSanXuatCaThang] Click Refresh báo cáo kế hoạch ca tháng:", { selectedYear, selectedMonth, selectedCvMachine, selectedThMachine });
     loadCvShiftMonthData(selectedYear, selectedMonth, selectedCvMachine);
     loadThShiftMonthData(selectedYear, selectedMonth, selectedThMachine);
   };
@@ -707,6 +719,25 @@ const KeHoachSanXuatCaThang = () => {
     setSelectedMonth(currentMonthNow);
     setSelectedCvMachine('');
     setSelectedThMachine('');
+  };
+
+  // Xử lý xuất báo cáo PDF cho Kế hoạch Sản xuất Ca, Tháng
+  const handleExportPDF = async () => {
+    console.log(">>> [KeHoachSanXuatCaThang] Bắt đầu xuất PDF Kế hoạch sản xuất ca tháng...", { selectedYear, selectedMonth, selectedCvMachine, selectedThMachine });
+    setIsExportingPDF(true);
+    try {
+      await exportDashboardToPDF({
+        element: containerRef.current,
+        title: `BÁO CÁO KẾ HOẠCH & SẢN XUẤT THEO CA THÁNG ${selectedMonth}/${selectedYear}`,
+        fileName: `Bao_Cao_Ke_Hoach_San_Xuat_Ca_Thang_${selectedMonth}_${selectedYear}`,
+        filterInfo: `Tháng: ${selectedMonth}/${selectedYear} | Máy Cắt Vải: ${selectedCvMachine ? `Máy ${selectedCvMachine}` : 'Tất cả'} | Máy Thành Hình: ${selectedThMachine ? `Máy ${selectedThMachine}` : 'Tất cả'}`
+      });
+      console.log(">>> [KeHoachSanXuatCaThang] Xuất PDF hoàn tất.");
+    } catch (err) {
+      console.error(">>> [KeHoachSanXuatCaThang] Lỗi xuất PDF:", err);
+    } finally {
+      setIsExportingPDF(false);
+    }
   };
 
   // Nhãn hiển thị của máy CV đang chọn
@@ -753,7 +784,7 @@ const KeHoachSanXuatCaThang = () => {
   const isLoadingTotal = isLoadingCv || isLoadingTh;
 
   return (
-    <div className="drc-shift-month-container mes-fade">
+    <div ref={containerRef} className="drc-shift-month-container mes-fade">
       <style>{css}</style>
 
       {/* ── 1. HEADER PANEL ── */}
@@ -799,14 +830,34 @@ const KeHoachSanXuatCaThang = () => {
             </select>
           </div>
 
-          {/* Nút Xem báo cáo */}
+          {/* Nút Refresh */}
           <button className="drc-btn drc-btn-primary" onClick={handleRefresh}>
-            <FaSearch /> Xem báo cáo
+            <FaSyncAlt /> Refresh
           </button>
 
           {/* Nút Mặc định */}
           <button className="drc-btn drc-btn-secondary" onClick={handleResetFilter}>
             <FaRedo /> Mặc định
+          </button>
+
+          {/* Nút Xuất Báo Cáo PDF */}
+          <button
+            className="drc-btn"
+            onClick={handleExportPDF}
+            disabled={isExportingPDF}
+            title="Xuất báo cáo PDF trực quan toàn bộ dashboard Kế hoạch ca, tháng"
+            style={{
+              background: '#dc2626',
+              borderColor: '#b91c1c',
+              color: '#ffffff',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontWeight: '700',
+              cursor: isExportingPDF ? 'not-allowed' : 'pointer'
+            }}
+          >
+            <FaFilePdf /> {isExportingPDF ? 'Đang xuất...' : 'XUẤT BÁO CÁO (PDF)'}
           </button>
         </div>
 
@@ -925,11 +976,11 @@ const KeHoachSanXuatCaThang = () => {
         </div>
       </div>
 
-      {/* ── 4. BIỂU ĐỒ THỰC HIỆN KH THEO CA - CÔNG ĐOẠN CẮT VẢI ── */}
+      {/* ── 4. BIỂU ĐỒ THỰC HIỆN KH THEO CA - CÔNG ĐOẠN CẮT VẢI (XANH DƯƠNG) ── */}
       <div className="drc-chart-card">
-        <div className="drc-chart-head">
+        <div className="drc-chart-head cv-head">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <FaChartBar color="#0284c7" />
+            <FaChartBar color="#ffffff" />
             <span style={{ fontWeight: 900 }}>CÔNG ĐOẠN CẮT VẢI (CV) - THỰC HIỆN KH THEO CA THÁNG {selectedMonth}/{selectedYear}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
@@ -1034,11 +1085,11 @@ const KeHoachSanXuatCaThang = () => {
         </div>
       </div>
 
-      {/* ── 5. BIỂU ĐỒ THỰC HIỆN KH THEO CA - CÔNG ĐOẠN THÀNH HÌNH ── */}
+      {/* ── 5. BIỂU ĐỒ THỰC HIỆN KH THEO CA - CÔNG ĐOẠN THÀNH HÌNH (XANH LÁ CÂY) ── */}
       <div className="drc-chart-card">
-        <div className="drc-chart-head">
+        <div className="drc-chart-head th-head">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <FaChartBar color="#16a34a" />
+            <FaChartBar color="#ffffff" />
             <span style={{ fontWeight: 900 }}>CÔNG ĐOẠN THÀNH HÌNH (TH) - THỰC HIỆN KH THEO CA THÁNG {selectedMonth}/{selectedYear}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
