@@ -8,6 +8,8 @@ import autoTable from 'jspdf-autotable';
 import { timesNewRomanBase64 } from '../../font/TimesNewRoman-Regular-base64';
 import { timesNewRomanBoldBase64 } from '../../font/TimesNewRoman-Bold-base64';
 import { getBaoCaoKeHoachThangKhongTheoMay, getBaoCaoKeHoachThangTheoNgay, getViewStoreListOrks, getDmMayXRay, getListToSx } from '../../api/kcsWebApi';
+import { getCurrentMonthStr } from '../../utils/dateHelper';
+import MonthFilterInput from '../../components/Common/MonthFilterInput';
 /* ─── MES Desktop CSS ─────────────────────────────────────────────────────── */
 const css = `
   * { box-sizing: border-box; }
@@ -182,10 +184,11 @@ const columns = [
 const BaoCaoKeHoachThangKhongTheoMay = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   
-  // Params (Từ ngày, Đến ngày và Ca đã bị ẩn, truyền giá trị mặc định khi gọi API)
-  const [tuKHThang, setTuKHThang] = useState('');
-  const [denKHThang, setDenKHThang] = useState('');
+  // Params: Mặc định luôn để tháng hiện tại (YYYY-MM)
+  const [tuKHThang, setTuKHThang] = useState(getCurrentMonthStr());
+  const [denKHThang, setDenKHThang] = useState(getCurrentMonthStr());
 
   const [toSX, setToSX] = useState('');
   const [storeID, setStoreID] = useState('');
@@ -256,6 +259,15 @@ const BaoCaoKeHoachThangKhongTheoMay = () => {
       return;
     }
 
+    console.log('[BaoCaoKeHoachThangKhongTheoMay] Tìm kiếm với params:', {
+      monthlyPlanStart,
+      monthlyPlanEnd,
+      toSX,
+      storeID,
+      maMay
+    });
+
+    setHasSearched(true);
     setLoading(true);
     try {
       const payload = {
@@ -520,10 +532,14 @@ const BaoCaoKeHoachThangKhongTheoMay = () => {
 
   const clearAll = () => {
     setData([]);
-    setTuKHThang(''); setDenKHThang('');
+    setHasSearched(false);
+    // Luôn reset về tháng hiện tại
+    setTuKHThang(getCurrentMonthStr());
+    setDenKHThang(getCurrentMonthStr());
     setToSX('');
     setStoreID('');
     setMaMay('');
+    console.log('[BaoCaoKeHoachThangKhongTheoMay] clearAll -> Đã reset về tháng hiện tại:', getCurrentMonthStr());
   };
 
   const now = new Date();
@@ -570,24 +586,25 @@ const BaoCaoKeHoachThangKhongTheoMay = () => {
         {/* Đã ẩn tham số Từ ngày, Đến ngày và Ca */}
 
         <div className="mes-fb-group" style={{ gap: 4 }}>
-          <span className="mes-fb-label">Từ KH tháng:</span>
-          <input
-            type="month" className="mes-input" style={{ width: 120 }}
-            value={tuKHThang} onChange={e => setTuKHThang(e.target.value)}
+          <span className="mes-fb-label">Từ KHSX tháng:</span>
+          <MonthFilterInput
+            value={tuKHThang}
+            onChange={val => setTuKHThang(val)}
           />
         </div>
 
         <div className="mes-fb-group" style={{ gap: 4 }}>
-          <span className="mes-fb-label">Đến KH tháng:</span>
-          <input
-            type="month" className="mes-input" style={{ width: 120 }}
-            value={denKHThang} onChange={e => setDenKHThang(e.target.value)}
+          <span className="mes-fb-label">Đến KHSX tháng:</span>
+          <MonthFilterInput
+            value={denKHThang}
+            onChange={val => setDenKHThang(val)}
+            isDropdown={true}
           />
         </div>
 
         <div className="mes-fb-group">
           <span className="mes-fb-label">Tổ SX:</span>
-          <div style={{ minWidth: 150 }}>
+          <div style={{ minWidth: 160 }}>
             <Select
               placeholder={tosxLoading ? 'Đang tải...' : 'Tất cả tổ SX'}
               options={tosxList}
@@ -600,7 +617,7 @@ const BaoCaoKeHoachThangKhongTheoMay = () => {
         </div>
 
         <div className="mes-fb-group">
-          <span className="mes-fb-label">Mã Kho:</span>
+          <span className="mes-fb-label">Kho:</span>
           <div style={{ minWidth: 150 }}>
             <Select
               placeholder={storesLoading ? 'Đang tải...' : 'Tất cả kho'}
@@ -677,8 +694,12 @@ const BaoCaoKeHoachThangKhongTheoMay = () => {
         ) : (
           !loading && (
             <div className="mes-empty mes-fade">
-              <div className="icon">📄</div>
-              <p>Chưa có dữ liệu — Thiết lập bộ lọc và nhấn Tìm Kiếm</p>
+              <div className="icon">{hasSearched ? '🔍' : '📄'}</div>
+              <p>
+                {hasSearched
+                  ? 'Không tìm thấy dữ liệu phù hợp với điều kiện lọc'
+                  : 'Chưa lọc dữ liệu, hãy lọc dữ liệu và nhấn nút tìm kiếm'}
+              </p>
             </div>
           )
         )}

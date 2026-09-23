@@ -8,6 +8,7 @@ import autoTable from 'jspdf-autotable';
 import { timesNewRomanBase64 } from '../../font/TimesNewRoman-Regular-base64';
 import { timesNewRomanBoldBase64 } from '../../font/TimesNewRoman-Bold-base64';
 import { getThongKeLopKsclTheoNgayCom, getViewStoreListOrks, getDmMayXRay, getListToSx } from '../../api/kcsWebApi';
+import { getTodayStr } from '../../utils/dateHelper';
 
 /* ─── MES Desktop CSS ─────────────────────────────────────────────────────── */
 const css = `
@@ -177,11 +178,12 @@ const columns = [
 const ThongKeTheoNgayCom = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   
-  // Params
-  const [tuNgay, setTuNgay] = useState('');
+  // Params: Mặc định luôn để ngày hôm nay
+  const [tuNgay, setTuNgay] = useState(getTodayStr());
   const [tuCa, setTuCa] = useState('0');
-  const [denNgay, setDenNgay] = useState('');
+  const [denNgay, setDenNgay] = useState(getTodayStr());
   const [denCa, setDenCa] = useState('0');
   
   const [toSX, setToSX] = useState('');
@@ -247,11 +249,20 @@ const ThongKeTheoNgayCom = () => {
     const namThangNgayCaStart = tuNgay ? tuNgay.replace(/-/g, '') + tuCa : '';
     const namThangNgayCaEnd = denNgay ? denNgay.replace(/-/g, '') + denCa : '';
 
+    console.log('[ThongKeTheoNgayCom] Tìm kiếm với params:', {
+      namThangNgayCaStart,
+      namThangNgayCaEnd,
+      toSX,
+      storeID,
+      maMay
+    });
+
     if (!namThangNgayCaStart || !namThangNgayCaEnd) {
       toast.warn('Vui lòng chọn đầy đủ thời gian bắt đầu và kết thúc');
       return;
     }
 
+    setHasSearched(true);
     setLoading(true);
     try {
       const payload = {
@@ -546,11 +557,14 @@ const ThongKeTheoNgayCom = () => {
 
   const clearAll = () => {
     setData([]);
-    setTuNgay(''); setTuCa('0');
-    setDenNgay(''); setDenCa('0');
+    setHasSearched(false);
+    // Luôn reset về ngày hôm nay
+    setTuNgay(getTodayStr()); setTuCa('0');
+    setDenNgay(getTodayStr()); setDenCa('0');
     setToSX('');
     setStoreID('');
     setMaMay('');
+    console.log('[ThongKeTheoNgayCom] clearAll -> Đã reset về ngày hôm nay:', getTodayStr());
   };
 
   const now = new Date();
@@ -740,8 +754,12 @@ const ThongKeTheoNgayCom = () => {
         ) : (
           !loading && (
             <div className="mes-empty mes-fade">
-              <div className="icon">📄</div>
-              <p>Chưa có dữ liệu — Thiết lập bộ lọc và nhấn Tìm Kiếm</p>
+              <div className="icon">{hasSearched ? '🔍' : '📄'}</div>
+              <p>
+                {hasSearched
+                  ? 'Không tìm thấy dữ liệu phù hợp với điều kiện lọc'
+                  : 'Chưa lọc dữ liệu, hãy lọc dữ liệu và nhấn nút tìm kiếm'}
+              </p>
             </div>
           )
         )}

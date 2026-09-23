@@ -1,8 +1,9 @@
 // src/pages/ThanhHinh/KeHoachCatVaiTable.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
 import { getKeHoachCatVai, getCatVaiStores } from "../../api/catVaiApi";
+import { getTodayStr } from "../../utils/dateHelper";
 
 const css = `
   .mes-container {
@@ -119,8 +120,12 @@ function KeHoachCatVaiTable() {
   const [size, setSize] = useState(20);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
-  const [searchDate, setSearchDate] = useState("");
+  const [searchDate, setSearchDate] = useState(getTodayStr);
   const [searchShift, setSearchShift] = useState("1");
+  const [storeId, setStoreId] = useState("");
+  const [stores, setStores] = useState([]);
+  const [storesLoading, setStoresLoading] = useState(false);
+  const hasAutoLoaded = useRef(false);
 
   // Tự động ghép date & shift thành searchKey (yyyyMMddCa) mỗi khi thay đổi
   useEffect(() => {
@@ -132,11 +137,36 @@ function KeHoachCatVaiTable() {
     }
   }, [searchDate, searchShift]);
 
-  const fetchKeHoach = async () => {
+  useEffect(() => {
+    const fetchStores = async () => {
+      setStoresLoading(true);
+      try {
+        const res = await getCatVaiStores();
+        const storeOptions = res?.success
+          ? (res.data || [])
+          : (Array.isArray(res) ? res : []);
+        setStores(storeOptions);
+        if (storeOptions.length > 0) {
+          const firstStore = storeOptions[0];
+          setStoreId(firstStore.storeId || firstStore.StoreID || firstStore.value || "");
+        }
+      } catch (err) {
+        console.error("Lỗi tải danh sách kho Cắt vải:", err);
+        setStores([]);
+        toast.error(err.message || "Không thể tải danh sách kho Cắt vải");
+      } finally {
+        setStoresLoading(false);
+      }
+    };
+
+    fetchStores();
+  }, []);
+
+  const fetchKeHoach = async (targetPage = page) => {
     setLoading(true);
     try {
-      console.log(`Fetching kehoach cat vai: searchKey=${searchKey}, page=${page}, size=${size}`);
-      const res = await getKeHoachCatVai(searchKey, page, size);
+      console.log(`Fetching kehoach cat vai: searchKey=${searchKey}, storeId=${storeId}, page=${targetPage}, size=${size}`);
+      const res = await getKeHoachCatVai(searchKey, storeId, targetPage, size);
       if (res && res.success) {
         setData(res.data || []);
         setTotalPages(res.totalPages || 0);
@@ -153,12 +183,20 @@ function KeHoachCatVaiTable() {
   };
 
   useEffect(() => {
+    if (!storeId || !searchKey || hasAutoLoaded.current) return;
+
+    hasAutoLoaded.current = true;
+    fetchKeHoach(0);
+  }, [storeId, searchKey]);
+
+  useEffect(() => {
+    if (!hasAutoLoaded.current) return;
     fetchKeHoach();
   }, [page, size]);
 
   const handleSearch = () => {
     setPage(0);
-    fetchKeHoach();
+    fetchKeHoach(0);
   };
 
   const exportExcel = () => {
@@ -179,7 +217,7 @@ function KeHoachCatVaiTable() {
       
       {/* Toolbar */}
       <div className="mes-toolbar">
-        <button className="mes-tb-btn" onClick={fetchKeHoach} disabled={loading}>
+        <button className="mes-tb-btn" onClick={() => fetchKeHoach()} disabled={loading}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
           <span>Làm mới</span>
         </button>
@@ -206,6 +244,26 @@ function KeHoachCatVaiTable() {
             <option value="1">Ca 1</option>
             <option value="2">Ca 2</option>
             <option value="3">Ca 3</option>
+          </select>
+        </div>
+        <div className="mes-fb-group">
+          <span className="mes-fb-label">Kho:</span>
+          <select
+            className="mes-select"
+            value={storeId}
+            onChange={(e) => setStoreId(e.target.value)}
+            disabled={storesLoading}
+          >
+            <option value="">{storesLoading ? "Đang tải kho..." : "— Tất cả kho —"}</option>
+            {stores.map((store, idx) => {
+              const code = store.storeId || store.StoreID || store.value || "";
+              const name = store.storeName || store.StoreName || store.label || code;
+              return (
+                <option key={code || idx} value={code}>
+                  {code}{name && name !== code ? ` — ${name}` : ""}
+                </option>
+              );
+            })}
           </select>
         </div>
         {searchKey && (

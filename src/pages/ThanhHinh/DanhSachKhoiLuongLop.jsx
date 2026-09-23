@@ -1,7 +1,8 @@
 // src/pages/ThanhHinh/DanhSachKhoiLuongLop.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getDanhSachKhoiLuongLop, getDanhSachMay, getStoreListOrth } from '../../api/thanhhinhApi';
 import { toast } from 'react-toastify';
+import { getTodayStr, getYesterdayStr } from '../../utils/dateHelper';
 
 /* ─── MES Desktop Style ───────────────────────────────────────────────────── */
 const css = `
@@ -183,10 +184,10 @@ const TbBtn = ({ icon, label, onClick, disabled, className = '' }) => (
 const DanhSachKhoiLuongLop = () => {
   const [storeId, setStoreId] = useState('');
   const [maMay, setMaMay] = useState('');
-  const [tuNgay, setTuNgay] = useState('');
-  const [tuCa, setTuCa] = useState('');
-  const [denNgay, setDenNgay] = useState('');
-  const [denCa, setDenCa] = useState('');
+  const [tuNgay, setTuNgay] = useState(getYesterdayStr);
+  const [tuCa, setTuCa] = useState('1');
+  const [denNgay, setDenNgay] = useState(getTodayStr);
+  const [denCa, setDenCa] = useState('3');
   
   const [danhSachMay, setDanhSachMay] = useState([]);
   const [storeList, setStoreList] = useState([]);
@@ -196,6 +197,8 @@ const DanhSachKhoiLuongLop = () => {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
   const [total, setTotal] = useState(0);
+  const hasAutoLoaded = useRef(false);
+  const [filtersLoading, setFiltersLoading] = useState(true);
 
   const now = new Date();
   const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -212,9 +215,14 @@ const DanhSachKhoiLuongLop = () => {
         }
         if (resStores) {
           setStoreList(resStores);
+          if (resStores.length > 0) {
+            setStoreId(currentStoreId => currentStoreId || resStores[0].storeId || '');
+          }
         }
       } catch (error) {
         console.error("Lỗi khởi tạo dữ liệu:", error);
+      } finally {
+        setFiltersLoading(false);
       }
     };
     fetchDataInit();
@@ -273,6 +281,12 @@ const DanhSachKhoiLuongLop = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (filtersLoading || hasAutoLoaded.current) return;
+    hasAutoLoaded.current = true;
+    fetchData(0);
+  }, [filtersLoading]);
 
   const handleSearch = () => {
     setPage(0);

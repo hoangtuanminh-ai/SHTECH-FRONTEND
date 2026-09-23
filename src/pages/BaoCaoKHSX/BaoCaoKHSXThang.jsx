@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getBaoCaoKHSXThang, getStoreListOrth } from '../../api/thanhhinhApi';
 import { toast } from 'react-toastify';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { timesNewRomanBase64 } from '../../font/TimesNewRoman-Regular-base64';
+import { getCurrentMonthStr } from '../../utils/dateHelper';
 
 /* ─── MES DESKTOP STYLE (GIỐNG HỆ THỐNG DRC) ────────────────────────────────── */
 const css = `
@@ -147,11 +148,13 @@ const css = `
 const BaoCaoKHSXThang = () => {
   const [storeId, setStoreId] = useState('');
   // Sử dụng format YYYY-MM cho thẻ input type="month"
-  const [selectedMonth, setSelectedMonth] = useState(''); 
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthStr);
   const [spare2, setSpare2] = useState('');
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [storeList, setStoreList] = useState([]);
+  const [storesLoading, setStoresLoading] = useState(true);
+  const hasAutoLoaded = useRef(false);
 
   useEffect(() => {
     getStoreListOrth()
@@ -159,7 +162,8 @@ const BaoCaoKHSXThang = () => {
         setStoreList(res);
         if (res.length > 0 && !storeId) setStoreId(res[0].storeId);
       })
-      .catch(() => toast.error('Lỗi tải danh sách kho'));
+      .catch(() => toast.error('Lỗi tải danh sách kho'))
+      .finally(() => setStoresLoading(false));
   }, []);
 
   // Chuyển đổi YYYY-MM thành YYYYMM cho API (ví dụ 2023-03 -> 202303)
@@ -189,6 +193,12 @@ const BaoCaoKHSXThang = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (storesLoading || hasAutoLoaded.current) return;
+    hasAutoLoaded.current = true;
+    handleSearch();
+  }, [storesLoading]);
 
   const exportToPDF = () => {
     if (data.length === 0) {

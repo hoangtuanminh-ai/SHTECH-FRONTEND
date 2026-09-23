@@ -1,8 +1,9 @@
 // src/pages/ThanhHinh/BaoCaoTongHopTheoCa.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import * as XLSX from 'xlsx';
 import { getTongHopTheoMay, getCatVaiStores, getCatVaiEquipments } from '../../api/catVaiApi';
+import { getTodayStr, getYesterdayStr } from '../../utils/dateHelper';
 
 const css = `
   .mes-container { display: flex; flex-direction: column; height: 100vh; background: #e0eaf4; font-family: 'Segoe UI', sans-serif; color: #1a3a5c; position: relative; }
@@ -90,6 +91,7 @@ function BaoCaoTongHopTheoCa() {
   const [endShift, setEndShift] = useState('');
   const [stores, setStores] = useState([]);
   const [equipments, setEquipments] = useState([]);
+  const hasAutoLoaded = useRef(false);
 
   // Popup xuất báo cáo
   const [showReportPopup, setShowReportPopup] = useState(false);
@@ -101,10 +103,13 @@ function BaoCaoTongHopTheoCa() {
         console.log("getCatVaiStores response:", s);
         console.log("getCatVaiEquipments response:", e);
         
-        if (s && s.success) {
-          setStores(s.data || []);
-        } else if (Array.isArray(s)) {
-          setStores(s);
+        const storeOptions = s?.success
+          ? (s.data || [])
+          : (Array.isArray(s) ? s : []);
+        setStores(storeOptions);
+        if (storeOptions.length > 0) {
+          const firstStore = storeOptions[0];
+          setStoreId(firstStore.storeId || firstStore.StoreID || firstStore.value || '');
         }
         
         if (e && e.success) {
@@ -150,9 +155,9 @@ function BaoCaoTongHopTheoCa() {
     toast.success("Xuất file Excel thành công");
   };
 
-  const [startDate, setStartDate] = useState("");
+  const [startDate, setStartDate] = useState(getYesterdayStr);
   const [startShiftVal, setStartShiftVal] = useState("1");
-  const [endDate, setEndDate] = useState("");
+  const [endDate, setEndDate] = useState(getTodayStr);
   const [endShiftVal, setEndShiftVal] = useState("3");
 
   useEffect(() => {
@@ -183,7 +188,7 @@ function BaoCaoTongHopTheoCa() {
     return `Ngày ${Number(d)} tháng ${Number(m)} năm ${y}`;
   };
 
-  const [idDate, setIdDate] = useState("");
+  const [idDate, setIdDate] = useState(getTodayStr);
   const [idShiftVal, setIdShiftVal] = useState("1");
 
   // Tự động ghép idKehoach = [storeId].[idDate_yyyyMMdd][idShiftVal] khi thay đổi
@@ -195,6 +200,13 @@ function BaoCaoTongHopTheoCa() {
       setIdKehoach("");
     }
   }, [storeId, idDate, idShiftVal]);
+
+  useEffect(() => {
+    if (!storeId || !idKehoach || !startShift || !endShift || hasAutoLoaded.current) return;
+
+    hasAutoLoaded.current = true;
+    handleSearch();
+  }, [storeId, idKehoach, startShift, endShift]);
 
   return (
     <div className="mes-container">

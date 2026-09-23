@@ -7,6 +7,10 @@ import {
     getDropdownQuyCach, 
     saveKeHoachThang 
 } from '../../api/keHoachThangApi';
+import { getCurrentMonthlyPlanStr, getTodayStr } from '../../utils/dateHelper';
+
+const currentMonthlyPlan = getCurrentMonthlyPlanStr();
+const currentMonthDisplay = `${currentMonthlyPlan.slice(4, 6)}/${currentMonthlyPlan.slice(0, 4)}`;
 
 const LapKeHoachThang = () => {
     // Phòng thủ lỗi destructure userInfo
@@ -15,15 +19,15 @@ const LapKeHoachThang = () => {
 
     // --- STATE HEADER & CÁC TRƯỜNG KỸ THUẬT (BÊN PHẢI ẢNH) ---
     const [header, setHeader] = useState({
-        khsxThang: '05/2026',
+        khsxThang: currentMonthDisplay,
         lan: '1',
-        idKehoachDisplay: 'RA10.202605.',
-        idKehoachReal: 'RA10.202605',
+        idKehoachDisplay: '',
+        idKehoachReal: '',
         maNguoiLap: 'C02',
         tenNguoiLap: 'Lê Đức Dũng',
-        maKho: 'RA10',
-        tenKho: 'Kho Lốp Thành Hình',
-        ngayLap: '13/05/2026',
+        maKho: '',
+        tenKho: '',
+        ngayLap: getTodayStr().split('-').reverse().join('/'),
         maMayTh: '01',
         tenMayTh: 'ORC-TH-01',
         maQuyCachSelected: '',
@@ -57,9 +61,18 @@ const LapKeHoachThang = () => {
             setStores(s || []);
             setUsers(u || []);
             setQuyCachList(q || []);
-            if (userInfo) {
-                setHeader(prev => ({ ...prev, maNguoiLap: userInfo.userId || 'C02', tenNguoiLap: userInfo.fullName || 'Lê Đức Dũng' }));
-            }
+            const firstStore = (s || [])[0];
+            const storeId = firstStore?.storeId || firstStore?.StoreID || firstStore?.value || '';
+            const storeName = firstStore?.storeName || firstStore?.StoreName || firstStore?.label || '';
+            setHeader(prev => ({
+                ...prev,
+                maNguoiLap: userInfo?.userId || prev.maNguoiLap,
+                tenNguoiLap: userInfo?.fullName || prev.tenNguoiLap,
+                maKho: storeId,
+                tenKho: storeName,
+                idKehoachDisplay: storeId ? `${storeId}.${currentMonthlyPlan}.` : '',
+                idKehoachReal: storeId ? `${storeId}.${currentMonthlyPlan}` : '',
+            }));
         };
         loadInit();
     }, [userInfo]);

@@ -1,8 +1,9 @@
 // src/pages/ThanhHinh/BaoCaoNhapKhoCatVaiXe.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import * as XLSX from 'xlsx';
 import { getBaoCaoTheoXe, getCatVaiStores, getCatVaiEquipments } from '../../api/catVaiApi';
+import { getTodayStr } from '../../utils/dateHelper';
 
 const css = `
   .mes-container { display: flex; flex-direction: column; height: 100vh; background: #e0eaf4; font-family: 'Segoe UI', sans-serif; color: #1a3a5c; }
@@ -35,8 +36,9 @@ function BaoCaoNhapKhoCatVaiXe() {
   const [maMay, setMaMay] = useState('');
   const [stores, setStores] = useState([]);
   const [equipments, setEquipments] = useState([]);
-  const [searchDate, setSearchDate] = useState("");
+  const [searchDate, setSearchDate] = useState(getTodayStr);
   const [searchShift, setSearchShift] = useState("1");
+  const hasAutoLoaded = useRef(false);
 
   useEffect(() => {
     if (searchDate) {
@@ -54,10 +56,13 @@ function BaoCaoNhapKhoCatVaiXe() {
         console.log("getCatVaiStores response:", s);
         console.log("getCatVaiEquipments response:", e);
         
-        if (s && s.success) {
-          setStores(s.data || []);
-        } else if (Array.isArray(s)) {
-          setStores(s);
+        const storeOptions = s?.success
+          ? (s.data || [])
+          : (Array.isArray(s) ? s : []);
+        setStores(storeOptions);
+        if (storeOptions.length > 0) {
+          const firstStore = storeOptions[0];
+          setStoreId(firstStore.storeId || firstStore.StoreID || firstStore.value || '');
         }
         
         if (e && e.success) {
@@ -93,6 +98,13 @@ function BaoCaoNhapKhoCatVaiXe() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!yearMonthDayShift || !storeId || hasAutoLoaded.current) return;
+
+    hasAutoLoaded.current = true;
+    handleSearch();
+  }, [yearMonthDayShift, storeId]);
 
   const exportExcel = () => {
     if (!data.length) { toast.warn("Không có dữ liệu"); return; }

@@ -12,9 +12,11 @@ export const getDropdownUsers = async () => {
 };
 
 // Fetch dropdown quy cach
-export const getDropdownQuyCach = async () => {
+export const getDropdownQuyCach = async (locale = 'vi') => {
   try {
-    const response = await axios.get('/api/kiem-ke/dropdown/quycach');
+    const response = await axios.get('/api/kiem-ke/dropdown/quycach', {
+      params: { locale }
+    });
     return response.data;
   } catch (error) {
     console.error('Error fetching quy cach:', error);

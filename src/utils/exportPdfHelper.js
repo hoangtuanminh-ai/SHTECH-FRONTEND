@@ -118,6 +118,7 @@ const createFooterCanvas = async ({ pageNum, totalPages, targetWidthPx = 1200 })
  */
 export const exportDashboardToPDF = async ({
   element,
+  pages = null,
   fileName = 'BaoCao_Dashboard',
   title = 'BÁO CÁO GIÁM SÁT SẢN XUẤT MES DRC',
   subTitle = '',
@@ -127,8 +128,8 @@ export const exportDashboardToPDF = async ({
 }) => {
   console.log(`>>> [exportPdfHelper] Bắt đầu tạo PDF: "${fileName}", orientation: ${orientation}, title: "${title}"`);
 
-  if (!element) {
-    console.warn(`>>> [exportPdfHelper] Cảnh báo: Phần tử DOM (element) không tồn tại!`);
+  if (!element && (!pages || pages.length === 0)) {
+    console.warn(`>>> [exportPdfHelper] Cảnh báo: Phần tử DOM (element hoặc pages) không tồn tại!`);
     toast.warn('Chưa tải xong nội dung giao diện để xuất PDF');
     return false;
   }
@@ -136,42 +137,6 @@ export const exportDashboardToPDF = async ({
   const toastId = toast.loading('Đang khởi tạo bản in PDF chất lượng cao, vui lòng chờ trong giây lát...');
 
   try {
-    // 1. Tạm thời ẩn các nút bấm, icon thao tác và selector không cần in trong PDF
-    const noPrintElements = element.querySelectorAll('.pdf-no-print, button, select, input[type="file"]');
-    const originalStyles = [];
-    noPrintElements.forEach((el, index) => {
-      originalStyles[index] = {
-        display: el.style.display,
-        visibility: el.style.visibility
-      };
-      // Ẩn nhẹ bằng visibility để không làm thay đổi layout co dãn của các thẻ cha
-      el.style.visibility = 'hidden';
-    });
-
-    console.log(`>>> [exportPdfHelper] Đã tạm ẩn ${noPrintElements.length} phần tử giao diện tương tác để in.`);
-
-    // Đợi 100ms để DOM ổn định trạng thái
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    // 2. Chụp toàn bộ vùng Dashboard bằng html2canvas với độ nét cao (scale 2)
-    const canvas = await html2canvas(element, {
-      scale: 2, // Tăng gấp đôi độ phân giải để chữ và biểu đồ cực kỳ sắc nét
-      useCORS: true, // Hỗ trợ tải hình ảnh máy từ domain backend
-      allowTaint: true,
-      backgroundColor: '#ffffff',
-      logging: false,
-      windowWidth: element.scrollWidth || 1400
-    });
-
-    // 3. Khôi phục lại hiển thị cho các nút bấm trên màn hình
-    noPrintElements.forEach((el, index) => {
-      if (originalStyles[index]) {
-        el.style.display = originalStyles[index].display;
-        el.style.visibility = originalStyles[index].visibility;
-      }
-    });
-
-    // 4. Khởi tạo tài liệu jsPDF khổ A4
     const isLandscape = orientation === 'landscape';
     const pdf = new jsPDF({
       orientation: isLandscape ? 'l' : 'p',
@@ -182,17 +147,227 @@ export const exportDashboardToPDF = async ({
 
     const pageWidth = pdf.internal.pageSize.getWidth();   // 297mm (Landscape) hoặc 210mm (Portrait)
     const pageHeight = pdf.internal.pageSize.getHeight(); // 210mm (Landscape) hoặc 297mm (Portrait)
-
     const marginX = 8; // Lề trái/phải 8mm
     const marginTop = 6; // Lề trên 6mm
     const marginBottom = 6; // Lề dưới 6mm
-    const usableWidth = pageWidth - marginX * 2;
+    const usableWidth = pageWidth - marginX * 2; // 281mm (Landscape)
 
-    // Chiều rộng pixel cơ sở để tạo Header và Footer tương xứng với canvas
+    // ── KIỂM TRA CHẾ ĐỘ 1: XUẤT ĐA TRANG PHÂN ĐOẠN ĐỊNH SẴN (.drc-pdf-page HOẶC pages ARRAY) ──
+    // Giúp các biểu đồ 31 ngày / 3 ca được chia thành các Kỳ (1-10, 11-20, 21-31) to rõ ràng,
+    // mỗi trang có trục Y-Axis riêng và cột hiển thị cực lớn, dễ đọc 100%.
+    const multiPages = pages && pages.length > 0
+      ? pages
+      : (element && element.querySelectorAll ? Array.from(element.querySelectorAll('.drc-pdf-page')) : []);
+
+    if (multiPages.length > 0) {
+      const totalPages = multiPages.length;
+      console.log(`>>> [exportPdfHelper] 📑 Kích hoạt Chế độ Đa Trang Chuyên Dụng (${totalPages} trang). Bắt đầu kết xuất từng phân đoạn...`);
+
+      for (let p = 0; p < totalPages; p++) {
+        const pageEl = multiPages[p];
+        if (p > 0) {
+          pdf.addPage();
+        }
+
+        // Lấy tiêu đề phân đoạn riêng của trang (nếu có thuộc tính data-page-title)
+        const pageSegmentTitle = pageEl.getAttribute('data-page-title') || '';
+        let pageHeaderTitle = title;
+        let pageFilterInfo = filterInfo;
+
+        if (pageSegmentTitle) {
+          pageFilterInfo = pageFilterInfo
+            ? `【 ${pageSegmentTitle} 】  •  ${pageFilterInfo}`
+            : `【 ${pageSegmentTitle} 】`;
+        }
+
+        console.log(`>>> [exportPdfHelper] Đang chụp Trang ${p + 1}/${totalPages}: "${pageSegmentTitle || title}"`);
+
+        // Tạm ẩn các nút tương tác nếu có trong trang
+        const innerNoPrint = pageEl.querySelectorAll('.pdf-no-print, button, select');
+        innerNoPrint.forEach(el => { el.style.visibility = 'hidden'; });
+
+        // Tạo Canvas Header riêng cho từng trang
+        const targetHeaderWidthPx = Math.max(pageEl.scrollWidth || 1350, 1200);
+        const headerCanvas = await createHeaderCanvas({
+          title: pageHeaderTitle,
+          subTitle,
+          metadata,
+          filterInfo: pageFilterInfo,
+          targetWidthPx: targetHeaderWidthPx
+        });
+        const headerPdfHeight = (headerCanvas.height * usableWidth) / headerCanvas.width;
+        const headerImgData = headerCanvas.toDataURL('image/png');
+
+        // Chiều cao nội dung khả dụng cho trang này
+        const contentStartY = marginTop + headerPdfHeight + 2;
+        const approxFooterPdfHeight = 8; // mm
+        const footerY = pageHeight - marginBottom - approxFooterPdfHeight;
+        const contentMaxHeight = footerY - contentStartY - 1;
+
+        // Chụp nội dung của trang này với html2canvas độ nét cao (scale 2)
+        const pageCanvas = await html2canvas(pageEl, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          logging: false,
+          width: pageEl.scrollWidth || 1350,
+          windowWidth: 1400,
+          scrollX: 0,
+          scrollY: 0
+        });
+
+        // Phục hồi lại hiển thị cho các nút
+        innerNoPrint.forEach(el => { el.style.visibility = 'visible'; });
+
+        // Tính toán tỷ lệ đưa nội dung vào vừa vặn trang A4 Landscape
+        let pagePdfImgHeight = (pageCanvas.height * usableWidth) / pageCanvas.width;
+        let drawWidth = usableWidth;
+        let drawX = marginX;
+        let drawY = contentStartY;
+
+        // Nếu nội dung cao hơn khung khả dụng, co tỷ lệ theo chiều cao để không đè vào Footer
+        if (pagePdfImgHeight > contentMaxHeight) {
+          const fitRatio = contentMaxHeight / pagePdfImgHeight;
+          drawWidth = usableWidth * fitRatio;
+          pagePdfImgHeight = contentMaxHeight;
+          drawX = marginX + (usableWidth - drawWidth) / 2; // Căn giữa nội dung
+        }
+
+        // 1. Vẽ Header tiếng Việt
+        pdf.addImage(headerImgData, 'PNG', marginX, marginTop, usableWidth, headerPdfHeight);
+
+        // 2. Vẽ Nội dung biểu đồ phân đoạn
+        const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.96);
+        pdf.addImage(pageImgData, 'JPEG', drawX, drawY, drawWidth, pagePdfImgHeight);
+
+        // 3. Vẽ Footer tiếng Việt đánh số Trang X / Y
+        const footerCanvas = await createFooterCanvas({
+          pageNum: p + 1,
+          totalPages,
+          targetWidthPx: targetHeaderWidthPx
+        });
+        const footerPdfHeight = (footerCanvas.height * usableWidth) / footerCanvas.width;
+        pdf.addImage(footerCanvas.toDataURL('image/png'), 'PNG', marginX, pageHeight - marginBottom - footerPdfHeight, usableWidth, footerPdfHeight);
+      }
+
+      // Lưu file PDF đa trang
+      const timeStamp = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
+      const cleanFileName = `${fileName.replace(/[:\\/?*\[\]]/g, '_')}_${timeStamp}.pdf`;
+      pdf.save(cleanFileName);
+
+      console.log(`>>> [exportPdfHelper] 🎉 Đã xuất thành công file PDF Đa Trang: "${cleanFileName}" (${totalPages} trang)`);
+      toast.update(toastId, {
+        render: `Xuất file PDF thành công: "${cleanFileName}" (${totalPages} trang)`,
+        type: 'success',
+        isLoading: false,
+        autoClose: 3500
+      });
+      return true;
+    }
+
+    // ── KIỂM TRA CHẾ ĐỘ 2: CHỤP VÙNG ELEMENT ĐƠN LẺ (FALLBACK NÂNG CẤP VỚI HORIZONTAL CHUNKING) ──
+    // 1. Tạm thời ẩn các nút bấm, icon thao tác và selector không cần in trong PDF
+    const noPrintElements = element.querySelectorAll('.pdf-no-print, button, select, input[type="file"]');
+    const originalStyles = [];
+    noPrintElements.forEach((el, index) => {
+      originalStyles[index] = {
+        display: el.style.display,
+        visibility: el.style.visibility
+      };
+      el.style.visibility = 'hidden';
+    });
+
+    console.log(`>>> [exportPdfHelper] Đã tạm ẩn ${noPrintElements.length} phần tử giao diện tương tác để in.`);
+
+    // 1.1 Tìm các container cuộn ngang và kiểm tra xem có container nào THỰC SỰ có thanh trượt ngang không
+    const scrollNodes = element.querySelectorAll('.drc-daychart-scroll, .drc-year-chart-scroll, .drc-data-table-wrap, [class*="-scroll"]');
+    const savedScrollStates = [];
+    let maxChildScrollWidth = element.clientWidth;
+    let hasActiveScrollbar = false;
+
+    scrollNodes.forEach(sc => {
+      let innerWidth = sc.scrollWidth;
+      Array.from(sc.children).forEach(child => {
+        if (child.scrollWidth > innerWidth) innerWidth = child.scrollWidth;
+        if (child.offsetWidth > innerWidth) innerWidth = child.offsetWidth;
+      });
+
+      // Chỉ coi là có thanh trượt ngang khi nội dung cuộn bên trong lớn hơn chiều rộng hiển thị của container ít nhất 80px
+      if (innerWidth > sc.clientWidth + 80) {
+        hasActiveScrollbar = true;
+        if (innerWidth > maxChildScrollWidth) {
+          maxChildScrollWidth = innerWidth;
+        }
+
+        savedScrollStates.push({
+          el: sc,
+          overflowX: sc.style.overflowX,
+          overflow: sc.style.overflow,
+          width: sc.style.width,
+          maxWidth: sc.style.maxWidth,
+          scrollLeft: sc.scrollLeft
+        });
+
+        // Tạm mở rộng container để html2canvas chụp được toàn bộ nội dung ẩn sau thanh trượt
+        sc.scrollLeft = 0;
+        sc.style.overflowX = 'visible';
+        sc.style.overflow = 'visible';
+        sc.style.width = '100%';
+        sc.style.maxWidth = 'none';
+      }
+    });
+
+    const isWideChart = hasActiveScrollbar && (maxChildScrollWidth > element.clientWidth + 80);
+    const origElementWidth = element.style.width;
+    const origElementMaxWidth = element.style.maxWidth;
+
+    if (isWideChart) {
+      console.log(`>>> [exportPdfHelper] 🚀 Phát hiện biểu đồ CÓ THANH TRƯỢT NGANG (${maxChildScrollWidth}px > ${element.clientWidth}px). Đang mở rộng DOM để chụp...`);
+      element.style.width = `${maxChildScrollWidth + 40}px`;
+      element.style.maxWidth = 'none';
+    } else {
+      console.log(`>>> [exportPdfHelper] ℹ️ Giao diện KHÔNG CÓ THANH TRƯỢT NGANG (vừa vặn màn hình). Giữ nguyên 1 trang để tránh ngắt quãng thị giác.`);
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    // 2. Chụp toàn bộ vùng Dashboard bằng html2canvas
+    const renderWidth = isWideChart ? maxChildScrollWidth + 40 : (element.scrollWidth || 1400);
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      width: renderWidth,
+      windowWidth: Math.max(renderWidth, 1400),
+      scrollX: 0,
+      scrollY: 0
+    });
+
+    // 3. Khôi phục lại trạng thái ban đầu của DOM
+    noPrintElements.forEach((el, index) => {
+      if (originalStyles[index]) {
+        el.style.display = originalStyles[index].display;
+        el.style.visibility = originalStyles[index].visibility;
+      }
+    });
+
+    if (isWideChart) {
+      element.style.width = origElementWidth;
+      element.style.maxWidth = origElementMaxWidth;
+    }
+    savedScrollStates.forEach(s => {
+      s.el.style.overflowX = s.overflowX;
+      s.el.style.overflow = s.overflow;
+      s.el.style.width = s.width;
+      s.el.style.maxWidth = s.maxWidth;
+      s.el.scrollLeft = s.scrollLeft;
+    });
+
+    // 4. Chuẩn bị thông số in ấn
     const targetHeaderWidthPx = Math.max(canvas.width / 2, 1200);
-
-    // 5. Tạo Canvas Header chuẩn Unicode tiếng Việt
-    console.log(`>>> [exportPdfHelper] Tạo Canvas Header tiếng Việt cho báo cáo: "${title}"`);
     const headerCanvas = await createHeaderCanvas({
       title,
       subTitle,
@@ -203,82 +378,146 @@ export const exportDashboardToPDF = async ({
     const headerPdfHeight = (headerCanvas.height * usableWidth) / headerCanvas.width;
     const headerImgData = headerCanvas.toDataURL('image/png');
 
-    // Chiều cao và vị trí các vùng trên trang PDF
     const contentStartY = marginTop + headerPdfHeight + 2;
-    const approxFooterPdfHeight = 8; // mm
+    const approxFooterPdfHeight = 8;
     const footerY = pageHeight - marginBottom - approxFooterPdfHeight;
     const contentMaxHeight = footerY - contentStartY - 1;
 
-    // 6. Tính toán kích thước nội dung Canvas đưa vào PDF
     const canvasImgWidth = canvas.width;
     const canvasImgHeight = canvas.height;
-    const totalPdfImgHeight = (canvasImgHeight * usableWidth) / canvasImgWidth;
 
-    console.log(`>>> [exportPdfHelper] Kích thước canvas: ${canvasImgWidth}x${canvasImgHeight}, chiều cao nội dung PDF: ${totalPdfImgHeight.toFixed(1)}mm (Khả dụng mỗi trang: ${contentMaxHeight.toFixed(1)}mm)`);
+    // CHỈ CẮT LÁT THEO CHIỀU NGANG KHI VÀ CHỈ KHI: CÓ THANH TRƯỢT NGANG THỰC SỰ (isWideChart === true)!
+    // Nếu KHÔNG CÓ thanh trượt ngang: Tuyệt đối KHÔNG CẮT NGANG, in trọn vẹn 1 trang (hoặc chia dọc nếu cao) để TRÁNH NGẮT QUÃNG THỊ GIÁC!
+    const maxSegmentWidthPx = 2600; // Tương đương ~1300px CSS
+    if (isWideChart && canvasImgWidth > maxSegmentWidthPx) {
+      const numSegments = Math.ceil(canvasImgWidth / maxSegmentWidthPx);
+      console.log(`>>> [exportPdfHelper] ✂️ Biểu đồ có thanh trượt ngang quá dài (${canvasImgWidth}px > ${maxSegmentWidthPx}px). Cắt thành ${numSegments} trang A4 Landscape theo chiều ngang...`);
 
-    // Kiểm tra nếu nội dung vừa vặn trong 1 trang duy nhất
-    if (totalPdfImgHeight <= contentMaxHeight) {
-      // ── TRƯỜNG HỢP 1: VỪA VẶN 1 TRANG (Đẹp nhất cho Dashboard tổng quan) ──
-      // Vẽ Header tiếng Việt
-      pdf.addImage(headerImgData, 'PNG', marginX, marginTop, usableWidth, headerPdfHeight);
+      const segmentCanvasWidth = Math.ceil(canvasImgWidth / numSegments);
 
-      // Vẽ Nội dung Dashboard
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
-      pdf.addImage(imgData, 'JPEG', marginX, contentStartY, usableWidth, totalPdfImgHeight);
-
-      // Vẽ Footer tiếng Việt
-      const footerCanvas = await createFooterCanvas({ pageNum: 1, totalPages: 1, targetWidthPx: targetHeaderWidthPx });
-      const footerPdfHeight = (footerCanvas.height * usableWidth) / footerCanvas.width;
-      pdf.addImage(footerCanvas.toDataURL('image/png'), 'PNG', marginX, pageHeight - marginBottom - footerPdfHeight, usableWidth, footerPdfHeight);
-    } else {
-      // ── TRƯỜNG HỢP 2: NỘI DUNG DÀI (Tự động chia thành nhiều trang mượt mà) ──
-      const pageCanvasHeight = (contentMaxHeight * canvasImgWidth) / usableWidth;
-      const totalPages = Math.ceil(canvasImgHeight / pageCanvasHeight);
-
-      console.log(`>>> [exportPdfHelper] Nội dung dài, tự động chia thành ${totalPages} trang A4.`);
-
-      for (let p = 0; p < totalPages; p++) {
-        if (p > 0) {
+      for (let s = 0; s < numSegments; s++) {
+        if (s > 0) {
           pdf.addPage();
         }
 
-        // Vẽ Header tiếng Việt cho trang này
-        pdf.addImage(headerImgData, 'PNG', marginX, marginTop, usableWidth, headerPdfHeight);
+        const sourceX = s * segmentCanvasWidth;
+        const currentSliceWidth = Math.min(segmentCanvasWidth, canvasImgWidth - sourceX);
 
-        // Cắt lát canvas phụ cho từng trang
-        const sourceY = p * pageCanvasHeight;
-        const sliceCanvasHeight = Math.min(pageCanvasHeight, canvasImgHeight - sourceY);
+        // Tạo canvas phụ cho phân đoạn ngang này
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = currentSliceWidth;
+        sliceCanvas.height = canvasImgHeight;
+        const sliceCtx = sliceCanvas.getContext('2d');
 
-        const pageCanvas = document.createElement('canvas');
-        pageCanvas.width = canvasImgWidth;
-        pageCanvas.height = sliceCanvasHeight;
-        const pageCtx = pageCanvas.getContext('2d');
-
-        pageCtx.fillStyle = '#ffffff';
-        pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-        pageCtx.drawImage(
+        sliceCtx.fillStyle = '#ffffff';
+        sliceCtx.fillRect(0, 0, currentSliceWidth, canvasImgHeight);
+        sliceCtx.drawImage(
           canvas,
-          0, sourceY, canvasImgWidth, sliceCanvasHeight,
-          0, 0, canvasImgWidth, sliceCanvasHeight
+          sourceX, 0, currentSliceWidth, canvasImgHeight,
+          0, 0, currentSliceWidth, canvasImgHeight
         );
 
-        const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.95);
-        const pagePdfImgHeight = (sliceCanvasHeight * usableWidth) / canvasImgWidth;
+        // Đưa phân đoạn vào trang PDF
+        let slicePdfHeight = (canvasImgHeight * usableWidth) / currentSliceWidth;
+        let drawWidth = usableWidth;
+        let drawHeight = slicePdfHeight;
+        let drawX = marginX;
+        let drawY = contentStartY;
 
-        pdf.addImage(pageImgData, 'JPEG', marginX, contentStartY, usableWidth, pagePdfImgHeight);
+        if (slicePdfHeight > contentMaxHeight) {
+          const ratio = contentMaxHeight / slicePdfHeight;
+          drawWidth = usableWidth * ratio;
+          drawHeight = contentMaxHeight;
+          drawX = marginX + (usableWidth - drawWidth) / 2;
+        }
 
-        // Vẽ Footer tiếng Việt đánh số Trang (p + 1) / totalPages
+        // Tiêu đề Header cho phân đoạn này
+        const segFilterInfo = filterInfo
+          ? `【 Phân đoạn ${s + 1}/${numSegments} 】  •  ${filterInfo}`
+          : `【 Phân đoạn ${s + 1}/${numSegments} 】`;
+
+        const segHeaderCanvas = await createHeaderCanvas({
+          title,
+          subTitle,
+          metadata,
+          filterInfo: segFilterInfo,
+          targetWidthPx: targetHeaderWidthPx
+        });
+        const segHeaderPdfHeight = (segHeaderCanvas.height * usableWidth) / segHeaderCanvas.width;
+        pdf.addImage(segHeaderCanvas.toDataURL('image/png'), 'PNG', marginX, marginTop, usableWidth, segHeaderPdfHeight);
+
+        // Vẽ nội dung phân đoạn
+        pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.95), 'JPEG', drawX, drawY, drawWidth, drawHeight);
+
+        // Vẽ Footer
         const footerCanvas = await createFooterCanvas({
-          pageNum: p + 1,
-          totalPages,
+          pageNum: s + 1,
+          totalPages: numSegments,
           targetWidthPx: targetHeaderWidthPx
         });
         const footerPdfHeight = (footerCanvas.height * usableWidth) / footerCanvas.width;
         pdf.addImage(footerCanvas.toDataURL('image/png'), 'PNG', marginX, pageHeight - marginBottom - footerPdfHeight, usableWidth, footerPdfHeight);
       }
+    } else {
+      // Trường hợp thông thường: Chiều rộng vừa vặn, kiểm tra chia trang theo chiều dọc (Vertical Chunking)
+      const totalPdfImgHeight = (canvasImgHeight * usableWidth) / canvasImgWidth;
+
+      if (totalPdfImgHeight <= contentMaxHeight) {
+        // Vừa vặn 1 trang duy nhất
+        pdf.addImage(headerImgData, 'PNG', marginX, marginTop, usableWidth, headerPdfHeight);
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        pdf.addImage(imgData, 'JPEG', marginX, contentStartY, usableWidth, totalPdfImgHeight);
+
+        const footerCanvas = await createFooterCanvas({ pageNum: 1, totalPages: 1, targetWidthPx: targetHeaderWidthPx });
+        const footerPdfHeight = (footerCanvas.height * usableWidth) / footerCanvas.width;
+        pdf.addImage(footerCanvas.toDataURL('image/png'), 'PNG', marginX, pageHeight - marginBottom - footerPdfHeight, usableWidth, footerPdfHeight);
+      } else {
+        // Nội dung dài theo chiều dọc, chia thành nhiều trang
+        const pageCanvasHeight = (contentMaxHeight * canvasImgWidth) / usableWidth;
+        const totalPages = Math.ceil(canvasImgHeight / pageCanvasHeight);
+
+        console.log(`>>> [exportPdfHelper] Nội dung dài theo chiều dọc, tự động chia thành ${totalPages} trang A4.`);
+
+        for (let p = 0; p < totalPages; p++) {
+          if (p > 0) {
+            pdf.addPage();
+          }
+
+          pdf.addImage(headerImgData, 'PNG', marginX, marginTop, usableWidth, headerPdfHeight);
+
+          const sourceY = p * pageCanvasHeight;
+          const sliceCanvasHeight = Math.min(pageCanvasHeight, canvasImgHeight - sourceY);
+
+          const pageCanvas = document.createElement('canvas');
+          pageCanvas.width = canvasImgWidth;
+          pageCanvas.height = sliceCanvasHeight;
+          const pageCtx = pageCanvas.getContext('2d');
+
+          pageCtx.fillStyle = '#ffffff';
+          pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+          pageCtx.drawImage(
+            canvas,
+            0, sourceY, canvasImgWidth, sliceCanvasHeight,
+            0, 0, canvasImgWidth, sliceCanvasHeight
+          );
+
+          const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.95);
+          const pagePdfImgHeight = (sliceCanvasHeight * usableWidth) / canvasImgWidth;
+
+          pdf.addImage(pageImgData, 'JPEG', marginX, contentStartY, usableWidth, pagePdfImgHeight);
+
+          const footerCanvas = await createFooterCanvas({
+            pageNum: p + 1,
+            totalPages,
+            targetWidthPx: targetHeaderWidthPx
+          });
+          const footerPdfHeight = (footerCanvas.height * usableWidth) / footerCanvas.width;
+          pdf.addImage(footerCanvas.toDataURL('image/png'), 'PNG', marginX, pageHeight - marginBottom - footerPdfHeight, usableWidth, footerPdfHeight);
+        }
+      }
     }
 
-    // 7. Lưu file PDF về máy tính người dùng
+    // 5. Lưu file PDF về máy tính người dùng
     const timeStamp = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
     const cleanFileName = `${fileName.replace(/[:\\/?*\[\]]/g, '_')}_${timeStamp}.pdf`;
 

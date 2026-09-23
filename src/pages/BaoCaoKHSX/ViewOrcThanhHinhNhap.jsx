@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Select from 'react-select';
 import { toast } from 'react-toastify';
 import ExcelJS from 'exceljs';
@@ -6,6 +6,17 @@ import { saveAs } from 'file-saver';
 import { getViewOrcThanhHinhNhap } from '../../api/viewOrcApi';
 import { getStoreListOrth } from '../../api/thanhhinhApi';
 import { getDropdownEquipment, getDropdownQuyCach } from '../../api/kiemkeApi';
+import { getBaoCaoNhapKhoTheoMay } from '../../api/baoCaoNhapKhoApi';
+import { exportBaoCaoNhapKhoTheoMayPdf } from '../../utils/baoCaoNhapKhoTheoMayPdf';
+
+const machineCodeCollator = new Intl.Collator('vi', {
+  numeric: true,
+  sensitivity: 'base',
+});
+
+const getMachineCode = (item) => (
+  item.Mamay || item.maMay || item.MaMay || item.EquipmentID || item.EquipmentId || ''
+);
 
 /* ─── MES Desktop CSS ─────────────────────────────────────────────────────── */
 const css = `
@@ -192,15 +203,38 @@ const columns = [
   { header: 'IPAddress', key: 'ipAddress' },
 ];
 
-const ViewOrcThanhHinhNhap = () => {
+const formatDateInput = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getDefaultDateRange = () => {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  return {
+    fromDate: formatDateInput(yesterday),
+    toDate: formatDateInput(today),
+  };
+};
+
+const ViewOrcThanhHinhNhap = ({
+  showExportReportButton = false,
+  autoLoadWithDefaultDates = true,
+}) => {
+  const defaultDateRange = getDefaultDateRange();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
+  const hasAutoLoaded = useRef(false);
   
   // Params
-  const [tuNgay, setTuNgay] = useState('');
-  const [tuCa, setTuCa] = useState('0');
-  const [denNgay, setDenNgay] = useState('');
-  const [denCa, setDenCa] = useState('0');
+  const [tuNgay, setTuNgay] = useState(autoLoadWithDefaultDates ? defaultDateRange.fromDate : '');
+  const [tuCa, setTuCa] = useState(autoLoadWithDefaultDates ? '1' : '0');
+  const [denNgay, setDenNgay] = useState(autoLoadWithDefaultDates ? defaultDateRange.toDate : '');
+  const [denCa, setDenCa] = useState(autoLoadWithDefaultDates ? '3' : '0');
   
   const [storeId, setStoreId] = useState('');
   const [maMay, setMaMay] = useState('');
@@ -223,6 +257,9 @@ const ViewOrcThanhHinhNhap = () => {
         setStores([{ value: '', label: '— Tất cả kho' }, ...resStores.map(item => ({
           value: item.storeId, label: `${item.storeId} — ${item.storeName || ''}`
         }))]);
+        if (resStores.length > 0) {
+          setStoreId(currentStoreId => currentStoreId || resStores[0].storeId || '');
+        }
       } catch (e) {
         console.error('Error loading stores:', e);
         setStores([{ value: '', label: '— Tất cả kho' }]);
@@ -233,8 +270,11 @@ const ViewOrcThanhHinhNhap = () => {
       try {
         setMachinesLoading(true);
         const resMachines = await getDropdownEquipment();
-        setMachines([{ value: '', label: '— Tất cả máy' }, ...resMachines.map(item => ({
-          value: item.Mamay || item.EquipmentID, label: `${item.Mamay || ''} — ${item.EquipmentName || item.EquipmentID || ''}`
+        const sortedMachines = [...resMachines].sort((first, second) => (
+          machineCodeCollator.compare(getMachineCode(first), getMachineCode(second))
+        ));
+        setMachines([{ value: '', label: '— Tất cả máy' }, ...sortedMachines.map(item => ({
+          value: getMachineCode(item), label: `${getMachineCode(item)} — ${item.EquipmentName || item.EquipmentID || ''}`
         }))]);
       } catch (e) {
         console.error('Error loading machines:', e);
@@ -359,6 +399,53 @@ const ViewOrcThanhHinhNhap = () => {
     }
   };
 
+  useEffect(() => {
+    if (!autoLoadWithDefaultDates || storesLoading || hasAutoLoaded.current) return;
+    hasAutoLoaded.current = true;
+    handleSearch();
+  }, [autoLoadWithDefaultDates, storesLoading]);
+
+  const handleExportReport = async () => {
+    if (!tuNgay || !denNgay) {
+      toast.warn('Vui lòng chọn đầy đủ Từ ngày và Đến ngày trước khi xuất báo cáo');
+      return;
+    }
+
+    const params = {
+      idKehoach: '',
+      namThangNgayCaStart: tuNgay.replace(/-/g, '') + tuCa,
+      namThangNgayCaEnd: denNgay.replace(/-/g, '') + denCa,
+      storeId,
+      maMay,
+      locale: 'v',
+    };
+
+    setReportLoading(true);
+    try {
+      const res = await getBaoCaoNhapKhoTheoMay(params);
+      const reportData = res?.success ? (res.data || []) : [];
+
+      if (!reportData.length) {
+        toast.warn(res?.message || 'Không có dữ liệu để xuất báo cáo');
+        return;
+      }
+
+      exportBaoCaoNhapKhoTheoMayPdf({
+        data: reportData,
+        tuNgay,
+        tuCa,
+        denNgay,
+        denCa,
+        dateStr,
+      });
+      toast.success(`Đã xuất báo cáo từ ${reportData.length} bản ghi`);
+    } catch (err) {
+      toast.error(err?.message || 'Lỗi khi lấy dữ liệu xuất báo cáo');
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
   const clearAll = () => {
     setData([]);
     setTuNgay('');
@@ -405,6 +492,14 @@ const ViewOrcThanhHinhNhap = () => {
           onClick={clearAll}
           icon={<><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></>}
         />
+        {showExportReportButton && (
+          <TbBtn
+            label="Xuất báo cáo"
+            onClick={handleExportReport}
+            disabled={loading || reportLoading}
+            icon={<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></>}
+          />
+        )}
         <div className="mes-tb-sep" />
         <TbBtn
           label="Xuất Excel"
@@ -413,7 +508,7 @@ const ViewOrcThanhHinhNhap = () => {
         />
       </div>
 
-      {loading && (
+      {(loading || reportLoading) && (
         <div style={{ height: 3, background: '#b8cce0', overflow: 'hidden', flexShrink: 0 }}>
           <div style={{ height: '100%', width: '40%', background: '#1565C0', animation: 'progress 1.2s infinite ease-in-out' }} />
         </div>

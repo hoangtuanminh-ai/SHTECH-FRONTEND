@@ -541,6 +541,8 @@ const KeHoachSanXuatCaThang = () => {
 
   // Ref container để xuất báo cáo PDF
   const containerRef = useRef(null);
+  // Ref container in đa trang chuyên dụng (3 kỳ trong tháng) để bản in PDF to rõ ràng, không bị co nhỏ
+  const printContainerRef = useRef(null);
 
   // Danh sách các năm lựa chọn
   const yearOptions = useMemo(() => {
@@ -721,16 +723,27 @@ const KeHoachSanXuatCaThang = () => {
     setSelectedThMachine('');
   };
 
-  // Xử lý xuất báo cáo PDF cho Kế hoạch Sản xuất Ca, Tháng
+  // Xử lý xuất báo cáo PDF: Chỉ khi CÓ THANH TRƯỢT NGANG mới cắt nhiều trang, không có thanh trượt thì in 1 trang nguyên vẹn để tránh ngắt quãng thị giác
   const handleExportPDF = async () => {
     console.log(">>> [KeHoachSanXuatCaThang] Bắt đầu xuất PDF Kế hoạch sản xuất ca tháng...", { selectedYear, selectedMonth, selectedCvMachine, selectedThMachine });
     setIsExportingPDF(true);
     try {
+      // Kiểm tra xem trên giao diện hiện tại có thanh trượt ngang không
+      const scrollEl = containerRef.current?.querySelector('.drc-daychart-scroll');
+      const hasHorizontalScroll = scrollEl && (scrollEl.scrollWidth > scrollEl.clientWidth + 80);
+
+      console.log(`>>> [KeHoachSanXuatCaThang] Kiểm tra thanh trượt: hasHorizontalScroll=${hasHorizontalScroll} (scrollWidth=${scrollEl?.scrollWidth}, clientWidth=${scrollEl?.clientWidth})`);
+
+      // Chỉ cắt ra nhiều trang (3 kỳ) khi thực sự có thanh trượt ngang. Nếu không có thanh trượt thì in nguyên 1 trang để tránh ngắt quãng thị giác!
+      const targetElement = (hasHorizontalScroll && printContainerRef.current)
+        ? printContainerRef.current
+        : containerRef.current;
+
       await exportDashboardToPDF({
-        element: containerRef.current,
-        title: `BÁO CÁO KẾ HOẠCH & SẢN XUẤT THEO CA THÁNG ${selectedMonth}/${selectedYear}`,
+        element: targetElement,
+        title: `BÁO CÁO TIẾN ĐỘ KẾ HOẠCH SẢN XUẤT THEO CA THÁNG ${selectedMonth}/${selectedYear}`,
         fileName: `Bao_Cao_Ke_Hoach_San_Xuat_Ca_Thang_${selectedMonth}_${selectedYear}`,
-        filterInfo: `Tháng: ${selectedMonth}/${selectedYear} | Máy Cắt Vải: ${selectedCvMachine ? `Máy ${selectedCvMachine}` : 'Tất cả'} | Máy Thành Hình: ${selectedThMachine ? `Máy ${selectedThMachine}` : 'Tất cả'}`
+        filterInfo: `Tháng: ${selectedMonth}/${selectedYear} | Cắt vải: ${selectedCvMachine ? `Máy ${selectedCvMachine}` : 'Tất cả'} | Thành hình: ${selectedThMachine ? `Máy ${selectedThMachine}` : 'Tất cả'}`
       });
       console.log(">>> [KeHoachSanXuatCaThang] Xuất PDF hoàn tất.");
     } catch (err) {
@@ -782,6 +795,37 @@ const KeHoachSanXuatCaThang = () => {
   const daysCount = getDaysInMonth(selectedYear, selectedMonth);
   const canvasWidth = daysCount * 125 + 60;
   const isLoadingTotal = isLoadingCv || isLoadingTh;
+
+  // ── PHÂN ĐOẠN 3 KỲ BÁO CÁO CHO BẢN IN PDF ĐA TRANG SẮC NÉT (MỖI KỲ ~10 NGÀY) ──
+  // Giúp các cột to rõ ràng, chữ số và tỷ lệ % hiển thị chuẩn A4 Landscape không bị co nhỏ
+  const periodDataList = useMemo(() => {
+    return [
+      {
+        id: 1,
+        title: `KỲ 1 (NGÀY 01 - 10/${selectedMonth})`,
+        shortTitle: `Kỳ 1: Ngày 01 - 10/${selectedMonth}`,
+        cvData: chartCvShiftData.slice(0, 10),
+        thData: chartThShiftData.slice(0, 10),
+        showKpi: true // Trang 1 hiển thị khối thẻ KPI tổng hợp cả tháng
+      },
+      {
+        id: 2,
+        title: `KỲ 2 (NGÀY 11 - 20/${selectedMonth})`,
+        shortTitle: `Kỳ 2: Ngày 11 - 20/${selectedMonth}`,
+        cvData: chartCvShiftData.slice(10, 20),
+        thData: chartThShiftData.slice(10, 20),
+        showKpi: false
+      },
+      {
+        id: 3,
+        title: `KỲ 3 (NGÀY 21 - ${daysCount}/${selectedMonth})`,
+        shortTitle: `Kỳ 3: Ngày 21 - ${daysCount}/${selectedMonth}`,
+        cvData: chartCvShiftData.slice(20),
+        thData: chartThShiftData.slice(20),
+        showKpi: false
+      }
+    ];
+  }, [chartCvShiftData, chartThShiftData, selectedMonth, daysCount]);
 
   return (
     <div ref={containerRef} className="drc-shift-month-container mes-fade">
@@ -1192,6 +1236,288 @@ const KeHoachSanXuatCaThang = () => {
             &lt;50%: Đỏ
           </span>
         </div>
+      </div>
+
+      {/* ── 6. KHUNG IN ĐA TRANG CHUYÊN DỤNG CHO BÁO CÁO PDF (3 KỲ TRONG THÁNG) ── */}
+      {/* Mỗi kỳ gồm ~10 ngày được vẽ vừa vặn 1 trang A4 Landscape: cột to, số rõ, tỷ lệ % to rõ ràng */}
+      <div
+        ref={printContainerRef}
+        style={{
+          position: 'fixed',
+          left: '-99999px',
+          top: 0,
+          width: '1360px',
+          background: '#ffffff',
+          zIndex: -100,
+          pointerEvents: 'none'
+        }}
+      >
+        {periodDataList.map((period) => (
+          <div
+            key={`print-pdf-page-${period.id}`}
+            className="drc-pdf-page"
+            data-page-title={period.title}
+            style={{
+              width: '1360px',
+              background: '#ffffff',
+              padding: '10px 16px 14px 16px',
+              boxSizing: 'border-box',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              marginBottom: '40px'
+            }}
+          >
+            {/* Nếu là Trang 1: Hiển thị kèm khối thẻ KPI tổng kết cả tháng */}
+            {period.showKpi && (
+              <div className="drc-kpi-grid" style={{ marginBottom: '2px' }}>
+                {/* KPI Cắt vải */}
+                <div className="drc-kpi-card cv" style={{ padding: '6px 10px' }}>
+                  <div className="drc-kpi-title" style={{ fontSize: '11.5px', paddingBottom: '3px' }}>
+                    <span>CÔNG ĐOẠN CẮT VẢI (CV) — TỔNG QUAN THÁNG {selectedMonth}/{selectedYear}</span>
+                    <span
+                      className="drc-kpi-badge"
+                      style={{
+                        background: cvTotals.pct >= 100 ? '#dcfce7' : (cvTotals.pct >= 80 ? '#dcfce7' : (cvTotals.pct >= 50 ? '#ffedd5' : '#fee2e2')),
+                        color: getShiftBarColor(cvTotals.pct)
+                      }}
+                    >
+                      {cvTotals.pct.toFixed(2)}%
+                    </span>
+                  </div>
+                  <div className="drc-spec-table">
+                    <div className="drc-spec-row top-row" style={{ padding: '3px 0' }}>
+                      <span className="drc-spec-label sx" style={{ fontSize: '11px', width: '70px' }}>SẢN XUẤT</span>
+                      <span className="drc-spec-divider">|</span>
+                      <span className="drc-spec-qty" style={{ fontSize: '12px', width: '80px' }}>{cvTotals.totalTT.toLocaleString('vi-VN')} <small>BTP</small></span>
+                      <span className="drc-spec-pct" style={{ fontSize: '12px', width: '60px', color: getShiftBarColor(cvTotals.pct) }}>{cvTotals.pct.toFixed(2)}%</span>
+                      <div className="drc-spec-bar-box" style={{ height: '14px' }}>
+                        <div className="drc-spec-100-mark" />
+                        <div
+                          className="drc-spec-bar-fill"
+                          style={{
+                            width: `${Math.min(Math.max((cvTotals.pct / 120) * 100, 0), 100)}%`,
+                            background: getShiftBarColor(cvTotals.pct)
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="drc-spec-row" style={{ padding: '3px 0' }}>
+                      <span className="drc-spec-label kh" style={{ fontSize: '11px', width: '70px' }}>KẾ HOẠCH</span>
+                      <span className="drc-spec-divider">|</span>
+                      <span className="drc-spec-qty" style={{ fontSize: '12px', width: '80px' }}>{cvTotals.totalKH.toLocaleString('vi-VN')} <small>BTP</small></span>
+                      <span className="drc-spec-pct" style={{ width: '60px' }}></span>
+                      <div className="drc-spec-bar-box" style={{ height: '14px' }}>
+                        <div className="drc-spec-100-mark" />
+                        <div
+                          className="drc-spec-bar-fill"
+                          style={{
+                            width: cvTotals.totalKH > 0 ? '83.33%' : '0%',
+                            background: '#0070c0'
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* KPI Thành hình */}
+                <div className="drc-kpi-card th" style={{ padding: '6px 10px' }}>
+                  <div className="drc-kpi-title" style={{ fontSize: '11.5px', paddingBottom: '3px' }}>
+                    <span>CÔNG ĐOẠN THÀNH HÌNH (TH) — TỔNG QUAN THÁNG {selectedMonth}/{selectedYear}</span>
+                    <span
+                      className="drc-kpi-badge"
+                      style={{
+                        background: thTotals.pct >= 100 ? '#dcfce7' : (thTotals.pct >= 80 ? '#dcfce7' : (thTotals.pct >= 50 ? '#ffedd5' : '#fee2e2')),
+                        color: getShiftBarColor(thTotals.pct)
+                      }}
+                    >
+                      {thTotals.pct.toFixed(2)}%
+                    </span>
+                  </div>
+                  <div className="drc-spec-table">
+                    <div className="drc-spec-row top-row" style={{ padding: '3px 0' }}>
+                      <span className="drc-spec-label sx" style={{ fontSize: '11px', width: '70px' }}>SẢN XUẤT</span>
+                      <span className="drc-spec-divider">|</span>
+                      <span className="drc-spec-qty" style={{ fontSize: '12px', width: '80px' }}>{thTotals.totalTT.toLocaleString('vi-VN')} <small>lốp</small></span>
+                      <span className="drc-spec-pct" style={{ fontSize: '12px', width: '60px', color: getShiftBarColor(thTotals.pct) }}>{thTotals.pct.toFixed(2)}%</span>
+                      <div className="drc-spec-bar-box" style={{ height: '14px' }}>
+                        <div className="drc-spec-100-mark" />
+                        <div
+                          className="drc-spec-bar-fill"
+                          style={{
+                            width: `${Math.min(Math.max((thTotals.pct / 120) * 100, 0), 100)}%`,
+                            background: getShiftBarColor(thTotals.pct)
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="drc-spec-row" style={{ padding: '3px 0' }}>
+                      <span className="drc-spec-label kh" style={{ fontSize: '11px', width: '70px' }}>KẾ HOẠCH</span>
+                      <span className="drc-spec-divider">|</span>
+                      <span className="drc-spec-qty" style={{ fontSize: '12px', width: '80px' }}>{thTotals.totalKH.toLocaleString('vi-VN')} <small>lốp</small></span>
+                      <span className="drc-spec-pct" style={{ width: '60px' }}></span>
+                      <div className="drc-spec-bar-box" style={{ height: '14px' }}>
+                        <div className="drc-spec-100-mark" />
+                        <div
+                          className="drc-spec-bar-fill"
+                          style={{
+                            width: thTotals.totalKH > 0 ? '83.33%' : '0%',
+                            background: '#0070c0'
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* BIỂU ĐỒ CẮT VẢI CHO PHÂN ĐOẠN NÀY */}
+            <div className="drc-chart-card" style={{ boxShadow: 'none' }}>
+              <div className="drc-chart-head cv-head" style={{ padding: '5px 12px', fontSize: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FaChartBar color="#ffffff" />
+                  <span style={{ fontWeight: 900 }}>CÔNG ĐOẠN CẮT VẢI (CV) — {period.title}</span>
+                </div>
+                <div style={{ fontSize: '11px', color: '#e0f2fe', fontWeight: 700 }}>
+                  {selectedCvMachine ? `Máy: ${selectedCvMachine}` : 'Tất cả máy Cắt vải'}
+                </div>
+              </div>
+              <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderTop: 'none', padding: '10px 8px 4px 4px' }}>
+                <BarChart
+                  width={1320}
+                  height={period.showKpi ? 270 : 310}
+                  data={period.cvData}
+                  margin={{ top: 22, right: 18, left: -10, bottom: 0 }}
+                  barSize={26}
+                  barGap={3}
+                  barCategoryGap="15%"
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis
+                    dataKey="day"
+                    interval={0}
+                    tick={{ fontSize: 11, fill: '#1e293b', fontWeight: 800 }}
+                    tickLine={false}
+                    axisLine={{ stroke: '#cbd5e1' }}
+                  />
+                  <YAxis
+                    domain={[0, 130]}
+                    ticks={[0, 25, 50, 75, 100]}
+                    tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }}
+                    tickLine={false}
+                    axisLine={{ stroke: '#cbd5e1' }}
+                    unit="%"
+                  />
+                  {SHIFT_ORDER.map(shift => (
+                    <Bar
+                      key={`print-cv-${period.id}-${shift.dataKey}`}
+                      dataKey={`${shift.dataKey}_tyLe`}
+                      name={shift.label}
+                      radius={[2, 2, 0, 0]}
+                      isAnimationActive={false}
+                    >
+                      {period.cvData.map((entry, i) => (
+                        <Cell
+                          key={`cell-print-cv-${period.id}-${shift.dataKey}-${i}`}
+                          fill={getShiftBarColor(entry[`${shift.dataKey}_tyLe`])}
+                        />
+                      ))}
+                      <LabelList
+                        content={(props) => renderShiftBarLabel(props, period.cvData, shift.dataKey)}
+                      />
+                    </Bar>
+                  ))}
+                </BarChart>
+              </div>
+            </div>
+
+            {/* BIỂU ĐỒ THÀNH HÌNH CHO PHÂN ĐOẠN NÀY */}
+            <div className="drc-chart-card" style={{ boxShadow: 'none' }}>
+              <div className="drc-chart-head th-head" style={{ padding: '5px 12px', fontSize: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FaChartBar color="#ffffff" />
+                  <span style={{ fontWeight: 900 }}>CÔNG ĐOẠN THÀNH HÌNH (TH) — {period.title}</span>
+                </div>
+                <div style={{ fontSize: '11px', color: '#f0fdf4', fontWeight: 700 }}>
+                  {selectedThMachine ? `Máy: ${selectedThMachine}` : 'Tất cả máy Thành hình'}
+                </div>
+              </div>
+              <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderTop: 'none', padding: '10px 8px 4px 4px' }}>
+                <BarChart
+                  width={1320}
+                  height={period.showKpi ? 270 : 310}
+                  data={period.thData}
+                  margin={{ top: 22, right: 18, left: -10, bottom: 0 }}
+                  barSize={26}
+                  barGap={3}
+                  barCategoryGap="15%"
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis
+                    dataKey="day"
+                    interval={0}
+                    tick={{ fontSize: 11, fill: '#1e293b', fontWeight: 800 }}
+                    tickLine={false}
+                    axisLine={{ stroke: '#cbd5e1' }}
+                  />
+                  <YAxis
+                    domain={[0, 130]}
+                    ticks={[0, 25, 50, 75, 100]}
+                    tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }}
+                    tickLine={false}
+                    axisLine={{ stroke: '#cbd5e1' }}
+                    unit="%"
+                  />
+                  {SHIFT_ORDER.map(shift => (
+                    <Bar
+                      key={`print-th-${period.id}-${shift.dataKey}`}
+                      dataKey={`${shift.dataKey}_tyLe`}
+                      name={shift.label}
+                      radius={[2, 2, 0, 0]}
+                      isAnimationActive={false}
+                    >
+                      {period.thData.map((entry, i) => (
+                        <Cell
+                          key={`cell-print-th-${period.id}-${shift.dataKey}-${i}`}
+                          fill={getShiftBarColor(entry[`${shift.dataKey}_tyLe`])}
+                        />
+                      ))}
+                      <LabelList
+                        content={(props) => renderShiftBarLabel(props, period.thData, shift.dataKey)}
+                      />
+                    </Bar>
+                  ))}
+                </BarChart>
+              </div>
+            </div>
+
+            {/* CHÚ THÍCH MÀU SẮC CHUẨN DOANH NGHIỆP */}
+            <div className="drc-chart-legend" style={{ padding: '3px 10px', fontSize: '10.5px' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ width: 10, height: 10, background: '#007a37', display: 'inline-block' }}></span>
+                &gt;100%: Xanh đậm
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ width: 10, height: 10, background: '#00b050', display: 'inline-block' }}></span>
+                =100%: Xanh tươi
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ width: 10, height: 10, background: '#84cc16', display: 'inline-block' }}></span>
+                80% - &lt;100%: Xanh nhạt
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ width: 10, height: 10, background: '#ff9900', display: 'inline-block' }}></span>
+                50% - &lt;80%: Cam
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ width: 10, height: 10, background: '#ef4444', display: 'inline-block' }}></span>
+                &lt;50%: Đỏ
+              </span>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

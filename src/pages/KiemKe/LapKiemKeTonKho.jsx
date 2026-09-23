@@ -7,6 +7,7 @@ import {
   saveKiemKe
 } from '../../api/kiemkeApi';
 import { getStoreListOrth } from '../../api/thanhhinhApi';
+import { getTodayStr } from '../../utils/dateHelper';
 
 /* ─── MES DESKTOP STYLE (GIỐNG HỆ THỐNG DRC) ────────────────────────────────── */
 const css = `
@@ -136,7 +137,7 @@ const LapKiemKeTonKho = () => {
     ghiChu: '',
     lan: 1,
     caNhap: '1',
-    ngayLap: new Date().toISOString().slice(0, 10),
+    ngayLap: getTodayStr(),
   });
 
   const [rows, setRows] = useState(Array.from({ length: 15 }, () => ({
@@ -206,10 +207,13 @@ const LapKiemKeTonKho = () => {
         // Console log kiểm tra thông tin user lập biểu được gán tự động
         console.log(`[KiemKe Auth] Thiết lập mã người lập: ${loggedInUserId}, Tên: ${loggedInFullName}`);
 
+        const firstStore = (s || [])[0];
         setHeader(prev => ({
           ...prev,
           maNguoiLap: loggedInUserId,
-          tenNguoiLap: loggedInFullName
+          tenNguoiLap: loggedInFullName,
+          maKho: prev.maKho || firstStore?.storeId || '',
+          tenKho: prev.tenKho || firstStore?.storeName || '',
         }));
       } catch (err) {
         console.error("Lỗi tải danh mục:", err);

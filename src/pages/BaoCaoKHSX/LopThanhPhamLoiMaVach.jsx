@@ -394,7 +394,7 @@ const LopThanhPhamLoiMaVach = () => {
           !loading && (
             <div className="mes-empty mes-fade">
               <div className="icon">📄</div>
-              <p>Chưa có dữ liệu — Thiết lập bộ lọc và nhấn Tìm Kiếm</p>
+              <p>Không có dữ liệu</p>
             </div>
           )
         )}

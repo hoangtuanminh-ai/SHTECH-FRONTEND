@@ -43,6 +43,7 @@ export const getBaoCaoNhapKhoTheoMay = async (params = {}) => {
     namThangNgayCaEnd,
     storeId = "",
     maMay = "",
+    locale = "v",
   } = params;
 
   if (!namThangNgayCaStart || !namThangNgayCaEnd) {
@@ -57,6 +58,7 @@ export const getBaoCaoNhapKhoTheoMay = async (params = {}) => {
         namThangNgayCaEnd,
         storeId,
         maMay,
+        locale,
       },
     });
     console.log("[API TheoMay] Response:", res.data);

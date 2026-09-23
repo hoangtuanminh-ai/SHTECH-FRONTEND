@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { getNhapkhoctLopThanhPhamVaXuLy, getViewStoreListOrks, getDmMayXRay } from '../../api/kcsWebApi';
+import { getTodayStr } from '../../utils/dateHelper';
 
 
 /* ─── MES Desktop CSS ─────────────────────────────────────────────────────── */
@@ -210,14 +211,15 @@ const columns = [
 const NhapKhoChiTietLop = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   
-  // Params
-  const [tuNgay, setTuNgay] = useState('');
+  // Params: Mặc định luôn để ngày hôm nay
+  const [tuNgay, setTuNgay] = useState(getTodayStr());
   const [tuCa, setTuCa] = useState('0');
-  const [denNgay, setDenNgay] = useState('');
+  const [denNgay, setDenNgay] = useState(getTodayStr());
   const [denCa, setDenCa] = useState('0');
   
   const [storeID, setStoreID] = useState('');
@@ -249,6 +251,13 @@ const NhapKhoChiTietLop = () => {
   const fetchPage = async (pageIndex = 0) => {
     const namThangNgayCaStart = tuNgay ? tuNgay.replace(/-/g, '') + tuCa : '';
     const namThangNgayCaEnd = denNgay ? denNgay.replace(/-/g, '') + denCa : '';
+
+    console.log('[NhapKhoChiTietLop] fetchPage với params:', {
+      namThangNgayCaStart,
+      namThangNgayCaEnd,
+      storeID,
+      pageIndex
+    });
 
     if (!namThangNgayCaStart || !namThangNgayCaEnd) {
       toast.warn('Vui lòng chọn đầy đủ thời gian bắt đầu và kết thúc');
@@ -295,7 +304,10 @@ const NhapKhoChiTietLop = () => {
     }
   };
 
-  const handleSearch = () => fetchPage(0);
+  const handleSearch = () => {
+    setHasSearched(true);
+    fetchPage(0);
+  };
 
   const exportToExcel = async () => {
     if (data.length === 0) {
@@ -367,10 +379,13 @@ const NhapKhoChiTietLop = () => {
 
   const clearAll = () => {
     setData([]);
+    setHasSearched(false);
     setPage(0); setTotalPages(0); setTotalElements(0);
-    setTuNgay(''); setTuCa('0');
-    setDenNgay(''); setDenCa('0');
+    // Luôn reset về ngày hôm nay
+    setTuNgay(getTodayStr()); setTuCa('0');
+    setDenNgay(getTodayStr()); setDenCa('0');
     setStoreID('');
+    console.log('[NhapKhoChiTietLop] clearAll -> Đã reset về ngày hôm nay:', getTodayStr());
   };
 
   const getRowStyle = (row) => {
@@ -600,8 +615,12 @@ const NhapKhoChiTietLop = () => {
         ) : (
           !loading && (
             <div className="mes-empty mes-fade">
-              <div className="icon">📄</div>
-              <p>Chưa có dữ liệu — Thiết lập bộ lọc và nhấn Tìm Kiếm</p>
+              <div className="icon">{hasSearched ? '🔍' : '📄'}</div>
+              <p>
+                {hasSearched
+                  ? 'Không tìm thấy dữ liệu phù hợp với điều kiện lọc'
+                  : 'Chưa lọc dữ liệu, hãy lọc dữ liệu và nhấn nút tìm kiếm'}
+              </p>
             </div>
           )
         )}

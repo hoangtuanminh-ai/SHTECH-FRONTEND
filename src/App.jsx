@@ -44,6 +44,7 @@ import BaoCaoKHSXThangTongHop from "./pages/BaoCaoKHSX/BaoCaoKHSXThangTongHop.js
 import BaoCaoNhapKhoKhongTheoMay from "./pages/BaoCaoKHSX/BaoCaoNhapKhoKhongTheoMay.jsx";
 import BaoCaoNhapKhoTheoMay from "./pages/BaoCaoKHSX/BaoCaoNhapKhoTheoMay.jsx";
 import ViewOrcThanhHinhNhap from "./pages/BaoCaoKHSX/ViewOrcThanhHinhNhap.jsx";
+import BaoCaoTongHopTheoCaOrc from "./pages/BaoCaoKHSX/BaoCaoTongHopTheoCa.jsx";
 import ThongKeLopKscl from "./pages/BaoCaoKHSX/ThongKeLopKscl.jsx";
 import ThongKePhanLoaiChatLuong from "./pages/BaoCaoKHSX/ThongKePhanLoaiChatLuong.jsx";
 import ThongKeKhongTinhLopTraXuLy from "./pages/BaoCaoKHSX/ThongKeKhongTinhLopTraXuLy.jsx";
@@ -145,6 +146,7 @@ const AppContent = () => {
             <Route path="bao-cao-nhap-kho-khong-theo-may" element={<ProtectedRoute><BaoCaoNhapKhoKhongTheoMay /></ProtectedRoute>} />
             <Route path="bao-cao-nhap-kho-theo-may" element={<ProtectedRoute><BaoCaoNhapKhoTheoMay /></ProtectedRoute>} />
             <Route path="view-orc-thanh-hinh" element={<ProtectedRoute><ViewOrcThanhHinhNhap /></ProtectedRoute>} />
+            <Route path="bao-cao-tong-hop-theo-ca" element={<ProtectedRoute><BaoCaoTongHopTheoCaOrc /></ProtectedRoute>} />
             <Route path="thong-ke-lop-kscl" element={<ProtectedRoute><ThongKeLopKscl /></ProtectedRoute>} />
             <Route path="thong-ke-phan-loai-chat-luong" element={<ProtectedRoute><ThongKePhanLoaiChatLuong /></ProtectedRoute>} />
             <Route path="thong-ke-khong-tinh-lop-tra-xu-ly" element={<ProtectedRoute><ThongKeKhongTinhLopTraXuLy /></ProtectedRoute>} />

@@ -2,11 +2,11 @@
 import api from "./axios";
 
 // 1. Lấy kế hoạch cắt vải phân trang
-export const getKeHoachCatVai = async (namThangNgayCaNhapKho = "", page = 0, size = 20) => {
+export const getKeHoachCatVai = async (namThangNgayCaNhapKho = "", storeId = "", page = 0, size = 20) => {
   try {
-    console.log(`[getKeHoachCatVai] Request: namThangNgayCaNhapKho=${namThangNgayCaNhapKho}, page=${page}, size=${size}`);
+    console.log(`[getKeHoachCatVai] Request: namThangNgayCaNhapKho=${namThangNgayCaNhapKho}, storeId=${storeId}, page=${page}, size=${size}`);
     const res = await api.get("/api/catvai/kehoach", {
-      params: { namThangNgayCaNhapKho, page, size }
+      params: { namThangNgayCaNhapKho, storeId, page, size }
     });
     console.log("[getKeHoachCatVai] Response:", res.data);
     return res.data;
@@ -355,6 +355,5 @@ export const getShiftStatsForMonthCatVai = async ({ nam_sx, thang_sx, maMay = nu
     throw error.response?.data || { message: "Không thể lấy thống kê cắt vải theo ca trong tháng" };
   }
 };
-
 
 

@@ -1,6 +1,7 @@
 // src/pages/BaoCaoKHSX.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getBaoCaoKHSX, getStoreListOrth } from '../../api/thanhhinhApi';
+import { getTodayStr } from '../../utils/dateHelper';
 import { toast } from 'react-toastify';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -209,12 +210,13 @@ const KpiCard = ({ label, value, color }) => (
 /* ─── Main ────────────────────────────────────────────────────────────────── */
 const BaoCaoKHSX = () => {
   const [idKehoach, setIdKehoach] = useState('');
-  const [storeId,   setStoreId]   = useState('RA10');
-  const [ngaySX,    setNgaySX]    = useState('');
-  const [ca_sx,     setCa_sx]     = useState('');
+  const [storeId,   setStoreId]   = useState('');
+  const [ngaySX,    setNgaySX]    = useState(getTodayStr);
+  const [ca_sx,     setCa_sx]     = useState('1');
   const [data,      setData]      = useState([]);
   const [loading,   setLoading]   = useState(false);
   const [storeList, setStoreList] = useState([]);
+  const hasAutoLoaded = useRef(false);
 
   const now     = new Date();
   const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -260,6 +262,13 @@ const BaoCaoKHSX = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!storeId || !ngaySX || hasAutoLoaded.current) return;
+
+    hasAutoLoaded.current = true;
+    handleSearch();
+  }, [storeId, ngaySX]);
 
   const exportToExcel = () => {
     if (data.length === 0) {

@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { getBaoCaoLopTraXuLyNhapKho, getBaoCaoLopTraXuLyNhapKhoCom, getViewStoreListOrks, getDmMayXRay, getListToSx } from '../../api/kcsWebApi';
+import { getTodayStr } from '../../utils/dateHelper';
 /* ─── MES Desktop CSS ─────────────────────────────────────────────────────── */
 const css = `
   * { box-sizing: border-box; }
@@ -178,10 +179,11 @@ const columns = [
 const BaoCaoLopTraXuLyNhapKho = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   
-  // Params (tuKHThang và denKHThang đã bị ẩn, truyền giá trị mặc định khi gọi API)
-  const [tuNgay, setTuNgay] = useState('');
-  const [denNgay, setDenNgay] = useState('');
+  // Params: Mặc định luôn để ngày hôm nay
+  const [tuNgay, setTuNgay] = useState(getTodayStr());
+  const [denNgay, setDenNgay] = useState(getTodayStr());
   const [loaiCaNhap, setLoaiCaNhap] = useState('');
 
   const [toSX, setToSX] = useState('');
@@ -246,11 +248,20 @@ const BaoCaoLopTraXuLyNhapKho = () => {
     const monthlyPlanStart = '190001'; // Giá trị mặc định
     const monthlyPlanEnd = '210001';   // Giá trị mặc định
 
+    console.log('[BaoCaoLopTraXuLyNhapKho] Tìm kiếm với params:', {
+      namThangNgayCaStart,
+      namThangNgayCaEnd,
+      toSX,
+      storeID,
+      loaiCaNhap
+    });
+
     if (!namThangNgayCaStart || !namThangNgayCaEnd) {
       toast.warn('Vui lòng chọn đầy đủ thời gian bắt đầu, kết thúc');
       return;
     }
 
+    setHasSearched(true);
     setLoading(true);
     try {
       const payload = {
@@ -530,11 +541,14 @@ const BaoCaoLopTraXuLyNhapKho = () => {
 
   const clearAll = () => {
     setData([]);
-    setTuNgay('');
-    setDenNgay('');
+    setHasSearched(false);
+    // Luôn reset về ngày hôm nay
+    setTuNgay(getTodayStr());
+    setDenNgay(getTodayStr());
     setLoaiCaNhap('');
     setToSX('');
     setStoreID('');
+    console.log('[BaoCaoLopTraXuLyNhapKho] clearAll -> Đã reset về ngày hôm nay:', getTodayStr());
   };
 
   const now = new Date();
@@ -690,8 +704,12 @@ const BaoCaoLopTraXuLyNhapKho = () => {
         ) : (
           !loading && (
             <div className="mes-empty mes-fade">
-              <div className="icon">📄</div>
-              <p>Chưa có dữ liệu — Thiết lập bộ lọc và nhấn Tìm Kiếm</p>
+              <div className="icon">{hasSearched ? '🔍' : '📄'}</div>
+              <p>
+                {hasSearched
+                  ? 'Không tìm thấy dữ liệu phù hợp với điều kiện lọc'
+                  : 'Chưa lọc dữ liệu, hãy lọc dữ liệu và nhấn nút tìm kiếm'}
+              </p>
             </div>
           )
         )}

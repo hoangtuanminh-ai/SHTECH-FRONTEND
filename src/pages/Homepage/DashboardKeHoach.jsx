@@ -11,7 +11,7 @@ import {
 import dayjs from 'dayjs';
 
 // Import các API chính thức của dự án
-import { getMachinesWithStats, getDrcMachineImageRaw, getViewOrcThMachineImageApi } from '../../api/thanhhinhApi';
+import { getMachinesWithStats, getDashboardStats, getDrcMachineImageRaw, getViewOrcThMachineImageApi } from '../../api/thanhhinhApi';
 import { getKeHoachTrend } from '../../api/kehoachApi';
 import { getCatVaiMonthlyStats, getCatVaiSummaryStats } from '../../api/catVaiApi';
 import { FaFilePdf } from 'react-icons/fa';
@@ -792,17 +792,17 @@ const DashboardKeHoach = () => {
     });
 
     // ── TASK 2: API Thống kê Tháng Thành Hình (getDashboardStats Tháng) ──
-    const taskThMonth = getDashboardStats(fromDateMonth, toDateMonth).then(resStatsMonth => {
+    const taskThMonth = getDashboardStats({ fromDate: fromDateMonth, toDate: toDateMonth }).then(resStatsMonth => {
       const t = (performance.now() - startTime).toFixed(0);
-      console.log(`>>> [DashboardKeHoach] ⚡ [${t}ms] API Tháng TH hoàn tất -> Cập nhật thẻ Tháng Thành Hình ngay!`);
-      if (resStatsMonth && resStatsMonth.tongSoLuongKH > 0) {
+      console.log(`>>> [DashboardKeHoach] ⚡ [${t}ms] API Tháng TH hoàn tất -> Cập nhật thẻ Tháng Thành Hình ngay!`, resStatsMonth);
+      const d = resStatsMonth?.data || resStatsMonth;
+      const plan = Number(d?.tongKeHoachThang || d?.tongSoLuongKH || d?.tongKeHoach || 0);
+      const actual = Number(d?.tongSanLuongThucTe || d?.tongSoLuongThucTe || 0);
+      const pct = plan > 0 ? Number(((actual / plan) * 100).toFixed(2)) : Number((d?.tyLeDatKeHoach || d?.tyLeHoanThanh || 0).toFixed(2));
+      if (d && (plan > 0 || actual > 0)) {
         setThangStats(prev => ({
           ...prev,
-          th: {
-            actual: resStatsMonth.tongSoLuongThucTe || 0,
-            plan: resStatsMonth.tongSoLuongKH || 0,
-            pct: Number((resStatsMonth.tyLeHoanThanh || 0).toFixed(2))
-          }
+          th: { actual, plan, pct }
         }));
       }
     }).catch(err => {
@@ -810,17 +810,17 @@ const DashboardKeHoach = () => {
     });
 
     // ── TASK 3: API Thống kê Năm Thành Hình (getDashboardStats Năm) ──
-    const taskThYear = getDashboardStats(fromDateYear, toDateYear).then(resStatsYear => {
+    const taskThYear = getDashboardStats({ fromDate: fromDateYear, toDate: toDateYear }).then(resStatsYear => {
       const t = (performance.now() - startTime).toFixed(0);
-      console.log(`>>> [DashboardKeHoach] ⚡ [${t}ms] API Năm TH hoàn tất -> Cập nhật thẻ Năm Thành Hình ngay!`);
-      if (resStatsYear && resStatsYear.tongSoLuongKH > 0) {
+      console.log(`>>> [DashboardKeHoach] ⚡ [${t}ms] API Năm TH hoàn tất -> Cập nhật thẻ Năm Thành Hình ngay!`, resStatsYear);
+      const d = resStatsYear?.data || resStatsYear;
+      const plan = Number(d?.tongKeHoachThang || d?.tongSoLuongKH || d?.tongKeHoach || 0);
+      const actual = Number(d?.tongSanLuongThucTe || d?.tongSoLuongThucTe || 0);
+      const pct = plan > 0 ? Number(((actual / plan) * 100).toFixed(2)) : Number((d?.tyLeDatKeHoach || d?.tyLeHoanThanh || 0).toFixed(2));
+      if (d && (plan > 0 || actual > 0)) {
         setNamStats(prev => ({
           ...prev,
-          th: {
-            actual: resStatsYear.tongSoLuongThucTe || 0,
-            plan: resStatsYear.tongSoLuongKH || 0,
-            pct: Number((resStatsYear.tyLeHoanThanh || 0).toFixed(2))
-          }
+          th: { actual, plan, pct }
         }));
       }
     }).catch(err => {

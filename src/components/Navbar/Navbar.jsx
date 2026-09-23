@@ -371,16 +371,16 @@ function Navbar() {
                 {/* Cấp 4: KH Thành hình nằm bên trong Thành hình */}
                 <SubGroup label="KH Thành hình" isOpen={openKhThanhHinh} onClick={() => setOpenKhThanhHinh(v => !v)} isLevel3={true}>
 
-                  {/* Cấp 5: Xuất kho */}
-                  <SubGroup label="Xuất kho" isOpen={openKhThang} onClick={() => setOpenKhThang(v => !v)} isLevel4={true}>
+                  {/* Cấp 5: Kế hoạch tháng */}
+                  <SubGroup label="Kế hoạch tháng" isOpen={openKhThang} onClick={() => setOpenKhThang(v => !v)} isLevel4={true}>
                     <NavLinkWithoutIcon to="/dashboard/lap-ke-hoach-thang" label="Lập KH theo tháng" isActive={active('/dashboard/lap-ke-hoach-thang')} />
                     <NavLinkWithoutIcon to="/dashboard/kiem-ke" label="Kiểm kê tồn kho đầu kỳ" isActive={active('/dashboard/kiem-ke')} />
                     <NavLinkWithoutIcon to="/dashboard/bao-cao-khsx-thang" label="Thống kê thực hiện kế hoạch thành hình (Tháng/máy)" isActive={active('/dashboard/bao-cao-khsx-thang')} />
                     <NavLinkWithoutIcon to="/dashboard/bao-cao-khsx-thang-tonghop" label="Thống kê thực hiện kế hoạch thành hình (Tháng)" isActive={active('/dashboard/bao-cao-khsx-thang-tonghop')} />
                   </SubGroup>
 
-                  {/* Cấp 5: Báo cáo - Thống kê */}
-                  <SubGroup label="Báo cáo - Thống kê" isOpen={openKhNgay} onClick={() => setOpenKhNgay(v => !v)} isLevel4={true}>
+                  {/* Cấp 5: Kế hoạch ca/ngày */}
+                  <SubGroup label="Kế hoạch ca/ngày" isOpen={openKhNgay} onClick={() => setOpenKhNgay(v => !v)} isLevel4={true}>
                     <NavLinkWithoutIcon to="/dashboard/lap-ke-hoach" label="Lập kế hoạch thành hình (Ca/ngày)" isActive={active('/dashboard/lap-ke-hoach')} />
                     <NavLinkWithoutIcon to="/dashboard/bao-cao-khsx" label="Thống kê thực hiện kế hoạch thành hình (ca)" isActive={active('/dashboard/bao-cao-khsx')} />
                   </SubGroup>
@@ -390,6 +390,7 @@ function Navbar() {
                 {/* Cấp 4: Báo cáo KH thành hình nằm bên trong Thành hình */}
                 <SubGroup label="Báo cáo KH thành hình" isOpen={openBaoCao} onClick={() => setOpenBaoCao(v => !v)} isLevel3={true}>
                   <NavLinkWithoutIcon to="/dashboard/view-orc-thanh-hinh" label="Hiển thị Danh sách lốp" isActive={active('/dashboard/view-orc-thanh-hinh')} />
+                  <NavLinkWithoutIcon to="/dashboard/bao-cao-tong-hop-theo-ca" label="Báo Cáo Tổng Hợp Theo Ca" isActive={active('/dashboard/bao-cao-tong-hop-theo-ca')} />
                   <NavLinkWithoutIcon to="/dashboard/bao-cao-nhap-kho-khong-theo-may" label="Báo Cáo Tổng Hợp Theo Ca/Ngày" isActive={active('/dashboard/bao-cao-nhap-kho-khong-theo-may')} />
                   <NavLinkWithoutIcon to="/dashboard/bao-cao-nhap-kho-theo-may" label="Báo Cáo Tổng Hợp Theo Ca/Máy" isActive={active('/dashboard/bao-cao-nhap-kho-theo-may')} />
                   <NavLinkWithoutIcon to="/dashboard/danh-sach-lop-th-lh" label="Hiển Thị Danh Sánh Lốp TH-LH" isActive={active('/dashboard/danh-sach-lop-th-lh')} />

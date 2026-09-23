@@ -1,8 +1,9 @@
 // src/pages/ThanhHinh/BaoCaoKHSXCatVaiThang.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import * as XLSX from 'xlsx';
 import { getBaoCaoKHSXTheoThang, getCatVaiStores, getCatVaiEquipments } from '../../api/catVaiApi';
+import { getCurrentMonthStr, getCurrentMonthlyPlanStr } from '../../utils/dateHelper';
 
 const css = `
   .mes-container { display: flex; flex-direction: column; height: 100vh; background: #e0eaf4; font-family: 'Segoe UI', sans-serif; color: #1a3a5c; }
@@ -31,10 +32,11 @@ function BaoCaoKHSXCatVaiThang() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [storeId, setStoreId] = useState('');
-  const [monthlyPlan, setMonthlyPlan] = useState('');
+  const [monthlyPlan, setMonthlyPlan] = useState(getCurrentMonthlyPlanStr);
   const [maMay, setMaMay] = useState('');
   const [stores, setStores] = useState([]);
   const [equipments, setEquipments] = useState([]);
+  const hasAutoLoaded = useRef(false);
 
   useEffect(() => {
     const fetchMeta = async () => {
@@ -44,10 +46,13 @@ function BaoCaoKHSXCatVaiThang() {
         console.log("getCatVaiStores response:", s);
         console.log("getCatVaiEquipments response:", e);
         
-        if (s && s.success) {
-          setStores(s.data || []);
-        } else if (Array.isArray(s)) {
-          setStores(s);
+        const storeOptions = s?.success
+          ? (s.data || [])
+          : (Array.isArray(s) ? s : []);
+        setStores(storeOptions);
+        if (storeOptions.length > 0) {
+          const firstStore = storeOptions[0];
+          setStoreId(firstStore.storeId || firstStore.StoreID || firstStore.value || '');
         }
         
         if (e && e.success) {
@@ -62,7 +67,7 @@ function BaoCaoKHSXCatVaiThang() {
     fetchMeta();
   }, []);
 
-  const [selectedMonth, setSelectedMonth] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthStr);
 
   // Tự động format từ yyyy-MM -> yyyyMM khi chọn tháng
   useEffect(() => {
@@ -94,6 +99,13 @@ function BaoCaoKHSXCatVaiThang() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!storeId || !monthlyPlan || hasAutoLoaded.current) return;
+
+    hasAutoLoaded.current = true;
+    handleSearch();
+  }, [storeId, monthlyPlan]);
 
   const exportExcel = () => {
     if (!data.length) { toast.warn("Không có dữ liệu"); return; }

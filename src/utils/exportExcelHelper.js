@@ -194,60 +194,64 @@ export const exportTableToExcel = async ({
     const totalCols = columns.length + 1; // +1 cho cột STT
     let currentRow = 1;
 
-    // --- DÒNG 1: TIÊU ĐỀ LỚN BÁO CÁO (NẾU CÓ) ---
+    // --- DÒNG 1: TIÊU ĐỀ BÁO CÁO GỌN GÀNG (CĂN TRÁI ĐỂ KHÔNG BỊ TRÔI MẤT NỘI DUNG) ---
     if (title) {
       worksheet.mergeCells(currentRow, 1, currentRow, totalCols);
       const titleCell = worksheet.getCell(currentRow, 1);
       titleCell.value = title.toUpperCase();
-      titleCell.font = { name: 'Segoe UI', size: 14, bold: true, color: { argb: theme.titleText } };
-      titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      titleCell.font = { name: 'Segoe UI', size: 12.5, bold: true, color: { argb: theme.titleText } };
+      titleCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }; // Căn trái có thụt lề nhẹ, hiển thị ngay từ Cột A
       titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: theme.titleBg } };
-      worksheet.getRow(currentRow).height = 36;
+      titleCell.border = { bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } } };
+      worksheet.getRow(currentRow).height = 26; // Tối ưu mỏng gọn, không chiếm không gian dọc
       currentRow++;
     }
 
-    // --- DÒNG METADATA (MÃ MÁY, THỜI GIAN, CA, BỘ LỌC) ---
+    // --- DÒNG 2: DÀN TOÀN BỘ THÔNG TIN BỘ LỌC / METADATA SANG NGANG TRÊN CÙNG 1 DÒNG DUY NHẤT ---
+    // Khắc phục triệt để lỗi chiếm nhiều không gian chiều dọc: Gom tất cả Mã máy, Khoảng thời gian, Ca, Số bản ghi sang ngang
     const metaEntries = Object.entries(metadata || {}).filter(([_, v]) => v !== undefined && v !== null && v !== '');
-    if (metaEntries.length > 0) {
-      metaEntries.forEach(([k, v]) => {
-        worksheet.mergeCells(currentRow, 1, currentRow, totalCols);
-        const metaCell = worksheet.getCell(currentRow, 1);
-        metaCell.value = `${k}: ${v}`;
-        metaCell.font = { name: 'Segoe UI', size: 9.5, italic: true, bold: true, color: { argb: EXCEL_THEMES.common.textMuted } };
-        metaCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-        metaCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
-        worksheet.getRow(currentRow).height = 20;
-        currentRow++;
-      });
+    const metaParts = [];
+    metaEntries.forEach(([k, v]) => {
+      metaParts.push(`${k}: ${v}`);
+    });
+
+    // Kiểm tra xem đã có thời gian xuất chưa, nếu chưa có thì thêm vào cuối dòng dàn ngang
+    const hasExportTime = metaEntries.some(([k]) => k.toLowerCase().includes('thời gian xuất') || k.toLowerCase().includes('ngày xuất'));
+    if (!hasExportTime) {
+      metaParts.push(`Thời gian xuất: ${new Date().toLocaleString('vi-VN')}`);
     }
 
-    // Dòng thời gian xuất báo cáo mặc định
-    worksheet.mergeCells(currentRow, 1, currentRow, totalCols);
-    const exportTimeCell = worksheet.getCell(currentRow, 1);
-    exportTimeCell.value = `Thời gian xuất báo cáo: ${new Date().toLocaleString('vi-VN')}`;
-    exportTimeCell.font = { name: 'Segoe UI', size: 9, italic: true, color: { argb: EXCEL_THEMES.common.textMuted } };
-    exportTimeCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-    worksheet.getRow(currentRow).height = 18;
-    currentRow++;
+    if (metaParts.length > 0) {
+      worksheet.mergeCells(currentRow, 1, currentRow, totalCols);
+      const metaCell = worksheet.getCell(currentRow, 1);
+      // Nối các mục metadata bằng gạch phân cách sang trọng
+      metaCell.value = metaParts.join('   |   ');
+      metaCell.font = { name: 'Segoe UI', size: 9.5, bold: true, color: { argb: EXCEL_THEMES.common.textDark } };
+      metaCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }; // Căn trái để hiển thị ngay từ Cột A
+      metaCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+      metaCell.border = { bottom: { style: 'thin', color: { argb: 'FF94A3B8' } } };
+      worksheet.getRow(currentRow).height = 22; // Chiều cao mỏng 22pt
+      currentRow++;
+    }
 
-    // Thêm 1 dòng trống tạo khoảng đệm thẩm mỹ
-    currentRow++;
+    // Bỏ hoàn toàn dòng trống đệm để bảng dữ liệu được đẩy lên cao nhất có thể
 
-    // --- DÒNG HEADER BẢNG DỮ LIỆU ---
+    // --- DÒNG TIÊU ĐỀ CỘT BẢNG DỮ LIỆU ---
     const headerRowIndex = currentRow;
     const headers = ['STT', ...columns.map(c => c.label || c.key)];
     const headerRow = worksheet.getRow(headerRowIndex);
     headerRow.values = headers;
-    headerRow.height = 30; // Chiều cao hàng header to, rõ ràng
+    headerRow.height = 26; // Chiều cao dòng header cột bảng vừa vặn, sắc nét
 
     headerRow.eachCell((cell) => {
-      cell.font = { name: 'Segoe UI', size: 10.5, bold: true, color: { argb: theme.headerText } };
+      cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: theme.headerText } };
       cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: theme.headerBg } };
       cell.border = HEADER_BORDER;
     });
 
-    // Cố định dòng Header để khi cuộn trang vẫn nhìn thấy tiêu đề
+    // Cố định dòng Header (Freeze Panes): Lúc này chỉ cố định đúng 2-3 dòng mỏng trên đỉnh,
+    // giải phóng hơn 85% không gian màn hình cho bảng dữ liệu cuộn mượt mà
     worksheet.views = [{ state: 'frozen', xSplit: 0, ySplit: headerRowIndex, showGridLines: true }];
 
     // --- CÁC DÒNG DỮ LIỆU ---
@@ -347,35 +351,34 @@ export const exportKeyValueListToExcel = async ({
     const totalCols = 4;
     let currentRow = 1;
 
-    // --- DÒNG 1: BANNER TIÊU ĐỀ ---
+    // --- DÒNG 1: BANNER TIÊU ĐỀ GỌN GÀNG (CĂN TRÁI) ---
     worksheet.mergeCells(currentRow, 1, currentRow, totalCols);
     const titleCell = worksheet.getCell(currentRow, 1);
     titleCell.value = title.toUpperCase();
-    titleCell.font = { name: 'Segoe UI', size: 13, bold: true, color: { argb: theme.headerText } };
-    titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    titleCell.font = { name: 'Segoe UI', size: 12, bold: true, color: { argb: theme.headerText } };
+    titleCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
     titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: theme.headerBg } };
-    worksheet.getRow(currentRow).height = 36;
+    worksheet.getRow(currentRow).height = 26; // Tối ưu mỏng gọn
     currentRow++;
 
-    // --- DÒNG 2: THÔNG TIN THIẾT BỊ & THỜI GIAN ---
+    // --- DÒNG 2: THÔNG TIN THIẾT BỊ & THỜI GIAN DÀN NGANG (CĂN TRÁI) ---
     worksheet.mergeCells(currentRow, 1, currentRow, totalCols);
     const subCell = worksheet.getCell(currentRow, 1);
     subCell.value = `Mã máy: ${equipmentId || 'Chưa xác định'}   |   Thời gian xuất: ${new Date().toLocaleString('vi-VN')}`;
-    subCell.font = { name: 'Segoe UI', size: 9.5, bold: true, color: { argb: EXCEL_THEMES.common.textMuted } };
-    subCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    subCell.font = { name: 'Segoe UI', size: 9.5, bold: true, color: { argb: EXCEL_THEMES.common.textDark } };
+    subCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
     subCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
-    worksheet.getRow(currentRow).height = 22;
+    worksheet.getRow(currentRow).height = 20; // Tối ưu mỏng gọn
     currentRow++;
 
-    // Dòng đệm
-    currentRow++;
+    // Bỏ dòng đệm trống để đẩy bảng lên cao nhất
 
     // --- DÒNG HEADER BẢNG ---
     const headerRowIndex = currentRow;
     const headers = ['STT', 'Tên Thông Số', 'Giá Trị Hiện Tại', 'Mã Thuộc Tính (Key)'];
     const headerRow = worksheet.getRow(headerRowIndex);
     headerRow.values = headers;
-    headerRow.height = 28;
+    headerRow.height = 26;
 
     headerRow.eachCell((cell) => {
       cell.font = { name: 'Segoe UI', size: 10.5, bold: true, color: { argb: theme.headerText } };
@@ -492,28 +495,27 @@ export const exportCombinedMachineParametersToExcel = async ({
 
     let rowCursor = 1;
 
-    // --- BANNER CHÍNH BÁO CÁO TỔNG HỢP (Hàng 1) ---
+    // --- BANNER CHÍNH BÁO CÁO TỔNG HỢP (Hàng 1 - Tối ưu mỏng 26pt, Căn trái) ---
     wsCombined.mergeCells(rowCursor, 1, rowCursor, 4);
     const mainBannerCell = wsCombined.getCell(rowCursor, 1);
     mainBannerCell.value = reportTitle.toUpperCase();
-    mainBannerCell.font = { name: 'Segoe UI', size: 14, bold: true, color: { argb: EXCEL_THEMES.common.white } };
-    mainBannerCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    mainBannerCell.font = { name: 'Segoe UI', size: 12.5, bold: true, color: { argb: EXCEL_THEMES.common.white } };
+    mainBannerCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
     mainBannerCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: EXCEL_THEMES.common.bannerDarkBg } };
-    wsCombined.getRow(rowCursor).height = 38;
+    wsCombined.getRow(rowCursor).height = 26;
     rowCursor++;
 
-    // --- METADATA (Hàng 2) ---
+    // --- METADATA DÀN SANG NGANG (Hàng 2 - Chiều cao mỏng 20pt, Căn trái) ---
     wsCombined.mergeCells(rowCursor, 1, rowCursor, 4);
     const metaCell = wsCombined.getCell(rowCursor, 1);
-    metaCell.value = `Mã thiết bị: ${equipmentId || 'Chưa xác định'}   |   Thời gian xuất báo cáo: ${new Date().toLocaleString('vi-VN')}   |   Hệ thống: SCADA MES DRC`;
-    metaCell.font = { name: 'Segoe UI', size: 9.5, italic: true, bold: true, color: { argb: EXCEL_THEMES.common.textMuted } };
-    metaCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    metaCell.value = `Mã thiết bị: ${equipmentId || 'Chưa xác định'}   |   Thời gian xuất: ${new Date().toLocaleString('vi-VN')}   |   Hệ thống: SCADA MES DRC`;
+    metaCell.font = { name: 'Segoe UI', size: 9.5, bold: true, color: { argb: EXCEL_THEMES.common.textDark } };
+    metaCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
     metaCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
-    wsCombined.getRow(rowCursor).height = 22;
+    wsCombined.getRow(rowCursor).height = 20;
     rowCursor++;
 
-    // Dòng trống đệm
-    rowCursor++;
+    // Đã bỏ dòng trống đệm để bảng dữ liệu được đẩy lên cao nhất có thể
 
     /**
      * Hàm phụ vẽ một khối thông số (Section) vào sheet tổng hợp
@@ -623,28 +625,28 @@ export const exportCombinedMachineParametersToExcel = async ({
         views: [{ state: 'frozen', xSplit: 0, ySplit: 3, showGridLines: true }]
       });
 
-      // Hàng 1: Banner tiêu đề
+      // Hàng 1: Banner tiêu đề (Tối ưu mỏng 26pt, Căn trái)
       ws.mergeCells(1, 1, 1, 4);
       const bCell = ws.getCell(1, 1);
       bCell.value = `${sheetDisplayTitle} — MÁY ${equipmentId}`.toUpperCase();
       bCell.font = { name: 'Segoe UI', size: 12, bold: true, color: { argb: sectionTheme.headerText } };
-      bCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      bCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
       bCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: sectionTheme.headerBg } };
-      ws.getRow(1).height = 32;
+      ws.getRow(1).height = 26;
 
-      // Hàng 2: Thời gian xuất
+      // Hàng 2: Thời gian xuất dàn ngang (20pt, Căn trái)
       ws.mergeCells(2, 1, 2, 4);
       const tCell = ws.getCell(2, 1);
       tCell.value = `Thời gian xuất: ${new Date().toLocaleString('vi-VN')}`;
-      tCell.font = { name: 'Segoe UI', size: 9, italic: true, color: { argb: EXCEL_THEMES.common.textMuted } };
-      tCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      tCell.font = { name: 'Segoe UI', size: 9.5, bold: true, color: { argb: EXCEL_THEMES.common.textDark } };
+      tCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
       tCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
-      ws.getRow(2).height = 18;
+      ws.getRow(2).height = 20;
 
-      // Hàng 3: Header cột
+      // Hàng 3: Header cột (26pt)
       const hRow = ws.getRow(3);
       hRow.values = ['STT', 'Tên Thông Số', 'Giá Trị Hiện Tại', 'Mã Thuộc Tính (Key)'];
-      hRow.height = 28;
+      hRow.height = 26;
       hRow.eachCell((cell) => {
         cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: sectionTheme.headerText } };
         cell.alignment = { vertical: 'middle', horizontal: 'center' };

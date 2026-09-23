@@ -1,8 +1,9 @@
 // src/pages/ThanhHinh/BaoCaoKHSXCatVaiCa.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import * as XLSX from 'xlsx';
 import { getBaoCaoKHSXCatVai, getCatVaiStores, getCatVaiEquipments } from '../../api/catVaiApi';
+import { getTodayStr } from '../../utils/dateHelper';
 
 const css = `
   .mes-container { display: flex; flex-direction: column; height: 100vh; background: #e0eaf4; font-family: 'Segoe UI', sans-serif; color: #1a3a5c; }
@@ -35,6 +36,7 @@ function BaoCaoKHSXCatVaiCa() {
   const [maMay, setMaMay] = useState('');
   const [stores, setStores] = useState([]);
   const [equipments, setEquipments] = useState([]);
+  const hasAutoLoaded = useRef(false);
 
   useEffect(() => {
     const fetchMeta = async () => {
@@ -44,10 +46,13 @@ function BaoCaoKHSXCatVaiCa() {
         console.log("getCatVaiStores response:", s);
         console.log("getCatVaiEquipments response:", e);
         
-        if (s && s.success) {
-          setStores(s.data || []);
-        } else if (Array.isArray(s)) {
-          setStores(s);
+        const storeOptions = s?.success
+          ? (s.data || [])
+          : (Array.isArray(s) ? s : []);
+        setStores(storeOptions);
+        if (storeOptions.length > 0) {
+          const firstStore = storeOptions[0];
+          setStoreId(firstStore.storeId || firstStore.StoreID || firstStore.value || '');
         }
         
         if (e && e.success) {
@@ -62,7 +67,7 @@ function BaoCaoKHSXCatVaiCa() {
     fetchMeta();
   }, []);
 
-  const [idDate, setIdDate] = useState("");
+  const [idDate, setIdDate] = useState(getTodayStr);
   const [idShiftVal, setIdShiftVal] = useState("1");
 
   // Tự động ghép idKehoach = [storeId].[idDate_yyyyMMdd][idShiftVal] khi thay đổi
@@ -98,6 +103,13 @@ function BaoCaoKHSXCatVaiCa() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!storeId || !idKehoach || hasAutoLoaded.current) return;
+
+    hasAutoLoaded.current = true;
+    handleSearch();
+  }, [storeId, idKehoach]);
 
   const exportExcel = () => {
     if (!data.length) { toast.warn("Không có dữ liệu"); return; }

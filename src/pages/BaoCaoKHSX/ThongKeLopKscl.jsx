@@ -8,6 +8,7 @@ import autoTable from 'jspdf-autotable';
 import { timesNewRomanBase64 } from '../../font/TimesNewRoman-Regular-base64';
 import { timesNewRomanBoldBase64 } from '../../font/TimesNewRoman-Bold-base64';
 import { getThongKeLopKscl, getThongKeLopKsclCom, getThongKeLopKsclKeHoachThang, getViewStoreListOrks, getDmMayXRay, getListToSx } from '../../api/kcsWebApi';
+import { getTodayStr, getCurrentMonthlyPlanStr } from '../../utils/dateHelper';
 
 /* ─── MES Desktop CSS ─────────────────────────────────────────────────────── */
 const css = `
@@ -188,18 +189,19 @@ const columns = [
 const ThongKeLopKscl = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
 
-  // Params
-  const [tuNgay, setTuNgay] = useState('');
+  // Params: Mặc định luôn để ngày hôm nay
+  const [tuNgay, setTuNgay] = useState(getTodayStr());
   const [tuCa, setTuCa] = useState('0');
-  const [denNgay, setDenNgay] = useState('');
+  const [denNgay, setDenNgay] = useState(getTodayStr());
   const [denCa, setDenCa] = useState('0');
 
   const [toSX, setToSX] = useState('');
   const [storeID, setStoreID] = useState('');
   const [maMay, setMaMay] = useState('');
   const [caNhap, setCaNhap] = useState('');
-  const [monthlyPlan, setMonthlyPlan] = useState('');
+  const [monthlyPlan, setMonthlyPlan] = useState(getCurrentMonthlyPlanStr());
   const [isKeHoachThang, setIsKeHoachThang] = useState(false);
 
   // Dropdown states
@@ -279,6 +281,7 @@ const ThongKeLopKscl = () => {
       return;
     }
 
+    setHasSearched(true);
     setLoading(true);
     try {
       const payload = {
@@ -606,14 +609,17 @@ const ThongKeLopKscl = () => {
 
   const clearAll = () => {
     setData([]);
-    setTuNgay(''); setTuCa('0');
-    setDenNgay(''); setDenCa('0');
+    setHasSearched(false);
+    // Luôn reset về ngày hôm nay
+    setTuNgay(getTodayStr()); setTuCa('0');
+    setDenNgay(getTodayStr()); setDenCa('0');
     setToSX('');
     setStoreID('');
     setMaMay('');
     setCaNhap('');
-    setMonthlyPlan('');
+    setMonthlyPlan(getCurrentMonthlyPlanStr());
     setIsKeHoachThang(false);
+    console.log('[ThongKeLopKscl] clearAll -> Đã reset về ngày hôm nay:', getTodayStr());
   };
 
   const now = new Date();
@@ -817,8 +823,12 @@ const ThongKeLopKscl = () => {
         ) : (
           !loading && (
             <div className="mes-empty mes-fade">
-              <div className="icon">📄</div>
-              <p>Chưa có dữ liệu — Thiết lập bộ lọc và nhấn Tìm Kiếm</p>
+              <div className="icon">{hasSearched ? '🔍' : '📄'}</div>
+              <p>
+                {hasSearched
+                  ? 'Không tìm thấy dữ liệu phù hợp với điều kiện lọc'
+                  : 'Chưa lọc dữ liệu, hãy lọc dữ liệu và nhấn nút tìm kiếm'}
+              </p>
             </div>
           )
         )}

@@ -4,6 +4,8 @@ import { toast } from 'react-toastify';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { getBaoCaoLopTraXuLyNhapKhoKeHoachThang, getBaoCaoLopTraXuLyNhapKhoKeHoachThangCom, getViewStoreListOrks, getDmMayXRay, getListToSx } from '../../api/kcsWebApi';
+import { getCurrentMonthStr } from '../../utils/dateHelper';
+import MonthFilterInput from '../../components/Common/MonthFilterInput';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { timesNewRomanBase64 } from '../../font/TimesNewRoman-Regular-base64';
@@ -182,10 +184,11 @@ const columns = [
 const BaoCaoLopTraXuLyNhapKhoKeHoachThang = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   
-  // Params (tuNgay và denNgay đã bị ẩn, truyền giá trị mặc định khi gọi API)
-  const [tuKHThang, setTuKHThang] = useState('');
-  const [denKHThang, setDenKHThang] = useState('');
+  // Params: Mặc định luôn để tháng hiện tại (YYYY-MM)
+  const [tuKHThang, setTuKHThang] = useState(getCurrentMonthStr());
+  const [denKHThang, setDenKHThang] = useState(getCurrentMonthStr());
   const [loaiCaNhap, setLoaiCaNhap] = useState('');
 
   const [toSX, setToSX] = useState('');
@@ -255,6 +258,15 @@ const BaoCaoLopTraXuLyNhapKhoKeHoachThang = () => {
       return;
     }
 
+    console.log('[BaoCaoLopTraXuLyNhapKhoKeHoachThang] Tìm kiếm với params:', {
+      monthlyPlanStart,
+      monthlyPlanEnd,
+      toSX,
+      storeID,
+      loaiCaNhap
+    });
+
+    setHasSearched(true);
     setLoading(true);
     try {
       const payload = {
@@ -535,10 +547,14 @@ const BaoCaoLopTraXuLyNhapKhoKeHoachThang = () => {
 
   const clearAll = () => {
     setData([]);
-    setTuKHThang(''); setDenKHThang('');
+    setHasSearched(false);
+    // Luôn reset về tháng hiện tại
+    setTuKHThang(getCurrentMonthStr());
+    setDenKHThang(getCurrentMonthStr());
     setLoaiCaNhap('');
     setToSX('');
     setStoreID('');
+    console.log('[BaoCaoLopTraXuLyNhapKhoKeHoachThang] clearAll -> Đã reset về tháng hiện tại:', getCurrentMonthStr());
   };
 
   const now = new Date();
@@ -585,18 +601,19 @@ const BaoCaoLopTraXuLyNhapKhoKeHoachThang = () => {
         {/* Đã ẩn tham số Từ ngày và Đến ngày */}
 
         <div className="mes-fb-group" style={{ gap: 4 }}>
-          <span className="mes-fb-label">Từ KH tháng:</span>
-          <input
-            type="month" className="mes-input" style={{ width: 120 }}
-            value={tuKHThang} onChange={e => setTuKHThang(e.target.value)}
+          <span className="mes-fb-label">Từ KHSX tháng:</span>
+          <MonthFilterInput
+            value={tuKHThang}
+            onChange={val => setTuKHThang(val)}
           />
         </div>
 
         <div className="mes-fb-group" style={{ gap: 4 }}>
-          <span className="mes-fb-label">Đến KH tháng:</span>
-          <input
-            type="month" className="mes-input" style={{ width: 120 }}
-            value={denKHThang} onChange={e => setDenKHThang(e.target.value)}
+          <span className="mes-fb-label">Đến KHSX tháng:</span>
+          <MonthFilterInput
+            value={denKHThang}
+            onChange={val => setDenKHThang(val)}
+            isDropdown={true}
           />
         </div>
 
@@ -692,8 +709,12 @@ const BaoCaoLopTraXuLyNhapKhoKeHoachThang = () => {
         ) : (
           !loading && (
             <div className="mes-empty mes-fade">
-              <div className="icon">📄</div>
-              <p>Chưa có dữ liệu — Thiết lập bộ lọc và nhấn Tìm Kiếm</p>
+              <div className="icon">{hasSearched ? '🔍' : '📄'}</div>
+              <p>
+                {hasSearched
+                  ? 'Không tìm thấy dữ liệu phù hợp với điều kiện lọc'
+                  : 'Chưa lọc dữ liệu, hãy lọc dữ liệu và nhấn nút tìm kiếm'}
+              </p>
             </div>
           )
         )}

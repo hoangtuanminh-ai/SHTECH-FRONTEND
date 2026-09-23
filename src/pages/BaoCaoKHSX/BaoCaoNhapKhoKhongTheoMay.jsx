@@ -1,5 +1,5 @@
 // src/pages/BaoCaoNhapKhoKhongTheoMay.jsx
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import Select from 'react-select';
 import { toast } from 'react-toastify';
 import jsPDF from 'jspdf';
@@ -9,6 +9,7 @@ import { timesNewRomanBase64 } from '../../font/TimesNewRoman-Regular-base64';
 import { getBaoCaoNhapKhoKhongTheoMay } from '../../api/baoCaoNhapKhoApi';
 import { getEquipmentNames } from '../../api/baoCaoNhapKhoApi';
 import { getStoreListOrth } from '../../api/thanhhinhApi';
+import { getTodayStr, getYesterdayStr } from '../../utils/dateHelper';
 
 /* ─── MES Desktop CSS ─────────────────────────────────────────────────────── */
 const css = `
@@ -211,7 +212,13 @@ const KpiCard = ({ label, value, color }) => (
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
 const BaoCaoNhapKhoKhongTheoMay = () => {
-  const [form, setForm] = useState({ idKehoach: '', namThangNgayCaStart: '', namThangNgayCaEnd: '', storeId: '', maMay: '' });
+  const [form, setForm] = useState(() => ({
+    idKehoach: '',
+    namThangNgayCaStart: `${getYesterdayStr().replace(/-/g, '')}1`,
+    namThangNgayCaEnd: `${getTodayStr().replace(/-/g, '')}3`,
+    storeId: '',
+    maMay: '',
+  }));
   const [data, setData]       = useState([]);
   const [loading, setLoading] = useState(false);
   const [stores, setStores]   = useState([]);
@@ -219,10 +226,11 @@ const BaoCaoNhapKhoKhongTheoMay = () => {
   const [maMayOptions, setMaMayOptions]   = useState([{ value: '', label: '— Tất cả máy' }]);
   const [maMayLoading, setMaMayLoading]   = useState(true);
 
-  const [tuNgay, setTuNgay]   = useState('');
-  const [tuCa, setTuCa]       = useState('0');
-  const [denNgay, setDenNgay] = useState('');
-  const [denCa, setDenCa]     = useState('0');
+  const [tuNgay, setTuNgay]   = useState(getYesterdayStr);
+  const [tuCa, setTuCa]       = useState('1');
+  const [denNgay, setDenNgay] = useState(getTodayStr);
+  const [denCa, setDenCa]     = useState('3');
+  const hasAutoLoaded = useRef(false);
 
   const now         = new Date();
   const currentYear = now.getFullYear();
@@ -237,6 +245,9 @@ const BaoCaoNhapKhoKhongTheoMay = () => {
         const res = await getStoreListOrth();
         const options = res.map(item => ({ value: item.storeId, label: `${item.storeId} - ${item.storeName || 'Không có tên'}` }));
         setStores([{ value: '', label: '— Tất cả kho' }, ...options]);
+        if (options.length > 0) {
+          setForm(prev => ({ ...prev, storeId: prev.storeId || options[0].value }));
+        }
       } catch {
         toast.error('Không tải được danh sách kho');
         setStores([{ value: '', label: '— Tất cả kho' }]);
@@ -304,6 +315,12 @@ const BaoCaoNhapKhoKhongTheoMay = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (storesLoading || maMayLoading || hasAutoLoaded.current) return;
+    hasAutoLoaded.current = true;
+    handleSearch();
+  }, [storesLoading, maMayLoading]);
 
   /* ── Export Excel ─────────────────────────────────────────────────────── */
   const exportToExcel = () => {

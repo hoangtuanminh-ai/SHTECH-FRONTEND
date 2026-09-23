@@ -1,8 +1,9 @@
 // src/pages/ThanhHinh/DanhSachLopTHLH.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getDanhSachLopTHLH, getDanhSachMay, getStoreListOrth } from '../../api/thanhhinhApi';
 import { getDropdownQuyCach } from '../../api/kiemkeApi';
 import { toast } from 'react-toastify';
+import { getTodayStr } from '../../utils/dateHelper';
 
 /* ─── MES Desktop Style ───────────────────────────────────────────────────── */
 // Giữ nguyên style CSS tương tự các trang khác để đồng bộ UI
@@ -185,8 +186,8 @@ const DanhSachLopTHLH = () => {
   const [storeId, setStoreId] = useState('');
   const [maMay, setMaMay] = useState('');
   const [maQuyCachLop, setMaQuyCachLop] = useState('');
-  const [ngayNhapKho, setNgayNhapKho] = useState(''); // yyyy-mm-dd
-  const [caNhapKho, setCaNhapKho] = useState(''); // 1, 2, 3
+  const [ngayNhapKho, setNgayNhapKho] = useState(getTodayStr); // yyyy-mm-dd
+  const [caNhapKho, setCaNhapKho] = useState('1'); // 1, 2, 3
   
   // State danh sách máy lấy từ API
   const [danhSachMay, setDanhSachMay] = useState([]);
@@ -199,6 +200,8 @@ const DanhSachLopTHLH = () => {
   const [page, setPage] = useState(0); // backend nhận page từ 0
   const [size, setSize] = useState(20);
   const [total, setTotal] = useState(0);
+  const hasAutoLoaded = useRef(false);
+  const [filtersLoading, setFiltersLoading] = useState(true);
 
   const now = new Date();
   const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -221,9 +224,14 @@ const DanhSachLopTHLH = () => {
         }
         if (resStores) {
           setStoreList(resStores);
+          if (resStores.length > 0) {
+            setStoreId(currentStoreId => currentStoreId || resStores[0].storeId || '');
+          }
         }
       } catch (error) {
         console.error("Lỗi khởi tạo dữ liệu:", error);
+      } finally {
+        setFiltersLoading(false);
       }
     };
     fetchDataInit();
@@ -279,8 +287,11 @@ const DanhSachLopTHLH = () => {
     }
   };
 
-  // Tự động load dữ liệu lần đầu nếu muốn (bỏ comment nếu cần load ngay khi mở)
-  // useEffect(() => { fetchData(0); }, []);
+  useEffect(() => {
+    if (filtersLoading || hasAutoLoaded.current) return;
+    hasAutoLoaded.current = true;
+    fetchData(0);
+  }, [filtersLoading]);
 
   const handleSearch = () => {
     setPage(0); // Khi search mới thì reset về trang 0

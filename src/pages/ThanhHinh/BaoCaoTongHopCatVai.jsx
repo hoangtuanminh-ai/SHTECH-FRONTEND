@@ -1,5 +1,5 @@
 // src/pages/ThanhHinh/BaoCaoTongHopCatVai.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import * as XLSX from 'xlsx';
 import { 
@@ -8,6 +8,7 @@ import {
   getCatVaiStores, 
   getCatVaiEquipments 
 } from '../../api/catVaiApi';
+import { getTodayStr, getYesterdayStr } from '../../utils/dateHelper';
 
 const css = `
   .mes-container { display: flex; flex-direction: column; height: 100vh; background: #e0eaf4; font-family: 'Segoe UI', sans-serif; color: #1a3a5c; position: relative; }
@@ -104,6 +105,7 @@ function BaoCaoTongHopCatVai() {
   // Dropdowns
   const [stores, setStores] = useState([]);
   const [equipments, setEquipments] = useState([]);
+  const hasAutoLoaded = useRef(false);
 
   // Popup Báo cáo
   const [showReportPopup, setShowReportPopup] = useState(false);
@@ -117,10 +119,13 @@ function BaoCaoTongHopCatVai() {
         console.log("getCatVaiStores response:", s);
         console.log("getCatVaiEquipments response:", e);
         
-        if (s && s.success) {
-          setStores(s.data || []);
-        } else if (Array.isArray(s)) {
-          setStores(s);
+        const storeOptions = s?.success
+          ? (s.data || [])
+          : (Array.isArray(s) ? s : []);
+        setStores(storeOptions);
+        if (storeOptions.length > 0) {
+          const firstStore = storeOptions[0];
+          setStoreId(firstStore.storeId || firstStore.StoreID || firstStore.value || '');
         }
         
         if (e && e.success) {
@@ -217,9 +222,9 @@ function BaoCaoTongHopCatVai() {
   const totalDaSanXuat = reportData.reduce((acc, cur) => acc + (Number(cur.SoLuong_SX) || 0), 0);
   const totalLech = reportData.reduce((acc, cur) => acc + (Number(cur.SoLuong_Thieu) || 0), 0);
 
-  const [startDate, setStartDate] = useState("");
+  const [startDate, setStartDate] = useState(getYesterdayStr);
   const [startShiftVal, setStartShiftVal] = useState("1");
-  const [endDate, setEndDate] = useState("");
+  const [endDate, setEndDate] = useState(getTodayStr);
   const [endShiftVal, setEndShiftVal] = useState("3");
 
   const [idDate, setIdDate] = useState("");
@@ -250,6 +255,13 @@ function BaoCaoTongHopCatVai() {
       setIdKehoach("");
     }
   }, [storeId, idDate, idShiftVal]);
+
+  useEffect(() => {
+    if (!storeId || !startShift || !endShift || hasAutoLoaded.current) return;
+
+    hasAutoLoaded.current = true;
+    handleSearch();
+  }, [storeId, startShift, endShift]);
 
   return (
     <div className="mes-container">

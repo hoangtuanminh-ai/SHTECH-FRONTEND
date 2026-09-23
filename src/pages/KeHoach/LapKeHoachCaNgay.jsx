@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
+import CreatableSelect from 'react-select/creatable';
 import { createBulkKeHoach, getKeHoachListAll } from '../../api/kehoachApi';
 import { getDanhSachMay } from '../../api/thanhhinhApi';
+import { getDropdownQuyCach } from '../../api/kiemkeApi';
 import { useAuth } from '../../context/AuthContext';
 
 /* ─── MES Desktop Style ───────────────────────────────────────────────────── */
@@ -63,7 +65,52 @@ const css = `
     border-radius: 4px;
     margin-bottom: 20px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    max-width: 1000px;
+    max-width: 1600px;
+  }
+  .mes-top-layout {
+    width: 100%;
+    max-width: 1600px;
+    display: grid;
+    grid-template-columns: minmax(360px, 0.8fr) minmax(0, 1.4fr);
+    gap: 0;
+    align-items: stretch;
+    overflow: hidden;
+  }
+  .mes-top-layout.mes-section {
+    margin-bottom: 20px;
+  }
+  .mes-common-section,
+  .mes-detail-section {
+    min-width: 0;
+  }
+  .mes-common-section {
+    border-right: 1px solid #b8cce0;
+  }
+  .mes-common-section .mes-section-content {
+    gap: 12px;
+  }
+  .mes-common-section .mes-form-group {
+    min-width: 150px;
+  }
+  .mes-detail-section {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .mes-detail-table-wrap {
+    flex: 1;
+    overflow-x: auto;
+  }
+  .mes-detail-table-wrap .mes-table {
+    min-width: 760px;
+  }
+  @media (max-width: 900px) {
+    .mes-form-area { padding: 10px; }
+    .mes-top-layout { grid-template-columns: minmax(0, 1fr); }
+    .mes-common-section {
+      border-right: none;
+      border-bottom: 1px solid #b8cce0;
+    }
   }
   .mes-section-title {
     background: #f0f6fc;
@@ -182,6 +229,51 @@ const TbBtn = ({ icon, label, onClick, disabled, className = '' }) => (
   </button>
 );
 
+const quyCachSelectStyles = {
+  control: (base, state) => ({
+    ...base,
+    minHeight: 30,
+    height: 30,
+    borderRadius: 2,
+    borderColor: state.isFocused ? '#1565C0' : '#b8cce0',
+    boxShadow: state.isFocused ? '0 0 0 2px rgba(21,101,192,0.15)' : 'none',
+    fontSize: 13,
+    fontWeight: 600,
+    '&:hover': { borderColor: '#1565C0' },
+  }),
+  valueContainer: (base) => ({ ...base, height: 30, padding: '0 6px' }),
+  input: (base) => ({ ...base, margin: 0, padding: 0, color: '#1a3a5c' }),
+  singleValue: (base) => ({ ...base, color: '#1a3a5c' }),
+  indicatorsContainer: (base) => ({ ...base, height: 30 }),
+  dropdownIndicator: (base) => ({ ...base, padding: 4 }),
+  clearIndicator: (base) => ({ ...base, padding: 4 }),
+  menu: (base) => ({ ...base, minWidth: 360, zIndex: 99999 }),
+  menuPortal: (base) => ({ ...base, zIndex: 99999 }),
+  option: (base, state) => ({
+    ...base,
+    padding: '6px 9px',
+    fontSize: 12,
+    background: state.isSelected ? '#1565C0' : state.isFocused ? '#d4eaf8' : '#fff',
+    color: state.isSelected ? '#fff' : '#1a3a5c',
+  }),
+};
+
+const normalizeSearchText = (value = '') => String(value)
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase()
+  .trim();
+
+const filterQuyCachOption = ({ label, data }, inputValue) => {
+  const keywords = normalizeSearchText(inputValue).split(/\s+/).filter(Boolean);
+  if (!keywords.length) return true;
+
+  const searchableText = normalizeSearchText(
+    `${data?.value || ''} ${data?.name || ''} ${label || ''}`
+  );
+  return keywords.every(keyword => searchableText.includes(keyword));
+};
+
 const LapKeHoachCaNgay = () => {
   const { userInfo } = useAuth();
 
@@ -209,6 +301,8 @@ const LapKeHoachCaNgay = () => {
 
   const [loading, setLoading] = useState(false);
   const [machines, setMachines] = useState([]);
+  const [quyCachOptions, setQuyCachOptions] = useState([]);
+  const [quyCachLoading, setQuyCachLoading] = useState(false);
   const [historyList, setHistoryList] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [stores] = useState([
@@ -218,6 +312,7 @@ const LapKeHoachCaNgay = () => {
 
   useEffect(() => {
     fetchMachines();
+    fetchQuyCach();
     fetchHistory();
   }, []);
 
@@ -281,6 +376,33 @@ const LapKeHoachCaNgay = () => {
     }
   };
 
+  const fetchQuyCach = async () => {
+    setQuyCachLoading(true);
+    try {
+      const res = await getDropdownQuyCach('vi');
+      const list = Array.isArray(res) ? res : (res?.data || []);
+      const options = list.map((item, index) => {
+        const value = item.MaquycachLop || item.maQuyCachLop || item.MaQuyCachLop
+          || item.maQuyCach || item.value || '';
+        const name = item.Ten_QuyCach || item.tenQuyCachLop || item.TenQuyCachLop
+          || item.tenQuyCach || item.label || '';
+        return {
+          value: String(value),
+          name: String(name),
+          label: `${value}${name ? ` — ${name}` : ''}`,
+          key: `${value}-${index}`,
+        };
+      }).filter(option => option.value);
+      setQuyCachOptions(options);
+    } catch (err) {
+      console.error('Không thể tải danh sách quy cách:', err);
+      setQuyCachOptions([]);
+      toast.error('Không thể tải danh sách quy cách; bạn vẫn có thể nhập mã thủ công');
+    } finally {
+      setQuyCachLoading(false);
+    }
+  };
+
   const handleHeaderChange = (field, value) => {
     setHeader(prev => {
       const next = { ...prev, [field]: value };
@@ -304,6 +426,22 @@ const LapKeHoachCaNgay = () => {
     const newRows = [...rows];
     newRows[index][field] = value;
     setRows(newRows);
+  };
+
+  const handleQuyCachChange = (index, option) => {
+    const newRows = [...rows];
+    newRows[index] = {
+      ...newRows[index],
+      maQuyCach: option?.value || '',
+      tenQuyCach: option?.name || '',
+    };
+    setRows(newRows);
+  };
+
+  const handleCreateQuyCach = (index, inputValue) => {
+    const value = inputValue.trim();
+    if (!value) return;
+    handleQuyCachChange(index, { value, name: '' });
   };
 
   const handleSave = async () => {
@@ -404,10 +542,9 @@ const LapKeHoachCaNgay = () => {
       </div>
 
       <div className="mes-form-area mes-fade">
+        <div className="mes-section mes-top-layout">
         {/* ── THÔNG TIN CHUNG (Được chia làm 2 dòng rõ ràng) ──────────────── */}
-        <div className="mes-section">
-          <div className="mes-section-title">Thông Tin Kế Hoạch Chung</div>
-
+        <div className="mes-common-section">
           <div className="mes-section-content">
             <div className="mes-form-group" style={{ flex: 1.5 }}>
               <span className="mes-form-label">ID Kế Hoạch *</span>
@@ -461,13 +598,8 @@ const LapKeHoachCaNgay = () => {
         </div>
 
         {/* ── CHI TIẾT QUY CÁCH (Bảng 7 dòng dễ nhìn) ─────────────────────── */}
-        <div className="mes-section">
-          <div className="mes-section-title">
-            <span>Chi Tiết Sản Xuất Trên Máy</span>
-            <span style={{ fontSize: 11, fontWeight: 'normal', color: '#6890b0' }}>Tối đa 7 dòng quy cách</span>
-          </div>
-
-          <div style={{ padding: '15px' }}>
+        <div className="mes-detail-section">
+          <div className="mes-detail-table-wrap" style={{ padding: '15px' }}>
             <table className="mes-table">
               <thead>
                 <tr>
@@ -484,11 +616,22 @@ const LapKeHoachCaNgay = () => {
                   <tr key={i}>
                     <td style={{ textAlign: 'center', color: '#6890b0', fontWeight: 700 }}>{i + 1}</td>
                     <td>
-                      <input
-                        className="mes-grid-input"
-                        value={row.maQuyCach}
-                        onChange={e => handleRowChange(i, 'maQuyCach', e.target.value)}
-                        placeholder="Nhập mã..."
+                      <CreatableSelect
+                        value={row.maQuyCach ? (
+                          quyCachOptions.find(option => option.value === row.maQuyCach)
+                          || { value: row.maQuyCach, name: row.tenQuyCach, label: row.maQuyCach }
+                        ) : null}
+                        options={quyCachOptions}
+                        onChange={option => handleQuyCachChange(i, option)}
+                        onCreateOption={inputValue => handleCreateQuyCach(i, inputValue)}
+                        filterOption={filterQuyCachOption}
+                        isClearable
+                        isLoading={quyCachLoading}
+                        placeholder=""
+                        formatCreateLabel={inputValue => `Dùng mã tự nhập: “${inputValue}”`}
+                        noOptionsMessage={() => 'Không tìm thấy — nhấn Enter để dùng mã vừa nhập'}
+                        menuPortalTarget={document.body}
+                        styles={quyCachSelectStyles}
                       />
                     </td>
                     <td>
@@ -526,6 +669,7 @@ const LapKeHoachCaNgay = () => {
               </tbody>
             </table>
           </div>
+        </div>
         </div>
 
         {/* ── DANH SÁCH ĐÃ LẬP (Lưới bên dưới) ─────────────────────── */}

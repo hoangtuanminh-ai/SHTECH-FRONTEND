@@ -8,6 +8,8 @@ import autoTable from 'jspdf-autotable';
 import { timesNewRomanBase64 } from '../../font/TimesNewRoman-Regular-base64';
 import { timesNewRomanBoldBase64 } from '../../font/TimesNewRoman-Bold-base64';
 import { getBaoCaoKeHoachThangCa, getBaoCaoKeHoachThangCaCom, getViewStoreListOrks, getDmMayXRay, getListToSx } from '../../api/kcsWebApi';
+import { getCurrentMonthStr } from '../../utils/dateHelper';
+import MonthFilterInput from '../../components/Common/MonthFilterInput';
 /* ─── MES Desktop CSS ─────────────────────────────────────────────────────── */
 const css = `
   * { box-sizing: border-box; }
@@ -182,10 +184,11 @@ const columns = [
 const BaoCaoKeHoachThangCa = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   
-  // Params (Từ ngày, Đến ngày và Ca đã bị ẩn, truyền giá trị mặc định khi gọi API)
-  const [tuKHThang, setTuKHThang] = useState('');
-  const [denKHThang, setDenKHThang] = useState('');
+  // Params: Mặc định luôn để tháng hiện tại (YYYY-MM)
+  const [tuKHThang, setTuKHThang] = useState(getCurrentMonthStr());
+  const [denKHThang, setDenKHThang] = useState(getCurrentMonthStr());
   const [caNhap, setCaNhap] = useState('');
 
   const [toSX, setToSX] = useState('');
@@ -257,7 +260,17 @@ const BaoCaoKeHoachThangCa = () => {
       return;
     }
 
+    console.log('[BaoCaoKeHoachThangCa] Tìm kiếm với params:', {
+      monthlyPlanStart,
+      monthlyPlanEnd,
+      caNhap,
+      toSX,
+      storeID,
+      maMay
+    });
+
     setLoading(true);
+    setHasSearched(true);
     try {
       const payload = {
         namThangNgayCaStart: Number(namThangNgayCaStart),
@@ -540,11 +553,15 @@ const BaoCaoKeHoachThangCa = () => {
 
   const clearAll = () => {
     setData([]);
-    setTuKHThang(''); setDenKHThang('');
+    setHasSearched(false);
+    // Luôn reset về tháng hiện tại
+    setTuKHThang(getCurrentMonthStr());
+    setDenKHThang(getCurrentMonthStr());
     setCaNhap('');
     setToSX('');
     setStoreID('');
     setMaMay('');
+    console.log('[BaoCaoKeHoachThangCa] clearAll -> Đã reset về tháng hiện tại:', getCurrentMonthStr());
   };
 
   const now = new Date();
@@ -591,18 +608,19 @@ const BaoCaoKeHoachThangCa = () => {
         {/* Đã ẩn tham số Từ ngày, Đến ngày và Ca */}
 
         <div className="mes-fb-group" style={{ gap: 4 }}>
-          <span className="mes-fb-label">Từ KH tháng:</span>
-          <input
-            type="month" className="mes-input" style={{ width: 120 }}
-            value={tuKHThang} onChange={e => setTuKHThang(e.target.value)}
+          <span className="mes-fb-label">Từ KHSX tháng:</span>
+          <MonthFilterInput
+            value={tuKHThang}
+            onChange={val => setTuKHThang(val)}
           />
         </div>
 
         <div className="mes-fb-group" style={{ gap: 4 }}>
-          <span className="mes-fb-label">Đến KH tháng:</span>
-          <input
-            type="month" className="mes-input" style={{ width: 120 }}
-            value={denKHThang} onChange={e => setDenKHThang(e.target.value)}
+          <span className="mes-fb-label">Đến KHSX tháng:</span>
+          <MonthFilterInput
+            value={denKHThang}
+            onChange={val => setDenKHThang(val)}
+            isDropdown={true}
           />
         </div>
 
@@ -708,8 +726,12 @@ const BaoCaoKeHoachThangCa = () => {
         ) : (
           !loading && (
             <div className="mes-empty mes-fade">
-              <div className="icon">📄</div>
-              <p>Chưa có dữ liệu — Thiết lập bộ lọc và nhấn Tìm Kiếm</p>
+              <div className="icon">{hasSearched ? '🔍' : '📄'}</div>
+              <p>
+                {hasSearched
+                  ? 'Không tìm thấy dữ liệu phù hợp với điều kiện lọc'
+                  : 'Chưa lọc dữ liệu, hãy lọc dữ liệu và nhấn nút tìm kiếm'}
+              </p>
             </div>
           )
         )}
@@ -718,7 +740,7 @@ const BaoCaoKeHoachThangCa = () => {
       {/* ── STATUS BAR ──────────────────────────────────────────────────── */}
       <div className="mes-statusbar">
         <span>
-          {loading ? 'Đang tải dữ liệu...' : data.length > 0 ? `\${data.length} bản ghi · \${dateStr}` : 'Sẵn sàng'}
+          {loading ? 'Đang tải dữ liệu...' : data.length > 0 ? `${data.length} bản ghi · ${dateStr}` : hasSearched ? 'Không có dữ liệu' : 'Chưa lọc dữ liệu'}
         </span>
         <span>CÔNG TY CP CAO SU ĐÀ NẴNG · BÁO CÁO KẾ HOẠCH THÁNG CA</span>
       </div>

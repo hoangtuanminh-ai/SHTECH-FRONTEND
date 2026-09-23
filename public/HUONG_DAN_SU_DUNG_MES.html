@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cẩm Nang & Hướng Dẫn Sử Dụng Hệ Thống MES DRC</title>
+  <style>
+    :root {
+      --primary: #1565c0;
+      --primary-dark: #0d47a1;
+      --primary-light: #e3f2fd;
+      --accent: #ff9800;
+      --success: #2e7d32;
+      --danger: #c62828;
+      --warning: #f9a825;
+      --gray-50: #f8fafc;
+      --gray-100: #f1f5f9;
+      --gray-200: #e2e8f0;
+      --gray-700: #334155;
+      --gray-900: #0f172a;
+      --border-color: #cbd5e1;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      background-color: #f1f5f9;
+      color: var(--gray-900);
+      line-height: 1.6;
+    }
+
+    /* ── Header ── */
+    header.main-header {
+      background: linear-gradient(135deg, #0d3060 0%, #1a5fa8 100%);
+      color: #fff;
+      padding: 24px 32px;
+      border-bottom: 4px solid var(--accent);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow-md);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .header-titles h1 {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header-titles p {
+      font-size: 13px;
+      color: #bbdefb;
+      margin-top: 4px;
+      font-weight: 500;
+    }
+    .header-badge {
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ── Layout ── */
+    .container {
+      display: flex;
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 24px;
+      gap: 28px;
+    }
+
+    /* ── Sidebar Navigation ── */
+    aside.guide-toc {
+      width: 300px;
+      flex-shrink: 0;
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 20px;
+      position: sticky;
+      top: 110px;
+      height: calc(100vh - 140px);
+      overflow-y: auto;
+      box-shadow: var(--shadow-sm);
+    }
+    .guide-toc h3 {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--primary-dark);
+      text-transform: uppercase;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--primary-light);
+    }
+    .guide-toc ul {
+      list-style: none;
+    }
+    .guide-toc li {
+      margin-bottom: 6px;
+    }
+    .guide-toc a {
+      display: block;
+      padding: 7px 12px;
+      color: var(--gray-700);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 4px;
+      transition: all 0.15s ease;
+    }
+    .guide-toc a:hover {
+      background: var(--primary-light);
+      color: var(--primary-dark);
+      padding-left: 16px;
+    }
+    .guide-toc a.active {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    /* ── Main Content ── */
+    main.guide-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .section-card {
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 28px;
+      margin-bottom: 32px;
+      box-shadow: var(--shadow-sm);
+      scroll-margin-top: 120px;
+    }
+
+    .section-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: #1a3a5c;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #e2edf8;
+      margin-bottom: 18px;
+    }
+    .section-num {
+      background: var(--primary);
+      color: #fff;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .section-desc {
+      font-size: 14.5px;
+      color: var(--gray-700);
+      margin-bottom: 20px;
+    }
+
+    /* ── Image Container & Annotations ── */
+    .image-preview-wrapper {
+      position: relative;
+      background: #f8fafc;
+      border: 2px solid #cbd5e1;
+      border-radius: 6px;
+      overflow: hidden;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-md);
+    }
+    .image-preview-wrapper img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .image-caption {
+      background: #f1f5f9;
+      border-top: 1px solid #cbd5e1;
+      padding: 8px 16px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #475569;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* ── Tables for Buttons & Features ── */
+    .feature-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+      font-size: 13.5px;
+    }
+    .feature-table th {
+      background: #f0f6fc;
+      color: #1a3a5c;
+      font-weight: 700;
+      text-align: left;
+      padding: 10px 14px;
+      border-bottom: 2px solid #96afc8;
+      border-top: 1px solid #d0dff0;
+    }
+    .feature-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid #e2e8f0;
+      vertical-align: top;
+    }
+    .feature-table tr:hover {
+      background: #f8fafc;
+    }
+
+    /* ── Badges ── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .badge-callout {
+      background: #c62828;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 800;
+      min-width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+    .badge-btn {
+      background: #1565c0;
+      color: #fff;
+    }
+    .badge-green { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .badge-yellow { background: #fffde7; color: #f57f17; border: 1px solid #fff59d; }
+    .badge-red { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+    .badge-orange { background: #fff3e0; color: #e65100; border: 1px solid #ffcc80; }
+    .badge-gray { background: #eceff1; color: #455a64; border: 1px solid #cfd8dc; }
+
+    /* ── Tip Box ── */
+    .tip-box {
+      background: #f0f7ff;
+      border-left: 4px solid #1565c0;
+      padding: 14px 18px;
+      border-radius: 0 6px 6px 0;
+      margin-top: 16px;
+      font-size: 13.5px;
+      color: #1e3a5f;
+    }
+    .tip-box strong {
+      color: #0d47a1;
+    }
+
+    @media (max-width: 1024px) {
+      .container { flex-direction: column; }
+      aside.guide-toc { width: 100%; height: auto; position: static; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="main-header">
+    <div class="header-titles">
+      <h1>🏢 CẨM NANG HƯỚNG DẪN SỬ DỤNG HỆ THỐNG DRC MES / SCADA</h1>
+      <p>CÔNG TY CP CAO SU ĐÀ NẴNG · XÍ NGHIỆP RADIAL · XƯỞNG CẮT VẢI - THÀNH HÌNH (CVTH)</p>
+    </div>
+    <div class="header-badge">
+      <span>● Phiên bản 2026</span> | <span>Tài liệu đào tạo trực quan</span>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- TOC -->
+    <aside class="guide-toc">
+      <h3>MỤC LỤC HƯỚNG DẪN</h3>
+      <ul>
+        <li><a href="#sec-login">1. Đăng Nhập Hệ Thống</a></li>
+        <li><a href="#sec-sidebar">2. Sơ Đồ Cây Menu (Sidebar)</a></li>
+        <li><a href="#sec-dashboard">3. Màn Hình Tổng Quan</a></li>
+        <li><a href="#sec-thietbi">4. Giám Sát Thiết Bị & Máy TH</a></li>
+        <li><a href="#sec-kehoach-ngay">5. Lập Kế Hoạch Ca/Ngày (TH)</a></li>
+        <li><a href="#sec-khsx-nam">6. Kế Hoạch - Sản Xuất Năm</a></li>
+        <li><a href="#sec-catvai">7. Kế Hoạch Cắt Vải Thép</a></li>
+        <li><a href="#sec-kcs">8. Báo Cáo Thống Kê KCS</a></li>
+        <li><a href="#sec-maloi">9. Danh Mục Mã Lỗi Khuyết Tật</a></li>
+      </ul>
+    </aside>
+
+    <!-- MAIN BODY -->
+    <main class="guide-body">
+
+      <!-- SECTION 1: LOGIN -->
+      <section class="section-card" id="sec-login">
+        <h2 class="section-title"><span class="section-num">1</span> Màn Hình Đăng Nhập (Authentication)</h2>
+        <p class="section-desc">Màn hình xác thực tài khoản là cổng vào đầu tiên của hệ thống MES DRC. Người dùng phải đăng nhập bằng tài khoản nội bộ để được phân quyền thao tác.</p>
+        
+        <div class="image-preview-wrapper">
+          <img src="/guide_images/01_dang_nhap.png" alt="Giao diện Đăng nhập DRC MES">
+          <div class="image-caption">
+            <span>Giao diện đăng nhập hệ thống MES DRC</span>
+            <span>URL: <code>http://localhost:5173/login</code></span>
+          </div>
+        </div>
+
+        <table class="feature-table">
+          <thead>
+            <tr>
+              <th style="width: 25%;">Vị trí / Nút bấm</th>
+              <th style="width: 25%;">Loại phần tử</th>
+              <th>Ý nghĩa & Hướng dẫn thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Ô "TÊN ĐĂNG NHẬP"</strong></td>
+              <td><span class="badge badge-gray">Input Text</span></td>
+              <td>Nhập mã số nhân viên hoặc username đã được quản trị viên IT cấp (ví dụ: <code>admin</code> hoặc mã định danh kỹ sư).</td>
+            </tr>
+            <tr>
+              <td><strong>Ô "MẬT KHẨU"</strong></td>
+              <td><span class="badge badge-gray">Input Password</span></td>
+              <td>Nhập mật khẩu tương ứng của tài khoản. Dữ liệu được che giấu dưới dạng dấu chấm để bảo mật.</td>
+            </tr>
+            <tr>
+              <td><strong>Nút "XÁC NHẬN ĐĂNG NHẬP"</strong></td>
+              <td><span class="badge badge-btn">Nút tác vụ chính</span></td>
+              <td>Gửi thông tin xác thực đến máy chủ Backend. Sau khi xác thực token JWT thành công, hệ thống tự động chuyển hướng đến màn hình <strong>Tổng quan</strong>.</td>
+            </tr>
+            <tr>
+              <td><strong>Nút "★ ĐĂNG NHẬP TRẢI NGHIỆM (DEMO)"</strong></td>
+              <td><span class="badge badge-green">Nút thử nghiệm</span></td>
+              <td>Dùng để đăng nhập nhanh xem giao diện phục vụ đào tạo/hướng dẫn mà không bắt buộc phụ thuộc vào kết nối CSDL nội bộ.</td>
+            </tr>
+            <tr>
+              <td><strong>Liên kết "Quên mật khẩu?"</strong></td>
+              <td><span class="badge badge-gray">Link</span></td>
+              <td>Nhấp vào đây khi quên thông tin đăng nhập để chuyển sang trang cấp lại mã bí mật qua Email hệ thống.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- SECTION 2: SIDEBAR -->
+      <section class="section-card" id="sec-sidebar">
+        <h2 class="section-title"><span class="section-num">2</span> Sơ Đồ Cây Điều Hướng (Sidebar Navigation)</h2>
+        <p class="section-desc">Toàn bộ tính năng phần mềm được tổ chức theo cấu trúc hình cây (Tree View) đa cấp khoa học, phân theo từng phòng ban và công đoạn sản xuất.</p>
+
+        <div class="image-preview-wrapper">
+          <img src="/guide_images/02_thanh_menu_sidebar.png" alt="Sơ đồ cây menu sidebar">
+          <div class="image-caption">
+            <span>Cấu trúc phân cấp menu từ Cấp 1 (Gốc SCADAR) đến các phân hệ tác vụ</span>
+            <span>Sidebar cố định bên trái màn hình</span>
+          </div>
+        </div>
+
+        <table class="feature-table">
+          <thead>
+            <tr>
+              <th style="width: 25%;">Nhánh Danh Mục</th>
+              <th style="width: 20%;">Cấp độ</th>
+              <th>Chức năng & Nhiệm vụ nghiệp vụ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>SCADAR (Gốc Chính)</strong></td>
+              <td><span class="badge badge-btn">Cấp 1</span></td>
+              <td>Gốc bao trùm toàn bộ hệ thống thu thập dữ liệu và giám sát SCADA/MES của Nhà máy lốp xe Radial DRC.</td>
+            </tr>
+            <tr>
+              <td><strong>DASHBOARD</strong></td>
+              <td><span class="badge badge-yellow">Cấp 2</span></td>
+              <td>Chứa các màn hình chỉ huy trực quan: Tổng quan xưởng, Giám sát trạng thái máy thời gian thực, Theo dõi kế hoạch sản xuất theo Năm / Tháng / Ca, Lịch sử trạng thái thiết bị.</td>
+            </tr>
+            <tr>
+              <td><strong>THÀNH HÌNH & CẮT VẢI</strong></td>
+              <td><span class="badge badge-yellow">Cấp 2</span></td>
+              <td>Khu vực tác vụ sản xuất chính:
+                <ul style="margin-left: 16px; margin-top: 4px;">
+                  <li><strong>Thành hình:</strong> Lập kế hoạch theo tháng, ca/ngày, kiểm kê tồn kho đầu kỳ, theo dõi sản xuất từng máy lốp.</li>
+                  <li><strong>Cắt vải:</strong> Lập kế hoạch cắt vải thép, in phiếu BCP theo ca, báo cáo tổng hợp nhập kho.</li>
+                </ul>
+              </td>
+            </tr>
+            <tr>
+              <td><strong>LƯU HÓA</strong></td>
+              <td><span class="badge badge-yellow">Cấp 2</span></td>
+              <td>Phân hệ giám sát công đoạn lưu hóa lốp (nhiệt độ cối khuôn, thời gian gia nhiệt, áp suất bóng hơi).</td>
+            </tr>
+            <tr>
+              <td><strong>KCS</strong></td>
+              <td><span class="badge badge-yellow">Cấp 2</span></td>
+              <td>Phân hệ Kiểm tra Kiểm soát Chất lượng sản phẩm: Quản lý danh mục bảng mã lỗi khuyết tật, Báo cáo thống kê KSCL (OR.KS.D02, D05, D06), Tra cứu quét mã vạch lốp.</td>
+            </tr>
+            <tr>
+              <td><strong>Thông tin người dùng & Đăng xuất</strong></td>
+              <td><span class="badge badge-gray">Chân Sidebar</span></td>
+              <td>Hiển thị Avatar, họ tên nhân sự đang đăng nhập (ví dụ: <em>Kỹ Sư DRC MES</em>) và nút màu đỏ <strong>Đăng xuất</strong> để thoát phiên làm việc an toàn.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- SECTION 3: DASHBOARD TỔNG QUAN -->
+      <section class="section-card" id="sec-dashboard">
+        <h2 class="section-title"><span class="section-num">3</span> Màn Hình Tổng Quan (Dashboard Index)</h2>
+        <p class="section-desc">Màn hình trung tâm hiển thị bức tranh toàn cảnh về tiến độ sản xuất và hiện trạng thiết bị trong xưởng Cắt Vải - Thành Hình tại thời điểm hiện tại.</p>
+
+        <div class="image-preview-wrapper">
+          <img src="/guide_images/03_dashboard_tong_quan.png" alt="Dashboard Tổng quan">
+          <div class="image-caption">
+            <span>Màn hình giám sát tổng quan tình hình sản xuất xưởng CV-TH</span>
+            <span>URL: <code>http://localhost:5173/</code></span>
+          </div>
+        </div>
+
+        <table class="feature-table">
+          <thead>
+            <tr>
+              <th style="width: 25%;">Khu vực / Nút chức năng</th>
+              <th style="width: 25%;">Ý nghĩa hiển thị</th>
+              <th>Cách đọc số liệu & Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Nút [XUẤT BÁO CÁO (PDF)]</strong></td>
+              <td>Nút bấm xuất file màu đỏ ở góc trên bên phải.</td>
+              <td>Nhấp chuột vào nút này để hệ thống tự động chụp toàn bộ bảng biểu và biểu đồ, xuất ra file tài liệu <code>.PDF</code> chuẩn in ấn để gửi báo cáo giao ban hàng ngày.</td>
+            </tr>
+            <tr>
+              <td><strong>Thẻ [CA 2 (14:00 – 22:00)]</strong></td>
+              <td>Hiển thị ca làm việc hiện tại.</td>
+              <td>Hệ thống tự động đồng bộ theo đồng hồ thời gian thực để xác định nhà máy đang hoạt động trong Ca 1, Ca 2 hay Ca 3.</td>
+            </tr>
+            <tr>
+              <td><strong>Khối "HIỆN TRẠNG THIẾT BỊ"</strong></td>
+              <td>Bảng phân loại trạng thái thiết bị theo màu:
+                <div style="margin-top: 6px;">
+                  <span class="badge badge-green">Running</span> Máy đang chạy<br>
+                  <span class="badge badge-yellow">Stop</span> Máy đang dừng<br>
+                  <span class="badge badge-red">Fault</span> Máy báo lỗi<br>
+                  <span class="badge badge-orange">Lost Connection</span> Mất kết nối PLC
+                </div>
+              </td>
+              <td>Giúp quản đốc và kỹ sư bảo trì nắm bắt tức thì có bao nhiêu máy đang chạy, máy nào đang gặp trục trặc để kịp thời điều động kỹ thuật xử lý.</td>
+            </tr>
+            <tr>
+              <td><strong>Khối "TÌNH HÌNH SẢN XUẤT"</strong></td>
+              <td>3 cặp thẻ tiến độ sản xuất:
+                <ul style="margin-left: 16px; margin-top: 4px;">
+                  <li>Tiến độ trong Ca hiện tại</li>
+                  <li>Tiến độ trong Tháng hiện tại</li>
+                  <li>Tiến độ trong Năm hiện tại</li>
+                </ul>
+              </td>
+              <td>Hiển thị tỷ lệ phần trăm (%), số lượng Kế hoạch (KH) và số lượng Thực tế Sản xuất (SX) cho 2 công đoạn: <strong>THÀNH HÌNH</strong> và <strong>CẮT VẢI</strong>.</td>
+            </tr>
+            <tr>
+              <td><strong>BIỂU ĐỒ THEO DÕI NĂM</strong></td>
+              <td>Đồ thị so sánh kế hoạch và thực tế.</td>
+              <td>Trực quan hóa xu hướng hoàn thành chỉ tiêu sản lượng qua từng mốc thời gian.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- SECTION 4: TRẠNG THÁI THIẾT BỊ -->
+      <section class="section-card" id="sec-thietbi">
+        <h2 class="section-title"><span class="section-num">4</span> Màn Hình Giám Sát Trạng Thái Thiết Bị & Máy Thành Hình</h2>
+        <p class="section-desc">Phân hệ theo dõi chi tiết từng máy chế tạo lốp trong phân xưởng, thu thập dữ liệu tự động từ bộ điều khiển lập trình PLC/SCADA.</p>
+
+        <div class="image-preview-wrapper">
+          <img src="/guide_images/04_trang_thai_thiet_bi.png" alt="Trạng thái thiết bị và sản lượng máy">
+          <div class="image-caption">
+            <span>Màn hình giám sát trạng thái máy và sản lượng từng máy thành hình</span>
+            <span>URL: <code>/dashboard/may-thanh-hinh</code></span>
+          </div>
+        </div>
+
+        <table class="feature-table">
+          <thead>
+            <tr>
+              <th style="width: 25%;">Thành phần</th>
+              <th style="width: 25%;">Tác vụ</th>
+              <th>Ý nghĩa & Hướng dẫn sử dụng</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Thanh Tabs chuyển đổi</strong></td>
+              <td>4 Tab chức năng trên cùng</td>
+              <td>
+                1. <em>Trạng thái máy và sản lượng:</em> Xem tình trạng máy thực tế.<br>
+                2. <em>Lịch sử thông số cài đặt:</em> Xem các công thức (recipe) ép lốp.<br>
+                3. <em>Lịch sử thông số hoạt động:</em> Xem lịch sử vận hành, áp suất, dòng điện.<br>
+                4. <em>Lịch sử thông số thay đổi:</em> Ghi nhật ký ai đã chỉnh sửa thông số máy.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Bộ lọc Ca & Ngày</strong></td>
+              <td>Dropdown "Từ Ca", "Đến Ca", DatePicker "Ngày"</td>
+              <td>Chọn khoảng thời gian cần lọc dữ liệu. Ví dụ: Xem sản lượng của riêng <code>Ca 1</code> ngày <code>14/09/2026</code>.</td>
+            </tr>
+            <tr>
+              <td><strong>Tự động làm mới (Auto Refresh)</strong></td>
+              <td>Dropdown góc trên phải (Mặc định 20 giây)</td>
+              <td>Cho phép thiết lập trang tự động cập nhật dữ liệu mới nhất từ PLC sau mỗi 20s, 1 phút, 5 phút mà không cần người dùng phải bấm F5 tải lại trang.</td>
+            </tr>
+            <tr>
+              <td><strong>Thẻ đếm máy (KPI Cards)</strong></td>
+              <td>Các ô màu: Tổng máy, Đang chạy, Đang dừng SX, Máy bị lỗi, Mất kết nối PLC</td>
+              <td>Báo cáo nhanh tỷ lệ máy khả dụng trong xưởng. Nhấp chuột vào từng máy cụ thể trên màn hình sẽ mở sang trang Dashboard chi tiết của riêng máy đó.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- SECTION 5: LẬP KẾ HOẠCH CA/NGÀY -->
+      <section class="section-card" id="sec-kehoach-ngay">
+        <h2 class="section-title"><span class="section-num">5</span> Màn Hình Lập Kế Hoạch Thành Hình (Ca/Ngày)</h2>
+        <p class="section-desc">Đây là giao diện nghiệp vụ trọng yếu dành cho Quản đốc / Điều độ sản xuất dùng để giao chỉ tiêu quy cách lốp cần đóng khuôn trong ca làm việc.</p>
+
+        <div class="image-preview-wrapper">
+          <img src="/guide_images/05_lap_ke_hoach_ca_ngay.png" alt="Lập kế hoạch thành hình ca ngày">
+          <div class="image-caption">
+            <span>Biểu mẫu nhập kế hoạch sản xuất ca ngày cho từng máy thành hình</span>
+            <span>URL: <code>/dashboard/lap-ke-hoach</code></span>
+          </div>
+        </div>
+
+        <table class="feature-table">
+          <thead>
+            <tr>
+              <th style="width: 25%;">Nút / Trường nhập</th>
+              <th style="width: 25%;">Quy định</th>
+              <th>Ý nghĩa & Cách thực hiện</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Nút [LƯU KẾ HOẠCH]</strong></td>
+              <td><span class="badge badge-btn">Nút bấm chính</span></td>
+              <td>Bấm nút này sau khi đã điền đầy đủ quy cách và chỉ tiêu. Hệ thống sẽ kiểm tra hợp lệ và lưu vào cơ sở dữ liệu để đồng bộ sang máy thành hình.</td>
+            </tr>
+            <tr>
+              <td><strong>Nút [Làm trống]</strong></td>
+              <td><span class="badge badge-red">Nút xóa</span></td>
+              <td>Xóa sạch toàn bộ thông tin trên biểu mẫu để bắt đầu nhập một kế hoạch mới từ đầu.</td>
+            </tr>
+            <tr>
+              <td><strong>Nút [In]</strong></td>
+              <td><span class="badge badge-gray">Nút máy in</span></td>
+              <td>Xuất lệnh sản xuất ra máy in để trao trực tiếp cho công nhân vận hành máy ký nhận và theo dõi.</td>
+            </tr>
+            <tr>
+              <td><strong>ID Kế Hoạch</strong></td>
+              <td>Hệ thống tự động sinh</td>
+              <td>Mã định danh duy nhất của ca sản xuất, ví dụ <code>RA10.202609141</code> (Kho RA10 - Ngày 14/09/2026 - Ca 1).</td>
+            </tr>
+            <tr>
+              <td><strong>Ngày KHSX, Ca, Máy Thực Hiện</strong></td>
+              <td>Bắt buộc chọn (dấu *)</td>
+              <td>Chọn ngày làm việc, ca làm việc (1, 2, 3) và máy cụ thể (ví dụ TH-01) sẽ thi công kế hoạch này.</td>
+            </tr>
+            <tr>
+              <td><strong>Bảng Chi Tiết (Tối đa 7 dòng)</strong></td>
+              <td>Cột: STT, Mã Quy Cách, Tên Quy Cách, SL Kế Hoạch, SL Điều Chỉnh, Ghi Chú</td>
+              <td>
+                - Nhập <em>Mã Quy Cách</em> (ví dụ: mã lốp xe tải Radial).<br>
+                - Hệ thống tự gợi ý <em>Tên Quy Cách</em>.<br>
+                - Nhập <em>SL Kế Hoạch</em>: Số lượng lốp chỉ tiêu giao cho ca.<br>
+                - <em>SL Điều Chỉnh</em>: Nhập số lượng tăng hoặc giảm nếu có phát sinh thay đổi trong ca.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="tip-box">
+          <strong>💡 Mẹo vận hành:</strong> Khi kết thúc ca, nếu phát sinh lỗi nguyên vật liệu hoặc thay đổi kích cỡ đột xuất, kỹ sư điều độ có thể mở lại phiếu kế hoạch này, nhập số bù vào ô <strong>"SL Điều Chỉnh"</strong> và bấm <strong>LƯU KẾ HOẠCH</strong> để hệ thống tự động tính toán lại tỷ lệ hoàn thành.
+        </div>
+      </section>
+
+      <!-- SECTION 6: KẾ HOẠCH SẢN XUẤT NĂM -->
+      <section class="section-card" id="sec-khsx-nam">
+        <h2 class="section-title"><span class="section-num">6</span> Màn Hình Theo Dõi Kế Hoạch - Sản Xuất Năm</h2>
+        <p class="section-desc">Cung cấp báo cáo phân tích chiến lược dài hạn theo từng năm cho Ban Giám đốc và Phòng Kế hoạch Điều độ.</p>
+
+        <div class="image-preview-wrapper">
+          <img src="/guide_images/06_ke_hoach_san_xuat_nam.png" alt="Kế hoạch sản xuất năm">
+          <div class="image-caption">
+            <span>Theo dõi kế hoạch sản xuất công đoạn Cắt vải và Thành hình năm 2026</span>
+            <span>URL: <code>/dashboard/ke-hoach-san-xuat-nam</code></span>
+          </div>
+        </div>
+
+        <table class="feature-table">
+          <thead>
+            <tr>
+              <th style="width: 25%;">Thành phần</th>
+              <th style="width: 25%;">Ý nghĩa</th>
+              <th>Hướng dẫn sử dụng</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Dropdown "Năm sản xuất"</strong></td>
+              <td>Chọn năm làm việc</td>
+              <td>Nhấp chọn năm (ví dụ: Năm 2026) để tải dữ liệu tổng hợp của 12 tháng trong năm đó.</td>
+            </tr>
+            <tr>
+              <td><strong>Nút [Refresh] & [Mặc định]</strong></td>
+              <td>Điều khiển dữ liệu</td>
+              <td>Bấm <em>Refresh</em> để truy vấn lại số liệu mới nhất; bấm <em>Mặc định</em> để hoàn tác các bộ lọc máy.</td>
+            </tr>
+            <tr>
+              <td><strong>Tiến độ CV & TH</strong></td>
+              <td>2 thanh tiến độ phần trăm (%)</td>
+              <td>
+                - <em>Công đoạn Cắt Vải (CV):</em> Đơn vị tính là Bán thành phẩm (BTP).<br>
+                - <em>Công đoạn Thành Hình (TH):</em> Đơn vị tính là chiếc Lốp.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Quy ước màu sắc trên biểu đồ cột 12 tháng</strong></td>
+              <td>Thước đo đánh giá hiệu quả sản xuất (KPI)</td>
+              <td>
+                <span class="badge badge-green" style="background:#1b5e20; color:#fff;">&gt;100% Xanh đậm</span> Vượt chỉ tiêu kế hoạch năm<br>
+                <span class="badge badge-green" style="background:#4caf50; color:#fff;">=100% Xanh tươi</span> Đạt chuẩn 100% kế hoạch<br>
+                <span class="badge badge-green" style="background:#81c784; color:#000;">80% - &lt;100% Xanh nhạt</span> Khá (tiệm cận kế hoạch)<br>
+                <span class="badge badge-orange" style="background:#ff9800; color:#fff;">50% - &lt;80% Cam</span> Đạt mức trung bình<br>
+                <span class="badge badge-red" style="background:#d32f2f; color:#fff;">&lt;50% Đỏ</span> Báo động: Chưa đạt kế hoạch!
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- SECTION 7: KẾ HOẠCH CẮT VẢI THÉP -->
+      <section class="section-card" id="sec-catvai">
+        <h2 class="section-title"><span class="section-num">7</span> Màn Hình Kế Hoạch Cắt Vải Thép Ca/Ngày</h2>
+        <p class="section-desc">Quản lý chi tiết bán thành phẩm lốp (BTP) công đoạn xẻ, cắt vải mành thép phục vụ quá trình thành hình.</p>
+
+        <div class="image-preview-wrapper">
+          <img src="/guide_images/07_ke_hoach_cat_vai.png" alt="Kế hoạch cắt vải thép">
+          <div class="image-caption">
+            <span>Bảng danh sách chi tiết chỉ tiêu BTP cắt vải mành thép theo ca</span>
+            <span>URL: <code>/dashboard/ke-hoach-cat-vai</code></span>
+          </div>
+        </div>
+
+        <table class="feature-table">
+          <thead>
+            <tr>
+              <th style="width: 25%;">Chức năng / Cột bảng</th>
+              <th style="width: 25%;">Ý nghĩa</th>
+              <th>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Nút [Làm mới]</strong></td>
+              <td>Tải lại bảng</td>
+              <td>Nhấp chuột để cập nhật lại danh sách nếu có kế hoạch mới vừa được ban hành.</td>
+            </tr>
+            <tr>
+              <td><strong>Nút [Xuất Excel]</strong></td>
+              <td>Xuất bảng tính <code>.xlsx</code></td>
+              <td>Tải toàn bộ bảng dữ liệu ra file Excel phục vụ lưu trữ nội bộ và chia sẻ bảng biểu cho kho nguyên liệu.</td>
+            </tr>
+            <tr>
+              <td><strong>Bộ lọc Ngày & Ca</strong></td>
+              <td>Chọn ngày và Ca 1, 2, 3</td>
+              <td>Nhập ngày, chọn ca và nhấp nút màu xanh <strong>[Tìm kiếm]</strong> để hiển thị đúng kế hoạch cần xem.</td>
+            </tr>
+            <tr>
+              <td><strong>Các cột thông số BTP</strong></td>
+              <td>Tên BTP, Ký hiệu BTP, Loại BTP, Máy, Số lượng KH, SL KH Điều chỉnh, Số lượng SX, Số lượng Thiếu</td>
+              <td>Giúp theo dõi tiến độ sản xuất BTP vải thép: phát hiện ngay dòng nào có <em>Số lượng Thiếu &gt; 0</em> để kịp thời gia công bổ sung cho tổ Thành hình.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- SECTION 8: BÁO CÁO THỐNG KÊ KCS -->
+      <section class="section-card" id="sec-kcs">
+        <h2 class="section-title"><span class="section-num">8</span> Màn Hình Thống Kê Kiểm Soát Chất Lượng KCS (KS.1.1)</h2>
+        <p class="section-desc">Phân hệ tra cứu và phân loại chất lượng lốp sau khi qua kiểm tra KCS tại xưởng sản xuất.</p>
+
+        <div class="image-preview-wrapper">
+          <img src="/guide_images/08_thong_ke_kcs_chat_luong.png" alt="Báo cáo thống kê KCS">
+          <div class="image-caption">
+            <span>Màn hình thống kê kiểm soát chất lượng lốp KSCL (Mẫu OR.KS.D02)</span>
+            <span>URL: <code>/dashboard/thong-ke-lop-kscl</code></span>
+          </div>
+        </div>
+
+        <table class="feature-table">
+          <thead>
+            <tr>
+              <th style="width: 25%;">Thành phần</th>
+              <th style="width: 25%;">Loại tác vụ</th>
+              <th>Hướng dẫn chi tiết</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Thanh công cụ Toolbar</strong></td>
+              <td>Tải/Làm tươi, Làm trống, Xuất Excel, In PDF</td>
+              <td>
+                - <em>Tải/Làm tươi:</em> Cập nhật dữ liệu lốp vừa kiểm định xong.<br>
+                - <em>Làm trống:</em> Xóa sạch các bộ lọc ngày giờ để nhập điều kiện lọc mới.<br>
+                - <em>Xuất Excel / In PDF:</em> Xuất biên bản kiểm soát chất lượng chuẩn biểu mẫu DRC.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Bộ lọc đa chiều</strong></td>
+              <td>Từ ngày - Đến ngày, Ca, Tổ SX, Mã Kho, Mã Máy, Ca Nhập</td>
+              <td>Cho phép tra cứu chi tiết tới từng tổ sản xuất hoặc từng máy thành hình để đánh giá tay nghề công nhân và chất lượng máy móc.</td>
+            </tr>
+            <tr>
+              <td><strong>Tùy chọn [Kế hoạch tháng]</strong></td>
+              <td>Ô checkbox đánh dấu</td>
+              <td>Khi tích chọn ô này, hệ thống sẽ gom nhóm số liệu theo cả chu kỳ tháng thay vì chỉ lọc theo ngày đơn lẻ.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- SECTION 9: BẢNG MÃ LỖI KHUYẾT TẬT -->
+      <section class="section-card" id="sec-maloi">
+        <h2 class="section-title"><span class="section-num">9</span> Màn Hình Danh Mục Bảng Mã Lỗi Khuyết Tật</h2>
+        <p class="section-desc">Bảng tra cứu chuẩn hóa toàn bộ các lỗi khuyết tật kỹ thuật lốp xe theo quy chuẩn kiểm nghiệm DRC.</p>
+
+        <div class="image-preview-wrapper">
+          <img src="/guide_images/09_bang_ma_loi_khuyet_tat.png" alt="Bảng mã lỗi khuyết tật lốp DRC">
+          <div class="image-caption">
+            <span>Danh mục mã lỗi khuyết tật kiểm tra chất lượng KCS</span>
+            <span>URL: <code>/dashboard/view-drc-loai-khuyet-tat</code></span>
+          </div>
+        </div>
+
+        <table class="feature-table">
+          <thead>
+            <tr>
+              <th style="width: 25%;">Thao tác / Nút</th>
+              <th style="width: 25%;">Tác dụng</th>
+              <th>Ý nghĩa quản trị chất lượng</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Nút [Tải dữ liệu]</strong></td>
+              <td>Đồng bộ danh mục</td>
+              <td>Lấy bảng mã lỗi mới nhất từ máy chủ quản lý chất lượng trung tâm.</td>
+            </tr>
+            <tr>
+              <td><strong>Nút [Xuất Excel]</strong></td>
+              <td>Kết xuất file bảng mã</td>
+              <td>Xuất bảng mã lỗi ra Excel để in thành sổ tay tra cứu cho nhân viên KCS tại trạm kiểm định.</td>
+            </tr>
+            <tr>
+              <td><strong>Bảng phân loại khuyết tật</strong></td>
+              <td>Mã lỗi, Tên khuyết tật, Công đoạn phát sinh, Hướng xử lý</td>
+              <td>Giúp phân định rõ lỗi do công đoạn Cắt vải, Thành hình hay Lưu hóa gây ra (ví dụ: bọt khí thân lốp, hở mối nối gai, lệch tanh...), từ đó quy kết trách nhiệm và có giải pháp hiệu chỉnh thiết bị kịp thời.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+    </main>
+  </div>
+
+  <footer style="text-align: center; padding: 24px; color: #64748b; font-size: 13px; border-top: 1px solid #cbd5e1; background: #fff; margin-top: 40px;">
+    Tài liệu hướng dẫn sử dụng hệ thống giám sát SCADA & MES · Công Ty Cổ Phần Cao Su Đà Nẵng (DRC) © 2026
+  </footer>
+
+</body>
+</html>

@@ -1,14 +1,13 @@
 // src/pages/BaoCaoNhapKhoTheoMay.jsx
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import Select from 'react-select';
 import { toast } from 'react-toastify';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx'; // Thêm thư viện xuất Excel
-import { timesNewRomanBase64 } from '../../font/TimesNewRoman-Regular-base64';
 import { getBaoCaoNhapKhoTheoMay } from '../../api/baoCaoNhapKhoApi';
 import { getEquipmentNames } from '../../api/baoCaoNhapKhoApi';
 import { getStoreListOrth } from '../../api/thanhhinhApi';
+import { exportBaoCaoNhapKhoTheoMayPdf } from '../../utils/baoCaoNhapKhoTheoMayPdf';
+import { getTodayStr, getYesterdayStr } from '../../utils/dateHelper';
 
 /* ─── MES Desktop CSS ─────────────────────────────────────────────────────── */
 const css = `
@@ -204,7 +203,13 @@ const KpiCard = ({ label, value, color }) => (
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
 const BaoCaoNhapKhoTheoMay = () => {
-  const [form, setForm] = useState({ idKehoach: '', namThangNgayCaStart: '', namThangNgayCaEnd: '', storeId: '', maMay: '' });
+  const [form, setForm] = useState(() => ({
+    idKehoach: '',
+    namThangNgayCaStart: `${getYesterdayStr().replace(/-/g, '')}1`,
+    namThangNgayCaEnd: `${getTodayStr().replace(/-/g, '')}3`,
+    storeId: '',
+    maMay: '',
+  }));
   const [data, setData]       = useState([]);
   const [loading, setLoading] = useState(false);
   const [stores, setStores]   = useState([]);
@@ -212,10 +217,11 @@ const BaoCaoNhapKhoTheoMay = () => {
   const [maMayOptions, setMaMayOptions]   = useState([{ value: '', label: '— Tất cả máy' }]);
   const [maMayLoading, setMaMayLoading]   = useState(true);
 
-  const [tuNgay, setTuNgay]   = useState('');
-  const [tuCa, setTuCa]       = useState('0');
-  const [denNgay, setDenNgay] = useState('');
-  const [denCa, setDenCa]     = useState('0');
+  const [tuNgay, setTuNgay]   = useState(getYesterdayStr);
+  const [tuCa, setTuCa]       = useState('1');
+  const [denNgay, setDenNgay] = useState(getTodayStr);
+  const [denCa, setDenCa]     = useState('3');
+  const hasAutoLoaded = useRef(false);
 
   const now         = new Date();
   const currentYear = now.getFullYear();
@@ -233,6 +239,9 @@ const BaoCaoNhapKhoTheoMay = () => {
           label: `${item.storeId} — ${item.storeName || 'Không có tên'}`,
         }));
         setStores([{ value: '', label: '— Tất cả kho' }, ...options]);
+        if (options.length > 0) {
+          setForm(prev => ({ ...prev, storeId: prev.storeId || options[0].value }));
+        }
       } catch {
         toast.error('Không tải được danh sách kho');
         setStores([{ value: '', label: '— Tất cả kho' }]);
@@ -351,90 +360,14 @@ const BaoCaoNhapKhoTheoMay = () => {
   /* ── Export PDF ───────────────────────────────────────────────────────── */
   const exportToPDF = () => {
     if (data.length === 0) { toast.warn('Không có dữ liệu để xuất PDF'); return; }
-    const doc = new jsPDF('portrait', 'pt', 'a4');
-    doc.addFileToVFS('TimesNewRoman-Regular.ttf', timesNewRomanBase64);
-    doc.addFont('TimesNewRoman-Regular.ttf', 'TimesNewRoman', 'normal');
-    
-    doc.setFont('TimesNewRoman', 'normal');
-    const pageWidth = doc.internal.pageSize.getWidth();
-    
-    doc.setFontSize(9); 
-    doc.text('CÔNG TY CP CAO SU ĐÀ NẴNG', 30, 40);
-    doc.text('XN RADIAL - BP. CVTH', 30, 55);
-    
-    doc.setFontSize(12);
-    // Use normal style because bold is not loaded and causes font error
-    doc.setFont('TimesNewRoman', 'normal');
-    doc.text('TỔNG HỢP LỐP THÀNH HÌNH SẢN XUẤT', pageWidth / 2 + 30, 40, { align: 'center' });
-    
-    doc.setFont('TimesNewRoman', 'normal');
-    doc.setFontSize(10);
-
-    let timeText = '';
-    if (tuNgay && denNgay && tuNgay === denNgay) {
-      timeText = `Ca ${tuCa === '0' ? 'Tất cả' : tuCa}, Ngày ${tuNgay.split('-')[2]} tháng ${tuNgay.split('-')[1]} năm ${tuNgay.split('-')[0]}`;
-    } else {
-      const tuText = tuNgay ? `Từ Ca ${tuCa === '0' ? 'Tất cả' : tuCa}, Ngày ${tuNgay.split('-')[2]}/${tuNgay.split('-')[1]}/${tuNgay.split('-')[0]}` : '';
-      const denText = denNgay ? `Đến Ca ${denCa === '0' ? 'Tất cả' : denCa}, Ngày ${denNgay.split('-')[2]}/${denNgay.split('-')[1]}/${denNgay.split('-')[0]}` : '';
-      timeText = [tuText, denText].filter(Boolean).join(' - ');
-      if (!timeText) {
-        timeText = `Ca ${tuCa === '0' ? 'Tất cả' : tuCa}, Ngày ${dateStr.split('/')[0]} tháng ${dateStr.split('/')[1]} năm ${dateStr.split('/')[2]}`;
-      }
-    }
-
-    doc.text(timeText, pageWidth / 2 + 30, 55, { align: 'center' });
-
-    const tableBody = data.map((row, i) => [
-      row[0] || i + 1,
-      row[2] || '—',   // Quy Cách
-      row[1] || '—',   // Ký hiệu mã QC
-      row[4] || '—',   // Máy TH
-      row[6] || 'Chiếc', // ĐVT
-      (row[3] || 0).toLocaleString('vi-VN'), // Số Lượng
-      row[5] || '',   // Ghi Chú
-    ]);
-
-    // Footer row
-    const totalSL = data.reduce((s, row) => s + (Number(row[3]) || 0), 0);
-    tableBody.push([
-      { content: 'TỔNG CỘNG', colSpan: 5, styles: { halign: 'center', fontStyle: 'normal' } },
-      { content: totalSL.toLocaleString('vi-VN'), styles: { halign: 'right', fontStyle: 'normal' } },
-      ''
-    ]);
-
-    autoTable(doc, {
-      startY: 80,
-      head: [['STT', 'Quy Cách', 'Ký hiệu\nmã QC', 'Máy TH', 'ĐVT', 'Số Lượng', 'GHI CHÚ']],
-      body: tableBody,
-      theme: 'grid',
-      styles: { font: 'TimesNewRoman', fontSize: 10, textColor: [0,0,0], lineColor: [0,0,0], lineWidth: 0.5 },
-      headStyles: { font: 'TimesNewRoman', fontStyle: 'normal', fillColor: [255,255,255], textColor: [0,0,0], halign: 'center', valign: 'middle' },
-      columnStyles: {
-        0: { cellWidth: 30, halign: 'center' }, 
-        1: { cellWidth: 'auto' }, 
-        2: { cellWidth: 60, halign: 'center' },
-        3: { cellWidth: 40, halign: 'center' }, 
-        4: { cellWidth: 40, halign: 'center' },
-        5: { cellWidth: 60, halign: 'right' }, 
-        6: { cellWidth: 60 },
-      },
-      margin: { left: 30, right: 30 },
-      didParseCell: d => { d.cell.styles.font = 'TimesNewRoman'; },
-    });
-
-    const finalY = doc.lastAutoTable.finalY + 30;
-    doc.setFontSize(11);
-    doc.setFont('TimesNewRoman', 'normal');
-    
-    // Left dotted line
-    doc.text('....................', 80, finalY);
-    // Center dotted line
-    doc.text('....................', pageWidth / 2 - 40, finalY);
-    // Right text
-    doc.text('NGƯỜI LẬP', pageWidth - 80, finalY, { align: 'center' });
-
-    doc.save(`BaoCao_NhapKho_TheoMay_${now.toISOString().slice(0,10)}.pdf`);
+    exportBaoCaoNhapKhoTheoMayPdf({ data, tuNgay, tuCa, denNgay, denCa, dateStr });
   };
+
+  useEffect(() => {
+    if (storesLoading || maMayLoading || hasAutoLoaded.current) return;
+    hasAutoLoaded.current = true;
+    handleSearch();
+  }, [storesLoading, maMayLoading]);
 
   const clearAll = () => {
     setData([]);
