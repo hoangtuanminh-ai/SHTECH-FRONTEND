@@ -350,7 +350,7 @@ const BaoCaoKHSXThangTongHop = () => {
               />
             </div>
             <div className="mes-field">
-              <span className="mes-label">Spare_2:</span>
+              <span className="mes-label">Lần ban hành:</span>
               <input 
                 type="text" 
                 className="mes-input" 

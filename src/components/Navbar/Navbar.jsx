@@ -165,6 +165,15 @@ const css = `
   .mes-link svg { flex-shrink: 0; color: #5a7a9a; }
   .mes-link.active svg { color: #1565C0; }
 
+  .mes-placeholder {
+    padding: 7px 12px 7px 36px;
+    color: #6a8298;
+    background: #f8fbfe;
+    border-bottom: 1px solid #dce8f4;
+    font-size: 10.5px;
+    font-style: italic;
+  }
+
   /* ── Footer ── */
   .mes-footer {
     background: linear-gradient(180deg, #c8d8ec 0%, #b8cce0 100%);
@@ -219,10 +228,10 @@ const css = `
 `;
 
 /* ─── Group Header (Cấp Danh Mục Chính Gốc Ngoài Cùng - Cấp 1) ──────────────── */
-const GroupHeader = ({ icon: Icon, label, isOpen, onClick }) => (
+const GroupHeader = ({ icon, label, isOpen, onClick }) => (
   <button className="mes-group-btn" onClick={onClick}>
     <div className="mes-group-btn-left">
-      <Icon size={14} />
+      {React.createElement(icon, { size: 14 })}
       <span className="mes-group-label">{label}</span>
     </div>
     <FaChevronDown className={`mes-chevron${isOpen ? ' open' : ''}`} />
@@ -258,9 +267,9 @@ const SubGroup = ({ icon: Icon, label, isOpen, onClick, isLevel2, isLevel3, isLe
 };
 
 /* ─── Nav Link Cấp 2 Có Icon ──────────────────────────────────────────────── */
-const NavLink = ({ to, label, icon: Icon, isActive }) => (
+const NavLink = ({ to, label, icon, isActive }) => (
   <Link to={to} className={`mes-link${isActive ? ' active' : ''}`}>
-    <Icon size={11} />
+    {React.createElement(icon, { size: 11 })}
     {label}
   </Link>
 );
@@ -280,14 +289,15 @@ function Navbar() {
 
   /* ── Cấp 1 ── */
   const [openScadarRoot, setOpenScadarRoot] = useState(true);
+  const [openAdminRoot, setOpenAdminRoot] = useState(false);
 
   /* ── Cấp 2 ── */
   const [openDashboardSub, setOpenDashboardSub] = useState(true);
-  const [openDashboardThanhHinh, setOpenDashboardThanhHinh] = useState(true);
-  const [openDashboardCatVai, setOpenDashboardCatVai] = useState(false);
   const [openThanhHinhSub, setOpenThanhHinhSub] = useState(false);
   const [openLuuHoaSub, setOpenLuuHoaSub] = useState(false);
   const [openKcsSub, setOpenKcsSub] = useState(false);
+  const [openAdminData, setOpenAdminData] = useState(false);
+  const [openAdminSystem, setOpenAdminSystem] = useState(false);
 
   /* ── Cấp 3 trực thuộc THÀNH HÌNH & CẮT VẢI ── */
   const [openThanhHinhNhanhCon, setOpenThanhHinhNhanhCon] = useState(false);
@@ -451,6 +461,42 @@ function Navbar() {
 
             </SubGroup>
 
+          </div>
+
+          {/* =================================================================
+              QUẢN TRỊ VÀ PHÂN QUYỀN
+             ================================================================= */}
+          <GroupHeader
+            icon={FaCog}
+            label="QUẢN TRỊ VÀ PHÂN QUYỀN"
+            isOpen={openAdminRoot}
+            onClick={() => setOpenAdminRoot(v => !v)}
+          />
+
+          <div className="mes-sub-wrap" style={{ maxHeight: openAdminRoot ? 3000 : 0 }}>
+            <SubGroup
+              icon={FaDatabase}
+              label="QUẢN LÝ DỮ LIỆU"
+              isOpen={openAdminData}
+              onClick={() => setOpenAdminData(v => !v)}
+            >
+              <NavLink to="/admin/users" label="DANH SÁCH NGƯỜI DÙNG" icon={FaList} isActive={active('/admin/users')} />
+              <NavLink to="/admin/user-groups" label="DANH SÁCH NHÓM NGƯỜI DÙNG" icon={FaList} isActive={active('/admin/user-groups')} />
+              <NavLink to="/admin/permissions" label="DANH SÁCH PHÂN QUYỀN" icon={FaList} isActive={active('/admin/permissions')} />
+              <NavLink to="/admin/software-keys" label="DANH SÁCH KEY PHẦN MỀM" icon={FaList} isActive={active('/admin/software-keys')} />
+              <NavLink to="/admin/user-permissions" label="PHÂN QUYỀN NGƯỜI DÙNG" icon={FaCog} isActive={active('/admin/user-permissions')} />
+              <NavLink to="/admin/group-permissions" label="PHÂN QUYỀN NHÓM NGƯỜI DÙNG" icon={FaCog} isActive={active('/admin/group-permissions')} />
+              <NavLink to="/admin/equipment-permissions" label="PHÂN QUYỀN MÁY THEO NGƯỜI DÙNG" icon={FaCog} isActive={active('/admin/equipment-permissions')} />
+            </SubGroup>
+
+            <SubGroup
+              icon={FaCog}
+              label="QUẢN LÝ HỆ THỐNG"
+              isOpen={openAdminSystem}
+              onClick={() => setOpenAdminSystem(v => !v)}
+            >
+              <div className="mes-placeholder">Các chức năng sẽ bổ sung sau</div>
+            </SubGroup>
           </div>
 
         </nav>

@@ -515,18 +515,6 @@ const BaoCaoNhapKhoTheoMay = () => {
           </div>
         </div>
 
-        {/* ID thủ công */}
-        <div className="mes-fb-group">
-          <span className="mes-fb-label">ID KH:</span>
-          <input
-            type="text" className="mes-input" style={{ width: 130 }}
-            value={form.idKehoach}
-            onChange={e => setForm(prev => ({ ...prev, idKehoach: e.target.value }))}
-            onKeyDown={e => e.key === 'Enter' && handleSearch()}
-            placeholder="Để trống = tất cả"
-          />
-        </div>
-
         {/* Nút tìm */}
         <button
           className="mes-search-btn"

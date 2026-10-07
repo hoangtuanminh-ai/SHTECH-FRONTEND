@@ -7,7 +7,6 @@ import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx'; // Thêm thư viện xuất Excel
 import { timesNewRomanBase64 } from '../../font/TimesNewRoman-Regular-base64';
 import { getBaoCaoNhapKhoKhongTheoMay } from '../../api/baoCaoNhapKhoApi';
-import { getEquipmentNames } from '../../api/baoCaoNhapKhoApi';
 import { getStoreListOrth } from '../../api/thanhhinhApi';
 import { getTodayStr, getYesterdayStr } from '../../utils/dateHelper';
 
@@ -74,6 +73,27 @@ const css = `
     font-family: 'Segoe UI', sans-serif;
   }
   .mes-input:focus { border-color: #1565C0; box-shadow: 0 0 0 2px rgba(21,101,192,0.15); }
+
+  .mes-shift-box {
+    display: flex; align-items: center; height: 24px; margin-left: 6px;
+    background: #fff; border: 1px solid #6890b0; border-radius: 3px;
+    overflow: hidden; transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .mes-shift-box:focus-within {
+    border-color: #1565C0;
+    box-shadow: 0 0 0 2px rgba(21,101,192,0.15);
+  }
+  .mes-shift-label {
+    height: 100%; padding: 0 6px; display: flex; align-items: center;
+    background: #e5eff8; border-right: 1px solid #96afc8;
+    color: #1a3a5c; font-size: 11px; font-weight: 700;
+  }
+  .mes-shift-select {
+    width: 62px; height: 22px; padding: 0 4px;
+    border: 0; outline: 0; background: #fff;
+    color: #1a3a5c; font-family: 'Segoe UI', sans-serif;
+    font-size: 12px; font-weight: 700; cursor: pointer;
+  }
 
   .mes-search-btn {
     display: flex; align-items: center; gap: 5px;
@@ -223,8 +243,6 @@ const BaoCaoNhapKhoKhongTheoMay = () => {
   const [loading, setLoading] = useState(false);
   const [stores, setStores]   = useState([]);
   const [storesLoading, setStoresLoading] = useState(true);
-  const [maMayOptions, setMaMayOptions]   = useState([{ value: '', label: '— Tất cả máy' }]);
-  const [maMayLoading, setMaMayLoading]   = useState(true);
 
   const [tuNgay, setTuNgay]   = useState(getYesterdayStr);
   const [tuCa, setTuCa]       = useState('1');
@@ -256,25 +274,6 @@ const BaoCaoNhapKhoKhongTheoMay = () => {
       }
     };
     fetchStores();
-  }, []);
-
-  /* ── Load máy ─────────────────────────────────────────────────────────── */
-  useEffect(() => {
-    const fetchMachines = async () => {
-      try {
-        setMaMayLoading(true);
-        const res = await getEquipmentNames();
-        const options = res.map(item => ({ value: item.spare_5 || item.id, label: item.name }));
-        setMaMayOptions([{ value: '', label: '— Tất cả máy' }, ...options]);
-      } catch {
-        toast.error('Không tải được danh sách máy');
-        const fallback = Array.from({ length: 17 }, (_, i) => ({ value: (i+1).toString(), label: `Máy thành hình ${i+1}` }));
-        setMaMayOptions([{ value: '', label: '— Tất cả máy' }, ...fallback]);
-      } finally {
-        setMaMayLoading(false);
-      }
-    };
-    fetchMachines();
   }, []);
 
   /* ── Date options ───────────────────────────────────────── */
@@ -317,10 +316,10 @@ const BaoCaoNhapKhoKhongTheoMay = () => {
   };
 
   useEffect(() => {
-    if (storesLoading || maMayLoading || hasAutoLoaded.current) return;
+    if (storesLoading || hasAutoLoaded.current) return;
     hasAutoLoaded.current = true;
     handleSearch();
-  }, [storesLoading, maMayLoading]);
+  }, [storesLoading]);
 
   /* ── Export Excel ─────────────────────────────────────────────────────── */
   const exportToExcel = () => {
@@ -457,7 +456,7 @@ const BaoCaoNhapKhoKhongTheoMay = () => {
       <div className="mes-toolbar">
         <TbBtn
           label="Làm tươi" className="green"
-          onClick={handleSearch} disabled={loading || storesLoading || maMayLoading}
+          onClick={handleSearch} disabled={loading || storesLoading}
           icon={<><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></>}
         />
         <TbBtn
@@ -508,13 +507,15 @@ const BaoCaoNhapKhoKhongTheoMay = () => {
             value={tuNgay}
             onChange={e => setTuNgay(e.target.value)}
           />
-          <span className="mes-fb-label" style={{ marginLeft: 6 }}>Ca:</span>
-          <select className="mes-select" style={{ width: 66 }} value={tuCa} onChange={e => setTuCa(e.target.value)}>
-            <option value="0">Tất cả</option>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-          </select>
+          <div className="mes-shift-box">
+            <span className="mes-shift-label">Ca</span>
+            <select className="mes-shift-select" value={tuCa} onChange={e => setTuCa(e.target.value)}>
+              <option value="0">Tất cả</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+            </select>
+          </div>
         </div>
 
         {/* Mã start */}
@@ -537,13 +538,15 @@ const BaoCaoNhapKhoKhongTheoMay = () => {
             value={denNgay}
             onChange={e => setDenNgay(e.target.value)}
           />
-          <span className="mes-fb-label" style={{ marginLeft: 6 }}>Ca:</span>
-          <select className="mes-select" style={{ width: 66 }} value={denCa} onChange={e => setDenCa(e.target.value)}>
-            <option value="0">Tất cả</option>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-          </select>
+          <div className="mes-shift-box">
+            <span className="mes-shift-label">Ca</span>
+            <select className="mes-shift-select" value={denCa} onChange={e => setDenCa(e.target.value)}>
+              <option value="0">Tất cả</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+            </select>
+          </div>
         </div>
 
         {/* Mã end */}
@@ -571,38 +574,11 @@ const BaoCaoNhapKhoKhongTheoMay = () => {
           </div>
         </div>
 
-        {/* Mã máy */}
-        <div className="mes-fb-group">
-          <span className="mes-fb-label">Máy:</span>
-          <div style={{ minWidth: 160 }}>
-            <Select
-              placeholder={maMayLoading ? 'Đang tải...' : 'Tất cả máy'}
-              options={maMayOptions}
-              value={maMayOptions.find(o => o.value === form.maMay) || null}
-              onChange={opt => setForm(prev => ({ ...prev, maMay: opt?.value || '' }))}
-              isClearable isLoading={maMayLoading} isDisabled={maMayLoading}
-              menuPortalTarget={document.body} styles={mesSelectStyles}
-            />
-          </div>
-        </div>
-
-        {/* ID thủ công */}
-        <div className="mes-fb-group">
-          <span className="mes-fb-label">ID KH:</span>
-          <input
-            type="text" className="mes-input" style={{ width: 130 }}
-            value={form.idKehoach}
-            onChange={e => setForm(prev => ({ ...prev, idKehoach: e.target.value }))}
-            onKeyDown={e => e.key === 'Enter' && handleSearch()}
-            placeholder="Để trống = tất cả"
-          />
-        </div>
-
         {/* Tìm kiếm */}
         <button
           className="mes-search-btn"
           onClick={handleSearch}
-          disabled={loading || storesLoading || maMayLoading}
+          disabled={loading || storesLoading}
         >
           {loading ? (
             <><span className="mes-spinner" /> Đang tải...</>

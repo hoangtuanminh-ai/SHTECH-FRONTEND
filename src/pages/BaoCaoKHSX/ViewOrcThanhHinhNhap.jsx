@@ -106,6 +106,22 @@ const css = `
   }
   .mes-table tbody td:last-child { border-right: none; }
 
+  .mes-pagination {
+    background: #eaf0f8; border-top: 1px solid #b8cce0;
+    padding: 5px 10px; display: flex; align-items: center;
+    justify-content: space-between; gap: 10px; flex-shrink: 0;
+    font-size: 11px; color: #1a3a5c;
+  }
+  .mes-pagination-controls { display: flex; align-items: center; gap: 5px; }
+  .mes-page-btn {
+    min-width: 28px; height: 24px; padding: 0 7px;
+    border: 1px solid #96afc8; border-radius: 2px;
+    background: #fff; color: #1a3a5c; cursor: pointer;
+    font-size: 11px; font-weight: 600;
+  }
+  .mes-page-btn:hover:not(:disabled) { background: #d4eaf8; }
+  .mes-page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
   .mes-empty {
     flex: 1; display: flex; flex-direction: column; align-items: center;
     justify-content: center; gap: 10px; margin: 10px;
@@ -239,6 +255,11 @@ const ViewOrcThanhHinhNhap = ({
   const [storeId, setStoreId] = useState('');
   const [maMay, setMaMay] = useState('');
   const [maQuyCachLop, setMaQuyCachLop] = useState('');
+  const [barcodeTh, setBarcodeTh] = useState('');
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
 
   // Dropdown states
   const [stores, setStores] = useState([]);
@@ -341,7 +362,7 @@ const ViewOrcThanhHinhNhap = ({
 
     // Thêm dữ liệu
     data.forEach((row, idx) => {
-      const rowData = { stt: idx + 1 };
+      const rowData = { stt: page * pageSize + idx + 1 };
       columns.forEach(col => {
         rowData[col.key] = getCellValue(row, col.key);
       });
@@ -372,7 +393,7 @@ const ViewOrcThanhHinhNhap = ({
     toast.success('Đã xuất file Excel thành công');
   };
 
-  const handleSearch = async () => {
+  const fetchPage = async (targetPage = 0, targetSize = pageSize) => {
     setLoading(true);
     
     // Format date + ca (VD: 20260131 + 1 = 202601311)
@@ -381,22 +402,53 @@ const ViewOrcThanhHinhNhap = ({
     
     try {
       const res = await getViewOrcThanhHinhNhap({
-        storeId, fromDate, toDate, maMay, maQuyCachLop
+        storeId,
+        fromDate,
+        toDate,
+        maMay,
+        maQuyCachLop,
+        barcodeTh,
+        page: targetPage,
+        size: targetSize,
+        sortBy: 'namThangNgayCaNhapKho',
+        sortDir: 'desc',
       });
       console.log(">>> Data fetched for ViewOrcThanhHinhNhap", res);
-      if (Array.isArray(res)) {
+      if (Array.isArray(res?.content)) {
+        setData(res.content);
+        setPage(res.number ?? targetPage);
+        setPageSize(res.size ?? targetSize);
+        setTotalPages(res.totalPages ?? 0);
+        setTotalElements(res.totalElements ?? res.content.length);
+        toast.success(`Tìm thấy ${res.totalElements ?? res.content.length} bản ghi`);
+      } else if (Array.isArray(res)) {
         setData(res);
-        toast.success(`Tìm thấy \${res.length} bản ghi`);
+        setPage(0);
+        setTotalPages(res.length > 0 ? 1 : 0);
+        setTotalElements(res.length);
+        toast.success(`Tìm thấy ${res.length} bản ghi`);
       } else {
         setData([]);
+        setTotalPages(0);
+        setTotalElements(0);
         toast.error('Dữ liệu không hợp lệ');
       }
     } catch (err) {
       setData([]);
+      setTotalPages(0);
+      setTotalElements(0);
       toast.error('Lỗi khi lấy dữ liệu: ' + err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearch = () => fetchPage(0, pageSize);
+
+  const handlePageSizeChange = (event) => {
+    const nextSize = Number(event.target.value);
+    setPageSize(nextSize);
+    fetchPage(0, nextSize);
   };
 
   useEffect(() => {
@@ -455,6 +507,10 @@ const ViewOrcThanhHinhNhap = ({
     setStoreId('');
     setMaMay('');
     setMaQuyCachLop('');
+    setBarcodeTh('');
+    setPage(0);
+    setTotalPages(0);
+    setTotalElements(0);
   };
 
   const now = new Date();
@@ -583,6 +639,18 @@ const ViewOrcThanhHinhNhap = ({
             />
           </div>
         </div>
+        <div className="mes-fb-group">
+          <span className="mes-fb-label">Mã vạch TH:</span>
+          <input
+            type="text"
+            className="mes-input"
+            style={{ width: 150 }}
+            value={barcodeTh}
+            onChange={e => setBarcodeTh(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSearch()}
+            placeholder="Nhập mã vạch"
+          />
+        </div>
         <button
           className="mes-search-btn" onClick={handleSearch} disabled={loading}
         >
@@ -604,7 +672,10 @@ const ViewOrcThanhHinhNhap = ({
         {data.length > 0 ? (
           <>
             <div className="mes-table-header">
-              <span>Hiển thị <strong style={{ color: '#1565C0' }}>{data.length}</strong> bản ghi</span>
+              <span>
+                Hiển thị <strong style={{ color: '#1565C0' }}>{data.length}</strong>
+                {' / '}{totalElements.toLocaleString('vi-VN')} bản ghi
+              </span>
               <span>Cập nhật: {timeStr}</span>
             </div>
             <div className="mes-table-wrap mes-fade">
@@ -620,7 +691,7 @@ const ViewOrcThanhHinhNhap = ({
                 <tbody>
                   {data.map((row, rIdx) => (
                     <tr key={rIdx}>
-                      <td style={{ textAlign: 'center', color: '#6890b0', fontSize: 11 }}>{rIdx + 1}</td>
+                      <td style={{ textAlign: 'center', color: '#6890b0', fontSize: 11 }}>{page * pageSize + rIdx + 1}</td>
                       {columns.map((col, cIdx) => (
                         <td key={cIdx}>{getCellValue(row, col.key)}</td>
                       ))}
@@ -628,6 +699,29 @@ const ViewOrcThanhHinhNhap = ({
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div className="mes-pagination">
+              <div className="mes-pagination-controls">
+                <span>Số dòng:</span>
+                <select
+                  className="mes-select"
+                  style={{ height: 24, fontSize: 11, border: '1px solid #96afc8', borderRadius: 2 }}
+                  value={pageSize}
+                  onChange={handlePageSizeChange}
+                  disabled={loading}
+                >
+                  <option value="20">20</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+              </div>
+              <div className="mes-pagination-controls">
+                <button className="mes-page-btn" onClick={() => fetchPage(0)} disabled={loading || page <= 0}>«</button>
+                <button className="mes-page-btn" onClick={() => fetchPage(page - 1)} disabled={loading || page <= 0}>‹</button>
+                <span>Trang <strong>{page + 1}</strong> / {Math.max(totalPages, 1)}</span>
+                <button className="mes-page-btn" onClick={() => fetchPage(page + 1)} disabled={loading || page >= totalPages - 1}>›</button>
+                <button className="mes-page-btn" onClick={() => fetchPage(totalPages - 1)} disabled={loading || page >= totalPages - 1}>»</button>
+              </div>
             </div>
           </>
         ) : (
@@ -643,7 +737,7 @@ const ViewOrcThanhHinhNhap = ({
       {/* ── STATUS BAR ──────────────────────────────────────────────────── */}
       <div className="mes-statusbar">
       <span>
-  {loading ? 'Đang tải dữ liệu...' : data.length > 0 ? `${data.length} bản ghi · ${dateStr}` : 'Sẵn sàng'}
+  {loading ? 'Đang tải dữ liệu...' : data.length > 0 ? `${totalElements.toLocaleString('vi-VN')} bản ghi · ${dateStr}` : 'Sẵn sàng'}
 </span>
         <span>CÔNG TY CP CAO SU ĐÀ NẴNG · VIEW ORC THÀNH HÌNH NHẬP</span>
       </div>

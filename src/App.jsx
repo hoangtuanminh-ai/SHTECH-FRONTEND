@@ -72,6 +72,9 @@ import BaoCaoTongHopCatVai from "./pages/ThanhHinh/BaoCaoTongHopCatVai.jsx";
 import BaoCaoTongHopTheoCa from "./pages/ThanhHinh/BaoCaoTongHopTheoCa.jsx";
 import BaoCaoTongHopTheoCaNgay from "./pages/ThanhHinh/BaoCaoTongHopTheoCaNgay.jsx";
 import BaoCaoTongHopTheoCaMay from "./pages/ThanhHinh/BaoCaoTongHopTheoCaMay.jsx";
+import AdminCrudPage from "./pages/Admin/AdminCrudPage.jsx";
+import FormPermissionPage from "./pages/Admin/FormPermissionPage.jsx";
+import EquipmentPermissionPage from "./pages/Admin/EquipmentPermissionPage.jsx";
 // Styles
 import "react-toastify/dist/ReactToastify.css";
 import "slick-carousel/slick/slick.css";
@@ -113,6 +116,15 @@ const AppContent = () => {
             <Route path="userInfo" element={<UserInfo />} />
             <Route path="passChange" element={<UserPassChange />} />
           </Route>
+
+          {/* Quản trị và phân quyền - nhóm Quản lý dữ liệu */}
+          <Route path="/admin/users" element={<ProtectedRoute><AdminCrudPage page="users" /></ProtectedRoute>} />
+          <Route path="/admin/user-groups" element={<ProtectedRoute><AdminCrudPage page="user-groups" /></ProtectedRoute>} />
+          <Route path="/admin/permissions" element={<ProtectedRoute><AdminCrudPage page="permissions" /></ProtectedRoute>} />
+          <Route path="/admin/software-keys" element={<ProtectedRoute><AdminCrudPage page="software-keys" /></ProtectedRoute>} />
+          <Route path="/admin/user-permissions" element={<ProtectedRoute><FormPermissionPage mode="user" /></ProtectedRoute>} />
+          <Route path="/admin/group-permissions" element={<ProtectedRoute><FormPermissionPage mode="group" /></ProtectedRoute>} />
+          <Route path="/admin/equipment-permissions" element={<ProtectedRoute><EquipmentPermissionPage /></ProtectedRoute>} />
 
           {/* Dashboard & Báo cáo */}
           <Route path="/dashboard">
