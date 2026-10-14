@@ -38,6 +38,7 @@ import {
   buildTongHopCaNgayChartData
 } from '../../utils/tongHopCaNgayChart';
 import TongHopCaNgayTooltip from '../../components/chart/TongHopCaNgayTooltip';
+import { SCADA_STATUS_COLORS } from '../../utils/scadaStatus';
 
 /* ─── MES Desktop Style ──────────────────────────────────────────────────── */
 const css = `
@@ -1070,6 +1071,24 @@ const realTimeTH02Fields = [
 ];
 
 const settingTH02Fields = [
+      { key: 'chonKhongchonCaBocGot', label: 'Chọn/ không chọn cà bọc gót' },
+      { key: 'caVaiThanTocDoCaoHz', label: 'Cà vải thân tốc độ cao(Hz)' },
+      { key: 'caVaiThanTocDoThapHz', label: 'Cà vải thân tốc độ thấp(Hz)' },
+      { key: 'tocDoLienHopViTriChoCaSuTamGiac', label: 'Tốc độ liên hợp vị trí chờ cà su tam giác' },
+      { key: 'tocDoLienHopViTriCuoiHoanThanhCaSuTamGiac', label: 'Tốc độ liên hợp vị trí cuối hoàn thành cà su tam giác' },
+      { key: 'tocDoLienHopViTriDauCaSuTamGiac', label: 'Tốc độ liên hợp vị trí đầu cà su tam giác' },
+      { key: 'tocDoLienHopViTriDauCaHong', label: 'Tốc độ liên hợp vị trí đầu cà hông' },
+      { key: 'tocDoLienHopViTriDauCaThapApVungGiua', label: 'Tốc độ liên hợp vị trí đầu cà thấp áp vùng giữa' },
+      { key: 'tocDoLienHopViTriDauCaThapApVungTren', label: 'Tốc độ liên hợp vị trí đầu cà thấp áp vùng trên' },
+      { key: 'tocDoLienHopViTriCuoiCaHongHoanThanh', label: 'Tốc độ liên hợp vị trí cuối cà hông hoàn thành' },
+      { key: 'tocDoLienHopViTriChuyenThapApCaSuTamGiac', label: 'Tốc độ liên hợp vị trí  chuyển thấp áp cà su tam giác' },
+      { key: 'tocDoLienHopViTriChoCaHuongTam', label: 'Tốc độ liên hợp vị trí chờ cà hướng tâm' },
+      { key: 'tocDoLienHopViTriDauCaMatChay', label: 'Tốc độ liên hợp vị trí đầu cà mặt chạy' },
+      { key: 'tocDoLienHopViTriCuoiVungCaThapAp', label: 'Tốc độ liên hợp vị trí cuối vùng cà thấp áp' },
+      { key: 'tocDoLienHopViTriDauCaCaoAp', label: 'Tốc độ liên hợp vị trí đầu cà cao áp' },
+      { key: 'tocDoLienHopViTriMepBienMatLop', label: 'Tốc độ liên hợp vị trí mép biên mặt lốp' },
+      { key: 'tocDoLienHopGocCa1HoanThanh', label: 'Tốc độ liên hợp góc cà 1 hoàn thành' },
+      { key: 'tocDoLienHopGocCa2HoanThanh', label: 'Tốc độ liên hợp góc cà 2 hoàn thành' },
   { key: 'apLucCaBocGot', label: 'AL cà bóc gót' },
   { key: 'tocDoCaBocGot', label: 'Tốc độ cà bóc gót' },
   { key: 'thoiGianCaBocGot', label: 'Thời gian cà bóc gót' },
@@ -1158,6 +1177,12 @@ const realTimeTH05Fields = [
 ];
 
 const settingTH05Fields = [
+  { key: 'tocDoCaBocGot', label: 'Tốc độ cà bọc gót' },
+  { key: 'chonKhongchonCaBocGot', label: 'Chọn/ không chọn cà bọc gót' },
+  { key: 'tocDoCaVaiThanGiaiDoan1', label: 'Tốc độ cà vải thân giai đoạn 1' },
+  { key: 'tocDoCaVaiThanGiaiDoan2', label: 'Tốc độ cà vải thân giai đoạn 2' },
+  { key: 'tocDoCaVaiThanGiaiDoan3', label: 'Tốc độ cà vải thân giai đoạn 3' },
+  { key: 'tocDoCaVaiThanGiaiDoan4', label: 'Tốc độ cà vải thân giai đoạn 4' },
   { key: 'apLucCaBocGot', label: 'Áp lực cà bóc gót' },
   { key: 'apLucCaThanLopGiaiDoan1', label: 'Áp lực cà thân lốp giai đoạn 1' },
   { key: 'apLucCaThanLopGiaiDoan2', label: 'Áp lực cà thân lốp giai đoạn 2' },
@@ -1293,14 +1318,14 @@ const getProgressColor = (percent) => {
 const SHIFT_DURATION_SEC = 8 * 3600; // 1 ca = 8 giờ = 28.800 giây
 
 const STATUS_META = {
-  0: { name: 'Không xác định', short: 'N/A', fill: '#fff2cc', ink: '#1e293b' },
-  1: { name: 'Máy chạy', short: 'Chạy', fill: '#22c55e', ink: '#ffffff' },
-  2: { name: 'Máy dừng', short: 'Dừng', fill: '#facc15', ink: '#1e293b' },
-  3: { name: 'Máy lỗi', short: 'Lỗi', fill: '#ef4444', ink: '#ffffff' },
-  4: { name: 'Mất kết nối PLC', short: 'Mất KN', fill: '#f97316', ink: '#ffffff' },
-  6: { name: 'Không có kế hoạch', short: 'Chờ KH', fill: '#b4c6e7', ink: '#1e293b' },
-  7: { name: 'App Server tắt', short: 'App tắt', fill: '#c55a11', ink: '#ffffff' },
-  8: { name: 'Máy chủ tắt', short: 'Máy chủ tắt', fill: '#833c0c', ink: '#ffffff' },
+  0: { name: 'Không xác định', short: 'N/A', fill: SCADA_STATUS_COLORS[0], ink: '#1e293b' },
+  1: { name: 'Máy chạy', short: 'Chạy', fill: SCADA_STATUS_COLORS[1], ink: '#ffffff' },
+  2: { name: 'Máy dừng', short: 'Dừng', fill: SCADA_STATUS_COLORS[2], ink: '#1e293b' },
+  3: { name: 'Máy lỗi', short: 'Lỗi', fill: SCADA_STATUS_COLORS[3], ink: '#ffffff' },
+  4: { name: 'Mất kết nối PLC', short: 'Mất KN', fill: SCADA_STATUS_COLORS[4], ink: '#1e293b' },
+  6: { name: 'Không có kế hoạch', short: 'Chờ KH', fill: SCADA_STATUS_COLORS[6], ink: '#1e293b' },
+  7: { name: 'App Server tắt', short: 'App tắt', fill: SCADA_STATUS_COLORS[7], ink: '#ffffff' },
+  8: { name: 'Máy chủ tắt', short: 'Máy chủ tắt', fill: SCADA_STATUS_COLORS[8], ink: '#ffffff' },
 };
 
 const IDLE_META = { name: 'Thời gian trống', short: '', fill: '#e2e8f0', ink: '#64748b' };
@@ -1331,14 +1356,6 @@ const formatDuration = (seconds) => {
 const formatClock = (date) => {
   if (!date || isNaN(date.getTime())) return '--:--';
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-};
-
-/* Màu cảnh báo theo tỉ lệ chạy của ca (dùng cho KPI + số liệu trung tâm donut) */
-const getUptimeColor = (pct) => {
-  const p = Number(pct) || 0;
-  if (p >= 70) return '#16a34a';
-  if (p >= 40) return '#d97706';
-  return '#dc2626';
 };
 
 const MayThanhHinhDashboard = () => {
@@ -2337,7 +2354,9 @@ const MayThanhHinhDashboard = () => {
                     }}>
                       {fieldsToRender.map(field => {
                         let val = selectedRecord[field.key] ?? '-';
-                        if (typeof val === 'number') {
+                        if (typeof val === 'boolean') {
+                          val = val ? '1' : '0';
+                        } else if (typeof val === 'number') {
                           val = Number.isInteger(val) ? val : Number(val.toFixed(2));
                         }
                         return (
@@ -2568,15 +2587,15 @@ const MayThanhHinhDashboard = () => {
       let fill = '#94a3b8'; // fallback màu xám nếu mã không xác định
       let standardName = item.StatusName || `Trạng thái ${item.MachineStatus}`;
 
-      if (item.MachineStatus === 0) { fill = '#fff2cc'; standardName = 'Không xác định'; }
-      else if (item.MachineStatus === 1) { fill = '#00b050'; standardName = 'Máy chạy'; }
-      else if (item.MachineStatus === 2) { fill = '#ffff00'; standardName = 'Máy dừng'; }
-      else if (item.MachineStatus === 3) { fill = '#ff0000'; standardName = 'Máy lỗi'; }
-      else if (item.MachineStatus === 4) { fill = '#ffc000'; standardName = 'Mất kết nối PLC'; }
+      if (item.MachineStatus === 0) { fill = SCADA_STATUS_COLORS[0]; standardName = 'Không xác định'; }
+      else if (item.MachineStatus === 1) { fill = SCADA_STATUS_COLORS[1]; standardName = 'Máy chạy'; }
+      else if (item.MachineStatus === 2) { fill = SCADA_STATUS_COLORS[2]; standardName = 'Máy dừng'; }
+      else if (item.MachineStatus === 3) { fill = SCADA_STATUS_COLORS[3]; standardName = 'Máy lỗi'; }
+      else if (item.MachineStatus === 4) { fill = SCADA_STATUS_COLORS[4]; standardName = 'Mất kết nối PLC'; }
 
-      else if (item.MachineStatus === 6) { fill = '#b4c6e7'; standardName = 'Không có kế hoạch'; }
-      else if (item.MachineStatus === 7) { fill = '#c55a11'; standardName = 'App Server SCADA tắt'; }
-      else if (item.MachineStatus === 8) { fill = '#833c0c'; standardName = 'Máy chủ SCADA tắt'; }
+      else if (item.MachineStatus === 6) { fill = SCADA_STATUS_COLORS[6]; standardName = 'Không có kế hoạch'; }
+      else if (item.MachineStatus === 7) { fill = SCADA_STATUS_COLORS[7]; standardName = 'App Server SCADA tắt'; }
+      else if (item.MachineStatus === 8) { fill = SCADA_STATUS_COLORS[8]; standardName = 'Máy chủ SCADA tắt'; }
 
       return {
         name: standardName,
@@ -2885,8 +2904,8 @@ const MayThanhHinhDashboard = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '12px 0 6px 0', borderBottom: '1px solid #cbd5e1', paddingBottom: '6px' }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
                         <span style={{ fontSize: '13px', fontWeight: '800', color: '#6890b0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Thời gian máy chạy:</span>
-                        <span style={{ fontSize: '18px', fontWeight: '900', color: '#1a3a5c' }}>{avgChay} <span style={{ fontSize: '12px', fontWeight: '800', color: '#64748b' }}>(h)</span></span>
-                        <span style={{ fontSize: '16px', fontWeight: '900', color: getUptimeColor(uptimePctAPI) }}>{uptimePctAPI.toFixed(2)}%</span>
+                        <span style={{ fontSize: '18px', fontWeight: '900', color: SCADA_STATUS_COLORS[1] }}>{avgChay} <span style={{ fontSize: '12px', fontWeight: '800', color: '#64748b' }}>(h)</span></span>
+                        <span style={{ fontSize: '16px', fontWeight: '900', color: SCADA_STATUS_COLORS[1] }}>{uptimePctAPI.toFixed(2)}%</span>
                       </div>
                       <div style={{ fontSize: '12px', fontWeight: '900', color: '#1a3a5c', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                         Tỉ lệ trạng thái 8h ca
@@ -3018,7 +3037,7 @@ const MayThanhHinhDashboard = () => {
                         {/* Số liệu trọng tâm đặt giữa vòng tròn */}
                         <div className="th-donut-center">
                           <div className="th-donut-hole">
-                            <div className="th-donut-big" style={{ color: getUptimeColor(shiftBreakdown.runPct) }}>
+                            <div className="th-donut-big" style={{ color: SCADA_STATUS_COLORS[1] }}>
                               {shiftBreakdown.runPct.toFixed(2)}%
                             </div>
                             <div className="th-donut-cap">Máy chạy</div>

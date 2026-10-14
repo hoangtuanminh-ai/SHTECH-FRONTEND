@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { getChartSettingTH05History } from '../../api/thanhhinhApi';
 import { toast } from 'react-toastify';
 import { exportTableToExcel } from '../../utils/exportExcelHelper';
+import { formatHistoryBoolean } from '../../utils/historyDisplay';
 
 // Số dòng mỗi trang của popup lịch sử. Trước đây để 1000 nên bảng rất nặng và
 // người dùng phải cuộn rất dài; 100 dòng vừa đủ để xem và thao tác phân trang.
@@ -37,6 +38,12 @@ const SettingTH05History = ({ equipmentId, onClose }) => {
 
     // Danh sách các cột cài đặt TH05 Việt hóa theo đúng yêu cầu từ ảnh 2
     const displayFields = [
+      { key: 'tocDoCaBocGot', label: 'Tốc độ cà bọc gót' },
+      { key: 'chonKhongchonCaBocGot', label: 'Chọn/ không chọn cà bọc gót' },
+      { key: 'tocDoCaVaiThanGiaiDoan1', label: 'Tốc độ cà vải thân giai đoạn 1' },
+      { key: 'tocDoCaVaiThanGiaiDoan2', label: 'Tốc độ cà vải thân giai đoạn 2' },
+      { key: 'tocDoCaVaiThanGiaiDoan3', label: 'Tốc độ cà vải thân giai đoạn 3' },
+      { key: 'tocDoCaVaiThanGiaiDoan4', label: 'Tốc độ cà vải thân giai đoạn 4' },
       { key: 'apLucCaBocGot', label: 'Áp lực cà bóc gót' },
       { key: 'apLucCaThanLopGiaiDoan1', label: 'Áp lực cà thân lốp giai đoạn 1' },
       { key: 'apLucCaThanLopGiaiDoan2', label: 'Áp lực cà thân lốp giai đoạn 2' },
@@ -204,8 +211,10 @@ const SettingTH05History = ({ equipmentId, onClose }) => {
     return `${year}-${month}-${day}`;
   };
 
-  const renderValue = (val, key) => {
+  const renderValue = (val) => {
     if (val === null || val === undefined) return '-';
+    const booleanValue = formatHistoryBoolean(val);
+    if (booleanValue !== null) return booleanValue;
     
     // Loại bỏ chữ T trong chuỗi ngày giờ
     if (typeof val === 'string' && val.includes('T') && /^\d{4}-\d{2}-\d{2}T/.test(val)) {

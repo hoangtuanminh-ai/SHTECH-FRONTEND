@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { getChartSettingTH02History } from '../../api/thanhhinhApi';
 import { toast } from 'react-toastify';
 import { exportTableToExcel } from '../../utils/exportExcelHelper';
+import { formatHistoryBoolean } from '../../utils/historyDisplay';
 
 // Số dòng mỗi trang của popup lịch sử. Trước đây để 1000 nên bảng rất nặng và
 // người dùng phải cuộn rất dài; 100 dòng vừa đủ để xem và thao tác phân trang.
@@ -32,6 +33,24 @@ const SettingTH02History = ({ equipmentId, onClose }) => {
     else if ('history_date' in record) baseCols.push({ key: 'history_date', label: 'History Date' });
 
     const displayFields = [
+      { key: 'chonKhongchonCaBocGot', label: 'Chọn/ không chọn cà bọc gót' },
+      { key: 'caVaiThanTocDoCaoHz', label: 'Cà vải thân tốc độ cao(Hz)' },
+      { key: 'caVaiThanTocDoThapHz', label: 'Cà vải thân tốc độ thấp(Hz)' },
+      { key: 'tocDoLienHopViTriChoCaSuTamGiac', label: 'Tốc độ liên hợp vị trí chờ cà su tam giác' },
+      { key: 'tocDoLienHopViTriCuoiHoanThanhCaSuTamGiac', label: 'Tốc độ liên hợp vị trí cuối hoàn thành cà su tam giác' },
+      { key: 'tocDoLienHopViTriDauCaSuTamGiac', label: 'Tốc độ liên hợp vị trí đầu cà su tam giác' },
+      { key: 'tocDoLienHopViTriDauCaHong', label: 'Tốc độ liên hợp vị trí đầu cà hông' },
+      { key: 'tocDoLienHopViTriDauCaThapApVungGiua', label: 'Tốc độ liên hợp vị trí đầu cà thấp áp vùng giữa' },
+      { key: 'tocDoLienHopViTriDauCaThapApVungTren', label: 'Tốc độ liên hợp vị trí đầu cà thấp áp vùng trên' },
+      { key: 'tocDoLienHopViTriCuoiCaHongHoanThanh', label: 'Tốc độ liên hợp vị trí cuối cà hông hoàn thành' },
+      { key: 'tocDoLienHopViTriChuyenThapApCaSuTamGiac', label: 'Tốc độ liên hợp vị trí  chuyển thấp áp cà su tam giác' },
+      { key: 'tocDoLienHopViTriChoCaHuongTam', label: 'Tốc độ liên hợp vị trí chờ cà hướng tâm' },
+      { key: 'tocDoLienHopViTriDauCaMatChay', label: 'Tốc độ liên hợp vị trí đầu cà mặt chạy' },
+      { key: 'tocDoLienHopViTriCuoiVungCaThapAp', label: 'Tốc độ liên hợp vị trí cuối vùng cà thấp áp' },
+      { key: 'tocDoLienHopViTriDauCaCaoAp', label: 'Tốc độ liên hợp vị trí đầu cà cao áp' },
+      { key: 'tocDoLienHopViTriMepBienMatLop', label: 'Tốc độ liên hợp vị trí mép biên mặt lốp' },
+      { key: 'tocDoLienHopGocCa1HoanThanh', label: 'Tốc độ liên hợp góc cà 1 hoàn thành' },
+      { key: 'tocDoLienHopGocCa2HoanThanh', label: 'Tốc độ liên hợp góc cà 2 hoàn thành' },
       { key: 'apLucCaBocGot', label: 'Áp lực cà bóc gót' },
       { key: 'tocDoCaBocGot', label: 'Tốc độ cà bóc gót' },
       { key: 'thoiGianCaBocGot', label: 'Thời gian cà bóc gót' },
@@ -185,6 +204,8 @@ const SettingTH02History = ({ equipmentId, onClose }) => {
   // Hiển thị 1 cho true/1 và 0 cho false/0
   const renderValue = (val) => {
     if (val === null || val === undefined) return '-';
+    const booleanValue = formatHistoryBoolean(val);
+    if (booleanValue !== null) return booleanValue;
     if (val === true || val === 1 || val === '1') return '1';
     if (val === false || val === 0 || val === '0') return '0';
     

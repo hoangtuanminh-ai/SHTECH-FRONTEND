@@ -14,20 +14,21 @@ import {
   FaIndustry, FaLayerGroup, FaThLarge, FaFilePdf
 } from 'react-icons/fa';
 import { exportDashboardToPDF } from '../../utils/exportPdfHelper';
+import { SCADA_STATUS_COLORS } from '../../utils/scadaStatus';
 
 // Import API chính thức
 import { getMachineStatusTimesByMonth } from '../../api/thanhhinhApi';
 
 /* ─── DANH MỤC TRẠNG THÁI SCADA CHUẨN DRC & MÃ MÀU CHÍNH XÁC ───────────────── */
 const SCADA_STATUS_CONFIG = [
-  { code: 0, label: 'Không xác định', fill: '#fff2cc', isBorder: true },
-  { code: 1, label: 'Máy chạy', fill: '#00b050', isBorder: false },
-  { code: 2, label: 'Máy dừng', fill: '#ffff00', isBorder: false },
-  { code: 3, label: 'Máy lỗi', fill: '#ff0000', isBorder: false },
-  { code: 4, label: 'Mất kết nối PLC', fill: '#ffc000', isBorder: false },
-  { code: 6, label: 'Không có kế hoạch', fill: '#b4c6e7', isBorder: false },
-  { code: 7, label: 'App Server tắt', fill: '#c55a11', isBorder: false },
-  { code: 8, label: 'Máy chủ tắt', fill: '#833c0c', isBorder: false },
+  { code: 0, label: 'Không xác định', fill: SCADA_STATUS_COLORS[0], isBorder: true },
+  { code: 1, label: 'Máy chạy', fill: SCADA_STATUS_COLORS[1], isBorder: false },
+  { code: 2, label: 'Máy dừng', fill: SCADA_STATUS_COLORS[2], isBorder: false },
+  { code: 3, label: 'Máy lỗi', fill: SCADA_STATUS_COLORS[3], isBorder: false },
+  { code: 4, label: 'Mất kết nối PLC', fill: SCADA_STATUS_COLORS[4], isBorder: false },
+  { code: 6, label: 'Không có kế hoạch', fill: SCADA_STATUS_COLORS[6], isBorder: false },
+  { code: 7, label: 'App Server tắt', fill: SCADA_STATUS_COLORS[7], isBorder: false },
+  { code: 8, label: 'Máy chủ tắt', fill: SCADA_STATUS_COLORS[8], isBorder: false },
 ];
 
 /* ─── STYLESHEET CHUẨN MES / INDUSTRIAL: BỐ CỤC 4 MÁY / HÀNG ─────────────────── */

@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { getChartRealTimeORCVHistory } from '../../api/thanhhinhApi';
 import { toast } from 'react-toastify';
 import { exportTableToExcel } from '../../utils/exportExcelHelper';
+import { formatHistoryBoolean } from '../../utils/historyDisplay';
 
 // Khoảng thời gian mặc định của popup lịch sử thông số hoạt động: 24 GIỜ GẦN NHẤT
 // tính từ thời điểm mở popup. Trước đây để trống nên API trả về toàn bộ lịch sử,
@@ -153,6 +154,8 @@ const RealTimeORCVHistory = ({ equipmentId, onClose }) => {
 
   const renderValue = (val) => {
     if (val === null || val === undefined) return '-';
+    const booleanValue = formatHistoryBoolean(val);
+    if (booleanValue !== null) return booleanValue;
     if (val === true || val === 1 || val === '1') return '1';
     if (val === false || val === 0 || val === '0') return '0';
     if (typeof val === 'string' && val.includes('T') && /^\d{4}-\d{2}-\d{2}T/.test(val)) {

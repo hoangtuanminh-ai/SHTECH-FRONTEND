@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { getChartRealTimeTH05History } from '../../api/thanhhinhApi';
 import { toast } from 'react-toastify';
 import { exportTableToExcel } from '../../utils/exportExcelHelper';
+import { formatHistoryBoolean } from '../../utils/historyDisplay';
 
 // Số dòng mỗi trang của popup lịch sử. Trước đây để 1000 nên bảng rất nặng và
 // người dùng phải cuộn rất dài; 100 dòng vừa đủ để xem và thao tác phân trang.
@@ -154,8 +155,10 @@ const RealTimeTH05History = ({ equipmentId, onClose }) => {
     return `${year}-${month}-${day}`;
   };
 
-  const renderValue = (val, key) => {
+  const renderValue = (val) => {
     if (val === null || val === undefined) return '-';
+    const booleanValue = formatHistoryBoolean(val);
+    if (booleanValue !== null) return booleanValue;
     
     // Loại bỏ chữ T trong chuỗi ngày giờ
     if (typeof val === 'string' && val.includes('T') && /^\d{4}-\d{2}-\d{2}T/.test(val)) {

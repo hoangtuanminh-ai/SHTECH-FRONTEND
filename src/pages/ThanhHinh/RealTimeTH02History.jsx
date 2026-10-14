@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { getChartRealTimeTH02History } from '../../api/thanhhinhApi';
 import { toast } from 'react-toastify';
 import { exportTableToExcel } from '../../utils/exportExcelHelper';
+import { formatHistoryBoolean } from '../../utils/historyDisplay';
 
 // Số dòng mỗi trang của popup lịch sử. Trước đây để 1000 nên bảng rất nặng và
 // người dùng phải cuộn rất dài; 100 dòng vừa đủ để xem và thao tác phân trang.
@@ -151,11 +152,10 @@ const RealTimeTH02History = ({ equipmentId, onClose }) => {
   };
 
   // Hiển thị 1 cho true/1 và 0 cho false/0 (true/false cho các cột mã vạch)
-  const renderValue = (val, key) => {
+  const renderValue = (val) => {
     if (val === null || val === undefined) return '-';
-    if (key === 'globalDisableBarcode' || key === 'globalEnableBarcode') {
-      return (val === true || val === 1 || val === '1') ? 'true' : 'false';
-    }
+    const booleanValue = formatHistoryBoolean(val);
+    if (booleanValue !== null) return booleanValue;
     if (val === true || val === 1 || val === '1') return '1';
     if (val === false || val === 0 || val === '0') return '0';
     

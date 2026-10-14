@@ -8,6 +8,7 @@ import {
 } from '../../api/thanhhinhApi';
 import { toast } from 'react-toastify';
 import { exportTableToExcel } from '../../utils/exportExcelHelper';
+import { formatHistoryBoolean, isHighlightedChangeValue } from '../../utils/historyDisplay';
 
 // Số dòng mỗi trang của popup lịch sử thay đổi (trước đây là 1000).
 const PAGE_SIZE = 100;
@@ -118,6 +119,24 @@ const settingORCVFields = [
 
 // Định nghĩa danh sách trường Setting của TH02
 const settingTH02Fields = [
+      { key: 'chonKhongchonCaBocGot', label: 'Chọn/ không chọn cà bọc gót' },
+      { key: 'caVaiThanTocDoCaoHz', label: 'Cà vải thân tốc độ cao(Hz)' },
+      { key: 'caVaiThanTocDoThapHz', label: 'Cà vải thân tốc độ thấp(Hz)' },
+      { key: 'tocDoLienHopViTriChoCaSuTamGiac', label: 'Tốc độ liên hợp vị trí chờ cà su tam giác' },
+      { key: 'tocDoLienHopViTriCuoiHoanThanhCaSuTamGiac', label: 'Tốc độ liên hợp vị trí cuối hoàn thành cà su tam giác' },
+      { key: 'tocDoLienHopViTriDauCaSuTamGiac', label: 'Tốc độ liên hợp vị trí đầu cà su tam giác' },
+      { key: 'tocDoLienHopViTriDauCaHong', label: 'Tốc độ liên hợp vị trí đầu cà hông' },
+      { key: 'tocDoLienHopViTriDauCaThapApVungGiua', label: 'Tốc độ liên hợp vị trí đầu cà thấp áp vùng giữa' },
+      { key: 'tocDoLienHopViTriDauCaThapApVungTren', label: 'Tốc độ liên hợp vị trí đầu cà thấp áp vùng trên' },
+      { key: 'tocDoLienHopViTriCuoiCaHongHoanThanh', label: 'Tốc độ liên hợp vị trí cuối cà hông hoàn thành' },
+      { key: 'tocDoLienHopViTriChuyenThapApCaSuTamGiac', label: 'Tốc độ liên hợp vị trí  chuyển thấp áp cà su tam giác' },
+      { key: 'tocDoLienHopViTriChoCaHuongTam', label: 'Tốc độ liên hợp vị trí chờ cà hướng tâm' },
+      { key: 'tocDoLienHopViTriDauCaMatChay', label: 'Tốc độ liên hợp vị trí đầu cà mặt chạy' },
+      { key: 'tocDoLienHopViTriCuoiVungCaThapAp', label: 'Tốc độ liên hợp vị trí cuối vùng cà thấp áp' },
+      { key: 'tocDoLienHopViTriDauCaCaoAp', label: 'Tốc độ liên hợp vị trí đầu cà cao áp' },
+      { key: 'tocDoLienHopViTriMepBienMatLop', label: 'Tốc độ liên hợp vị trí mép biên mặt lốp' },
+      { key: 'tocDoLienHopGocCa1HoanThanh', label: 'Tốc độ liên hợp góc cà 1 hoàn thành' },
+      { key: 'tocDoLienHopGocCa2HoanThanh', label: 'Tốc độ liên hợp góc cà 2 hoàn thành' },
   { key: 'apLucCaBocGot', label: 'AL cà bóc gót' },
   { key: 'tocDoCaBocGot', label: 'Tốc độ cà bóc gót' },
   { key: 'thoiGianCaBocGot', label: 'Thời gian cà bóc gót' },
@@ -284,6 +303,12 @@ const settingTH09Fields = [
 
 // Định nghĩa danh sách trường Setting của TH05
 const settingTH05Fields = [
+  { key: 'tocDoCaBocGot', label: 'Tốc độ cà bọc gót' },
+  { key: 'chonKhongchonCaBocGot', label: 'Chọn/ không chọn cà bọc gót' },
+  { key: 'tocDoCaVaiThanGiaiDoan1', label: 'Tốc độ cà vải thân giai đoạn 1' },
+  { key: 'tocDoCaVaiThanGiaiDoan2', label: 'Tốc độ cà vải thân giai đoạn 2' },
+  { key: 'tocDoCaVaiThanGiaiDoan3', label: 'Tốc độ cà vải thân giai đoạn 3' },
+  { key: 'tocDoCaVaiThanGiaiDoan4', label: 'Tốc độ cà vải thân giai đoạn 4' },
   { key: 'apLucCaBocGot', label: 'Áp lực cà bóc gót' },
   { key: 'apLucCaThanLopGiaiDoan1', label: 'Áp lực cà thân lốp giai đoạn 1' },
   { key: 'apLucCaThanLopGiaiDoan2', label: 'Áp lực cà thân lốp giai đoạn 2' },
@@ -415,7 +440,7 @@ const ThanhHinhChangeHistory = ({ equipmentId, onClose }) => {
 
     if ('historyDate' in record) baseCols.push({ key: 'historyDate', label: 'History Date' });
     else if ('history_date' in record) baseCols.push({ key: 'history_date', label: 'History Date' });
-    else if ('creatDate' in record) baseCols.push({ key: 'creatDate_change', label: 'Change Date' }); // Sử dụng làm Change Date
+    else if ('creatDate' in record) baseCols.push({ key: 'creatDate_change', label: 'Change Date' });
 
     let definedFields = [];
     if (isCatVaiGroup) {
@@ -433,7 +458,6 @@ const ThanhHinhChangeHistory = ({ equipmentId, onClose }) => {
   };
   const isTH09Group = getMachineNumber(equipmentId) >= 9;
 
-  // Lấy danh sách trường phù hợp
   const getFieldsList = () => {
     if (isCatVaiGroup) return settingORCVFields;
     if (isTH05Group) return settingTH05Fields;
@@ -503,7 +527,6 @@ const ThanhHinhChangeHistory = ({ equipmentId, onClose }) => {
       setTotalElements(totalE);
       setPage(p);
 
-      // Cấu hình các cột hiển thị: Thời gian & Trường thay đổi
       const allFields = getFieldsList();
       const baseFields = [
         { key: 'creatDate_change', label: 'Thời gian thay đổi' },
@@ -512,8 +535,6 @@ const ThanhHinhChangeHistory = ({ equipmentId, onClose }) => {
         { key: 'giaTriMoi', label: 'Giá trị mới' }
       ];
 
-      // Nếu API trả về dữ liệu phẳng dạng từng record thay đổi, ta hiển thị baseFields
-      // Hoặc nếu API trả về full object các trường, ta kết hợp baseFields + allFields
       if (items.length > 0 && (items[0].tenThongSo !== undefined || items[0].giaTriMoi !== undefined)) {
         setDynamicFields(baseFields);
       } else {
@@ -567,6 +588,8 @@ const ThanhHinhChangeHistory = ({ equipmentId, onClose }) => {
 
   const renderValue = (val, key) => {
     if (val === null || val === undefined || val === '') return '-';
+    const booleanValue = formatHistoryBoolean(val);
+    if (booleanValue !== null) return booleanValue;
     if (key.toLowerCase().includes('date') || key.toLowerCase().includes('time')) {
       const s = String(val).trim();
       let d;
@@ -589,7 +612,7 @@ const ThanhHinhChangeHistory = ({ equipmentId, onClose }) => {
   // Logic kiểm tra tô màu cam nhạt cho các ô có giá trị khác 0
   const getCellStyle = (val, key) => {
     const isMeta = ['id', 'maMay', 'barcode', 'creatDate', 'ngayGio', 'ca', 'historyDate', 'nguoiDo', 'changeDate', 'creat_date', 'history_date', 'creatDate_change', 'tenThongSo'].includes(key);
-    if (!isMeta && val !== null && val !== undefined && val !== 0 && val !== '0' && val !== '' && val !== '-') {
+    if (!isMeta && isHighlightedChangeValue(val)) {
       // Giá trị khác 0: tô màu cam nhạt
       return { 
         padding: '6px 8px', 

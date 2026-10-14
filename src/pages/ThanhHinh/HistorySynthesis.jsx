@@ -11,6 +11,7 @@ import {
 } from '../../api/thanhhinhApi';
 import { toast } from 'react-toastify';
 import { exportTableToExcel } from '../../utils/exportExcelHelper';
+import { formatHistoryBoolean } from '../../utils/historyDisplay';
 
 // Danh sách trường dữ liệu Setting của máy cắt vải (ORCV / CV)
 const settingORCVFields = [
@@ -289,6 +290,24 @@ const settingTH09Fields = [
 ];
 
 const settingTH02Fields = [
+  { key: 'chonKhongchonCaBocGot', label: 'Chọn/ không chọn cà bọc gót' },
+  { key: 'caVaiThanTocDoCaoHz', label: 'Cà vải thân tốc độ cao(Hz)' },
+  { key: 'caVaiThanTocDoThapHz', label: 'Cà vải thân tốc độ thấp(Hz)' },
+  { key: 'tocDoLienHopViTriChoCaSuTamGiac', label: 'Tốc độ liên hợp vị trí chờ cà su tam giác' },
+  { key: 'tocDoLienHopViTriCuoiHoanThanhCaSuTamGiac', label: 'Tốc độ liên hợp vị trí cuối hoàn thành cà su tam giác' },
+  { key: 'tocDoLienHopViTriDauCaSuTamGiac', label: 'Tốc độ liên hợp vị trí đầu cà su tam giác' },
+  { key: 'tocDoLienHopViTriDauCaHong', label: 'Tốc độ liên hợp vị trí đầu cà hông' },
+  { key: 'tocDoLienHopViTriDauCaThapApVungGiua', label: 'Tốc độ liên hợp vị trí đầu cà thấp áp vùng giữa' },
+  { key: 'tocDoLienHopViTriDauCaThapApVungTren', label: 'Tốc độ liên hợp vị trí đầu cà thấp áp vùng trên' },
+  { key: 'tocDoLienHopViTriCuoiCaHongHoanThanh', label: 'Tốc độ liên hợp vị trí cuối cà hông hoàn thành' },
+  { key: 'tocDoLienHopViTriChuyenThapApCaSuTamGiac', label: 'Tốc độ liên hợp vị trí  chuyển thấp áp cà su tam giác' },
+  { key: 'tocDoLienHopViTriChoCaHuongTam', label: 'Tốc độ liên hợp vị trí chờ cà hướng tâm' },
+  { key: 'tocDoLienHopViTriDauCaMatChay', label: 'Tốc độ liên hợp vị trí đầu cà mặt chạy' },
+  { key: 'tocDoLienHopViTriCuoiVungCaThapAp', label: 'Tốc độ liên hợp vị trí cuối vùng cà thấp áp' },
+  { key: 'tocDoLienHopViTriDauCaCaoAp', label: 'Tốc độ liên hợp vị trí đầu cà cao áp' },
+  { key: 'tocDoLienHopViTriMepBienMatLop', label: 'Tốc độ liên hợp vị trí mép biên mặt lốp' },
+  { key: 'tocDoLienHopGocCa1HoanThanh', label: 'Tốc độ liên hợp góc cà 1 hoàn thành' },
+  { key: 'tocDoLienHopGocCa2HoanThanh', label: 'Tốc độ liên hợp góc cà 2 hoàn thành' },
   { key: 'apLucCaBocGot', label: 'Áp lực cà bóc gót' },
   { key: 'tocDoCaBocGot', label: 'Tốc độ cà bóc gót' },
   { key: 'thoiGianCaBocGot', label: 'Thời gian cà bóc gót' },
@@ -375,6 +394,12 @@ const realTimeTH05Fields = [
 ];
 
 const settingTH05Fields = [
+  { key: 'tocDoCaBocGot', label: 'Tốc độ cà bọc gót' },
+  { key: 'chonKhongchonCaBocGot', label: 'Chọn/ không chọn cà bọc gót' },
+  { key: 'tocDoCaVaiThanGiaiDoan1', label: 'Tốc độ cà vải thân giai đoạn 1' },
+  { key: 'tocDoCaVaiThanGiaiDoan2', label: 'Tốc độ cà vải thân giai đoạn 2' },
+  { key: 'tocDoCaVaiThanGiaiDoan3', label: 'Tốc độ cà vải thân giai đoạn 3' },
+  { key: 'tocDoCaVaiThanGiaiDoan4', label: 'Tốc độ cà vải thân giai đoạn 4' },
   { key: 'apLucCaBocGot', label: 'Áp lực cà bóc gót' },
   { key: 'apLucCaThanLopGiaiDoan1', label: 'Áp lực cà thân lốp giai đoạn 1' },
   { key: 'apLucCaThanLopGiaiDoan2', label: 'Áp lực cà thân lốp giai đoạn 2' },
@@ -512,7 +537,30 @@ const HistorySynthesis = ({ mayList = [], type = 'realtime' }) => {
     const isTH05Group = th05Machines.includes(maMay) || th05Machines.includes(getMachineNumberStr(maMay));
     let definedFields = [];
     if (isCatVaiGroup) {
-      definedFields = type === 'realtime' ? realTimeORCVFields : settingORCVFields;
+      if (type === 'realtime') {
+        // Giữ nguyên các cột, đặt chúng theo thứ tự lịch sử RealTime CV01/CV02-03.
+        definedFields = [...realTimeORCVFields];
+        const recipeIndex = definedFields.findIndex(field => field.key === 'recipeNumber');
+        const [recipeField] = definedFields.splice(recipeIndex, 1);
+        const pulleyIndex = definedFields.findIndex(field => field.key === 'pulleys2ActualPosition');
+        definedFields.splice(pulleyIndex + 1, 0, recipeField);
+
+        const isCV01 = maMay.endsWith('01') || maMay.includes('01') || maMay.includes('-1');
+        if (!isCV01) {
+          const windupKeys = ['windupAMaterialDiameter', 'windupAWrapDiameter', 'windupBMaterialDiameter', 'windupBWrapDiameter', 'windupALenght', 'windupBLenght'];
+          const windupFields = definedFields.filter(field => windupKeys.includes(field.key));
+          definedFields = definedFields.filter(field => !windupKeys.includes(field.key));
+          const takeoffIndex = definedFields.findIndex(field => field.key === 'takeoffLenght');
+          definedFields.splice(takeoffIndex, 0, ...windupFields);
+        }
+      } else {
+        // Các trường này nằm đầu bảng lịch sử cài đặt Cắt vải.
+        const leadingKeys = ['globalDisableBarcode', 'globalEnableBarcode', 'duongKinhBungTrongThan', 'viTriCaSauHuongTam', 'viTriCaSauHuongTruc', 'rongVaiLop', 'noiAp', 'apLucCaSau', 'apLucCaTanh', 'apLucCaVai'];
+        definedFields = [
+          ...leadingKeys.map(key => settingORCVFields.find(field => field.key === key)).filter(Boolean),
+          ...settingORCVFields.filter(field => !leadingKeys.includes(field.key)),
+        ];
+      }
     } else if (isTH05Group) {
       definedFields = type === 'realtime' ? realTimeTH05Fields : settingTH05Fields;
     } else {
@@ -546,7 +594,7 @@ const HistorySynthesis = ({ mayList = [], type = 'realtime' }) => {
     // Nếu record có các trường khác ngoài baseCols và definedFields (trừ các trường hệ thống), tự động tạo cột với nhãn bằng tên key
     const excludedMetaKeys = new Set(['id', 'maMay', 'creatDate', 'ngayGio', 'ca', 'historyDate', 'history_date', 'creat_date', 'creatDate_change', 'changeDate']);
     const extraCols = [];
-    Object.keys(record).forEach(k => {
+    Object.keys(record).sort((a, b) => a.localeCompare(b, 'vi')).forEach(k => {
       if (!matchedKeys.has(k) && !excludedMetaKeys.has(k)) {
         extraCols.push({ key: k, label: k });
       }
@@ -681,12 +729,11 @@ const HistorySynthesis = ({ mayList = [], type = 'realtime' }) => {
     return `${year}-${month}-${day}`;
   };
 
-  // Hiển thị 1 cho true/1 và 0 cho false/0 (true/false cho cột mã vạch)
-  const renderValue = (val, key) => {
+  // Hiển thị boolean thống nhất với các bảng lịch sử của nhóm máy TH02.
+  const renderValue = (val) => {
     if (val === null || val === undefined) return '-';
-    if (key === 'globalDisableBarcode' || key === 'globalEnableBarcode') {
-      return (val === true || val === 1 || val === '1') ? 'true' : 'false';
-    }
+    const booleanValue = formatHistoryBoolean(val);
+    if (booleanValue !== null) return booleanValue;
     if (val === true || val === 1 || val === '1') return '1';
     if (val === false || val === 0 || val === '0') return '0';
     
@@ -922,7 +969,7 @@ const HistorySynthesis = ({ mayList = [], type = 'realtime' }) => {
                     >
                       {cols.map(field => (
                         <td key={field.key} style={{ padding: '6px 8px', fontSize: '10px', fontWeight: '600', textAlign: 'center', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
-                          {renderValue(row[field.key], field.key)}
+                          {renderValue(row[field.key])}
                         </td>
                       ))}
                     </tr>

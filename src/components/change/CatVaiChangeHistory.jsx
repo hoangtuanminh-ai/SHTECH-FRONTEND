@@ -6,6 +6,7 @@ import {
 } from '../../api/thanhhinhApi';
 import { toast } from 'react-toastify';
 import { exportTableToExcel } from '../../utils/exportExcelHelper';
+import { formatHistoryBoolean, isHighlightedChangeValue } from '../../utils/historyDisplay';
 
 // Số dòng mỗi trang của popup lịch sử thay đổi (trước đây là 1000).
 const PAGE_SIZE = 100;
@@ -225,8 +226,8 @@ const settingGroupsCV02_03 = [
   {
     title: "1. Kích thước & Góc cài đặt",
     fields: [
-      { key: "widthOfStrip", label: "Chiều rộng dải mảnh" },
       { key: "widthOfInputMaterial", label: "Chiều rộng vật liệu đầu vào" },
+      { key: "widthOfStrip", label: "Chiều rộng dải mảnh" },
       { key: "thicknessOfMaterial", label: "Độ dày vật liệu" },
       { key: "requiredAngle", label: "Góc yêu cầu" },
       { key: "cutAngle", label: "Góc cắt" },
@@ -554,6 +555,8 @@ const CatVaiChangeHistory = ({ equipmentId, onClose, initialType = 'recipe', isE
 
   const renderValue = (val, key) => {
     if (val === null || val === undefined || val === '') return '-';
+    const booleanValue = formatHistoryBoolean(val);
+    if (booleanValue !== null) return booleanValue;
     if (key.toLowerCase().includes('date') || key.toLowerCase().includes('time')) {
       const s = String(val).trim();
       let d;
@@ -576,7 +579,7 @@ const CatVaiChangeHistory = ({ equipmentId, onClose, initialType = 'recipe', isE
   // Logic kiểm tra tô màu cam nhạt cho các ô có giá trị khác 0
   const getCellStyle = (val, key) => {
     const isMeta = ['id', 'maMay', 'barcode', 'creatDate', 'ngayGio', 'ca', 'historyDate', 'nguoiDo', 'changeDate', 'creat_date', 'history_date', 'creatDate_change', 'tenThongSo'].includes(key);
-    if (!isMeta && val !== null && val !== undefined && val !== 0 && val !== '0' && val !== '' && val !== '-') {
+    if (!isMeta && isHighlightedChangeValue(val)) {
       return { 
         padding: '6px 8px', 
         fontSize: '10px', 
