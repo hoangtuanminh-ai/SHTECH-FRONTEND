@@ -6,7 +6,7 @@ import {
 } from '../../api/thanhhinhApi';
 import { toast } from 'react-toastify';
 import { exportTableToExcel } from '../../utils/exportExcelHelper';
-import { formatHistoryBoolean, isHighlightedChangeValue } from '../../utils/historyDisplay';
+import { formatHistoryBoolean, getHistoryTailColumns, isHighlightedChangeValue } from '../../utils/historyDisplay';
 
 // Số dòng mỗi trang của popup lịch sử thay đổi (trước đây là 1000).
 const PAGE_SIZE = 100;
@@ -441,7 +441,7 @@ const CatVaiChangeHistory = ({ equipmentId, onClose, initialType = 'recipe', isE
     }
 
     const matched = definedFields.filter(f => f.key in record);
-    return [...baseCols, ...matched];
+    return [...baseCols, ...matched, ...getHistoryTailColumns(record, 'changeDate')];
   };
 
   // Khởi tạo ngày giờ mặc định: Để trống để tự động lấy 100 kết quả mới nhất nếu không chọn lọc

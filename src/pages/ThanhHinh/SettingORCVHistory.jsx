@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import { getChartSettingORCVHistory } from '../../api/thanhhinhApi';
 import { toast } from 'react-toastify';
 import { exportTableToExcel } from '../../utils/exportExcelHelper';
-import { formatHistoryBoolean } from '../../utils/historyDisplay';
+import { formatHistoryBoolean, getHistoryTailColumns } from '../../utils/historyDisplay';
 
 // Số dòng mỗi trang của popup lịch sử.
 const PAGE_SIZE = 100;
@@ -202,16 +202,13 @@ const SettingORCVHistory = ({ equipmentId, onClose }) => {
 
     if ('ca' in record) baseCols.push({ key: 'ca', label: 'Ca' });
 
-    if ('historyDate' in record) baseCols.push({ key: 'historyDate', label: 'History Date' });
-    else if ('history_date' in record) baseCols.push({ key: 'history_date', label: 'History Date' });
-
     const displayFields = Object.keys(localizedLabels).map(key => ({
       key,
       label: localizedLabels[key]
     }));
 
     const matched = displayFields.filter(f => f.key in record);
-    return [...baseCols, ...matched];
+    return [...baseCols, ...matched, ...getHistoryTailColumns(record, 'historyDate')];
   };
 
   const columns = getColumns();

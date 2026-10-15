@@ -8,7 +8,7 @@ import {
 } from '../../api/thanhhinhApi';
 import { toast } from 'react-toastify';
 import { exportTableToExcel } from '../../utils/exportExcelHelper';
-import { formatHistoryBoolean, isHighlightedChangeValue } from '../../utils/historyDisplay';
+import { formatHistoryBoolean, getHistoryTailColumns, isHighlightedChangeValue } from '../../utils/historyDisplay';
 
 // Số dòng mỗi trang của popup lịch sử thay đổi (trước đây là 1000).
 const PAGE_SIZE = 100;
@@ -303,8 +303,8 @@ const settingTH09Fields = [
 
 // Định nghĩa danh sách trường Setting của TH05
 const settingTH05Fields = [
-  { key: 'tocDoCaBocGot', label: 'Tốc độ cà bọc gót' },
   { key: 'chonKhongchonCaBocGot', label: 'Chọn/ không chọn cà bọc gót' },
+  { key: 'tocDoCaBocGot', label: 'Tốc độ cà bọc gót' },
   { key: 'tocDoCaVaiThanGiaiDoan1', label: 'Tốc độ cà vải thân giai đoạn 1' },
   { key: 'tocDoCaVaiThanGiaiDoan2', label: 'Tốc độ cà vải thân giai đoạn 2' },
   { key: 'tocDoCaVaiThanGiaiDoan3', label: 'Tốc độ cà vải thân giai đoạn 3' },
@@ -454,7 +454,7 @@ const ThanhHinhChangeHistory = ({ equipmentId, onClose }) => {
     }
 
     const matched = definedFields.filter(f => f.key in record);
-    return [...baseCols, ...matched];
+    return [...baseCols, ...matched, ...getHistoryTailColumns(record, 'changeDate')];
   };
   const isTH09Group = getMachineNumber(equipmentId) >= 9;
 
@@ -528,19 +528,23 @@ const ThanhHinhChangeHistory = ({ equipmentId, onClose }) => {
       setPage(p);
 
       const allFields = getFieldsList();
+      const shiftFields = items[0] && 'ca' in items[0] ? [{ key: 'ca', label: 'Ca' }] : [];
       const baseFields = [
         { key: 'creatDate_change', label: 'Thời gian thay đổi' },
+        ...shiftFields,
         { key: 'tenThongSo', label: 'Tên thông số' },
         { key: 'giaTriCu', label: 'Giá trị cũ' },
         { key: 'giaTriMoi', label: 'Giá trị mới' }
       ];
 
       if (items.length > 0 && (items[0].tenThongSo !== undefined || items[0].giaTriMoi !== undefined)) {
-        setDynamicFields(baseFields);
+        setDynamicFields([...baseFields, ...getHistoryTailColumns(items[0], 'changeDate')]);
       } else {
         setDynamicFields([
           { key: 'creatDate', label: 'Thời gian' },
-          ...allFields
+          ...shiftFields,
+          ...allFields,
+          ...getHistoryTailColumns(items[0], 'changeDate')
         ]);
       }
 

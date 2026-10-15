@@ -11,7 +11,7 @@ import {
 } from '../../api/thanhhinhApi';
 import { toast } from 'react-toastify';
 import { exportTableToExcel } from '../../utils/exportExcelHelper';
-import { formatHistoryBoolean } from '../../utils/historyDisplay';
+import { formatHistoryBoolean, getHistoryTailColumns } from '../../utils/historyDisplay';
 
 // Danh sách trường dữ liệu Setting của máy cắt vải (ORCV / CV)
 const settingORCVFields = [
@@ -394,8 +394,8 @@ const realTimeTH05Fields = [
 ];
 
 const settingTH05Fields = [
-  { key: 'tocDoCaBocGot', label: 'Tốc độ cà bọc gót' },
   { key: 'chonKhongchonCaBocGot', label: 'Chọn/ không chọn cà bọc gót' },
+  { key: 'tocDoCaBocGot', label: 'Tốc độ cà bọc gót' },
   { key: 'tocDoCaVaiThanGiaiDoan1', label: 'Tốc độ cà vải thân giai đoạn 1' },
   { key: 'tocDoCaVaiThanGiaiDoan2', label: 'Tốc độ cà vải thân giai đoạn 2' },
   { key: 'tocDoCaVaiThanGiaiDoan3', label: 'Tốc độ cà vải thân giai đoạn 3' },
@@ -578,11 +578,10 @@ const HistorySynthesis = ({ mayList = [], type = 'realtime' }) => {
 
     if ('ca' in record) baseCols.push({ key: 'ca', label: 'Ca' });
 
-    if ('historyDate' in record) baseCols.push({ key: 'historyDate', label: 'History Date' });
-    else if ('history_date' in record) baseCols.push({ key: 'history_date', label: 'History Date' });
+    const tailCols = getHistoryTailColumns(record, 'historyDate');
 
     // Lấy các cột khớp trong definedFields
-    const matchedKeys = new Set(baseCols.map(c => c.key));
+    const matchedKeys = new Set([...baseCols, ...tailCols].map(c => c.key));
     const matched = definedFields.filter(f => {
       if (f.key in record) {
         matchedKeys.add(f.key);
@@ -600,7 +599,7 @@ const HistorySynthesis = ({ mayList = [], type = 'realtime' }) => {
       }
     });
 
-    return [...baseCols, ...matched, ...extraCols];
+    return [...baseCols, ...matched, ...extraCols, ...tailCols];
   };
 
   const formatDateTimeTo14Char = (dateTimeStr, isEnd = false) => {

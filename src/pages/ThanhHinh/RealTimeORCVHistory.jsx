@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import { getChartRealTimeORCVHistory } from '../../api/thanhhinhApi';
 import { toast } from 'react-toastify';
 import { exportTableToExcel } from '../../utils/exportExcelHelper';
-import { formatHistoryBoolean } from '../../utils/historyDisplay';
+import { formatHistoryBoolean, getHistoryTailColumns } from '../../utils/historyDisplay';
 
 // Khoảng thời gian mặc định của popup lịch sử thông số hoạt động: 24 GIỜ GẦN NHẤT
 // tính từ thời điểm mở popup. Trước đây để trống nên API trả về toàn bộ lịch sử,
@@ -177,9 +177,6 @@ const RealTimeORCVHistory = ({ equipmentId, onClose }) => {
 
     if ('ca' in record) baseCols.push({ key: 'ca', label: 'Ca' });
 
-    if ('historyDate' in record) baseCols.push({ key: 'historyDate', label: 'History Date' });
-    else if ('history_date' in record) baseCols.push({ key: 'history_date', label: 'History Date' });
-
     const fieldsCV01 = [
       { key: "cutAngle", label: "Góc cắt" },
       { key: "splicingAngle", label: "Góc nối" },
@@ -267,7 +264,7 @@ const RealTimeORCVHistory = ({ equipmentId, onClose }) => {
 
     const displayFields = isCV01 ? fieldsCV01 : fieldsCV02_03;
     const matched = displayFields.filter(f => f.key in record);
-    return [...baseCols, ...matched];
+    return [...baseCols, ...matched, ...getHistoryTailColumns(record, 'historyDate')];
   };
 
   const columns = getColumns();

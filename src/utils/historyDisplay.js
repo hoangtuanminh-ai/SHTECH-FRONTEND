@@ -11,3 +11,19 @@ export const isHighlightedChangeValue = (value) => {
   return !(typeof value === 'number' || (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))))
     || Number(value) !== 0;
 };
+
+export const getHistoryTailColumns = (record, dateField) => {
+  if (!record) return [];
+
+  const columns = [];
+  if ('checkBackup' in record) columns.push({ key: 'checkBackup', label: 'Check Backup' });
+
+  if (dateField === 'historyDate') {
+    if ('historyDate' in record) columns.push({ key: 'historyDate', label: 'History Date' });
+    else if ('history_date' in record) columns.push({ key: 'history_date', label: 'History Date' });
+  } else if (dateField === 'changeDate' && 'changeDate' in record) {
+    columns.push({ key: 'changeDate', label: 'Change Date' });
+  }
+
+  return columns;
+};

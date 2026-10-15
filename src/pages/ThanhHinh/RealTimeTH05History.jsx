@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import { getChartRealTimeTH05History } from '../../api/thanhhinhApi';
 import { toast } from 'react-toastify';
 import { exportTableToExcel } from '../../utils/exportExcelHelper';
-import { formatHistoryBoolean } from '../../utils/historyDisplay';
+import { formatHistoryBoolean, getHistoryTailColumns } from '../../utils/historyDisplay';
 
 // Số dòng mỗi trang của popup lịch sử. Trước đây để 1000 nên bảng rất nặng và
 // người dùng phải cuộn rất dài; 100 dòng vừa đủ để xem và thao tác phân trang.
@@ -57,10 +57,6 @@ const RealTimeTH05History = ({ equipmentId, onClose }) => {
     // Cột Ca ở cột thứ 2
     if ('ca' in record) baseCols.push({ key: 'ca', label: 'Ca' });
 
-    // Cột History Date ở cột thứ 3
-    if ('historyDate' in record) baseCols.push({ key: 'historyDate', label: 'History Date' });
-    else if ('history_date' in record) baseCols.push({ key: 'history_date', label: 'History Date' });
-
     // Danh sách các cột thông số thiết bị TH05 Việt hóa theo đúng yêu cầu
     const displayFields = [
       { key: 'prgmServoBDSVActualVelocity', label: 'Tốc độ trống hoãn xung (°/s)' },
@@ -77,7 +73,7 @@ const RealTimeTH05History = ({ equipmentId, onClose }) => {
     ];
 
     const matched = displayFields.filter(f => f.key in record);
-    return [...baseCols, ...matched];
+    return [...baseCols, ...matched, ...getHistoryTailColumns(record, 'historyDate')];
   };
 
   const formatDateTimeTo14Char = (dateTimeStr, isEnd = false) => {

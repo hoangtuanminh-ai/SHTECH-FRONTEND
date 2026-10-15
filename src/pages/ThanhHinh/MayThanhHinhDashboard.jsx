@@ -1177,8 +1177,8 @@ const realTimeTH05Fields = [
 ];
 
 const settingTH05Fields = [
-  { key: 'tocDoCaBocGot', label: 'Tốc độ cà bọc gót' },
   { key: 'chonKhongchonCaBocGot', label: 'Chọn/ không chọn cà bọc gót' },
+  { key: 'tocDoCaBocGot', label: 'Tốc độ cà bọc gót' },
   { key: 'tocDoCaVaiThanGiaiDoan1', label: 'Tốc độ cà vải thân giai đoạn 1' },
   { key: 'tocDoCaVaiThanGiaiDoan2', label: 'Tốc độ cà vải thân giai đoạn 2' },
   { key: 'tocDoCaVaiThanGiaiDoan3', label: 'Tốc độ cà vải thân giai đoạn 3' },

@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import { getChartSettingTH02History } from '../../api/thanhhinhApi';
 import { toast } from 'react-toastify';
 import { exportTableToExcel } from '../../utils/exportExcelHelper';
-import { formatHistoryBoolean } from '../../utils/historyDisplay';
+import { formatHistoryBoolean, getHistoryTailColumns } from '../../utils/historyDisplay';
 
 // Số dòng mỗi trang của popup lịch sử. Trước đây để 1000 nên bảng rất nặng và
 // người dùng phải cuộn rất dài; 100 dòng vừa đủ để xem và thao tác phân trang.
@@ -28,9 +28,6 @@ const SettingTH02History = ({ equipmentId, onClose }) => {
     else if ('ngayGio' in record) baseCols.push({ key: 'ngayGio', label: 'Ngày giờ' });
 
     if ('ca' in record) baseCols.push({ key: 'ca', label: 'Ca' });
-
-    if ('historyDate' in record) baseCols.push({ key: 'historyDate', label: 'History Date' });
-    else if ('history_date' in record) baseCols.push({ key: 'history_date', label: 'History Date' });
 
     const displayFields = [
       { key: 'chonKhongchonCaBocGot', label: 'Chọn/ không chọn cà bọc gót' },
@@ -123,7 +120,7 @@ const SettingTH02History = ({ equipmentId, onClose }) => {
     ];
 
     const matched = displayFields.filter(f => f.key in record);
-    return [...baseCols, ...matched];
+    return [...baseCols, ...matched, ...getHistoryTailColumns(record, 'historyDate')];
   };
 
   const formatDateTimeTo14Char = (dateTimeStr, isEnd = false) => {
